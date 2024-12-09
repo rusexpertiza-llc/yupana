@@ -1,4 +1,4 @@
-package org.yupana.core
+package org.yupana.core.jit
 
 import com.twitter.algebird.HyperLogLogAggregator
 import org.scalatest.GivenWhenThen
@@ -8,12 +8,12 @@ import org.threeten.extra.PeriodDuration
 import org.yupana.api.Time
 import org.yupana.api.query.{ ConcatExpr, LengthExpr, NullExpr, Query }
 import org.yupana.api.types.DataType
-import org.yupana.core.jit.JIT
 import org.yupana.core.model.{ BatchDataset, HashTableDataset }
 import org.yupana.core.utils.metric.NoMetricCollector
+import org.yupana.core.{ QueryContext, TestDims, TestSchema, TestTableFields }
 
 import java.time.temporal.{ ChronoUnit, TemporalAdjusters }
-import java.time.{ Duration, OffsetDateTime, Period, ZoneOffset }
+import java.time.{ Duration, LocalDateTime, OffsetDateTime, Period, ZoneOffset }
 
 class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenThen {
   import org.yupana.api.query.syntax.All._
@@ -35,7 +35,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       cond
     )
 
-    val qc = new QueryContext(query, Time(System.currentTimeMillis()), Some(cond), tokenizer, JIT, NoMetricCollector)
+    val qc = new QueryContext(query, Some(cond), tokenizer, JIT, NoMetricCollector)
     val calc = qc.calculator
 
     val batch = BatchDataset(qc)
@@ -48,7 +48,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     batch.set(1, dimension(TestDims.DIM_A), "value")
     batch.set(1, dimension(TestDims.DIM_B), 42.toShort)
 
-    calc.evaluateFilter(batch)
+    calc.evaluateFilter(batch, Time(LocalDateTime.now()), IndexedSeq.empty)
 
     batch.isDeleted(0) shouldEqual true
     batch.isDeleted(1) shouldEqual false
@@ -70,7 +70,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       )
     )
 
-    val qc = new QueryContext(query, Time(now), None, tokenizer, JIT, NoMetricCollector)
+    val qc = new QueryContext(query, None, tokenizer, JIT, NoMetricCollector)
     val calc = qc.calculator
 
     val batch = BatchDataset(qc)
@@ -82,7 +82,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     batch.set(1, Time(now.minusDays(1)))
     batch.set(1, metric(TestTableFields.TEST_FIELD), 3d)
 
-    calc.evaluateExpressions(batch)
+    calc.evaluateExpressions(batch, Time(now), IndexedSeq.empty)
     batch.get(0, divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2))) shouldEqual 2d
     batch.get(0, truncMonth(time)) shouldEqual Time(
       now
@@ -125,7 +125,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       Seq(truncDay(time))
     )
 
-    val qc = new QueryContext(query, Time(now), None, tokenizer, JIT, NoMetricCollector)
+    val qc = new QueryContext(query, None, tokenizer, JIT, NoMetricCollector)
     val calc = qc.calculator
 
     When("incoming dataset contains only one row")
@@ -137,8 +137,8 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     batch1.set(0, metric(TestTableFields.TEST_FIELD), 10d)
     batch1.set(0, metric(TestTableFields.TEST_FIELD2), 5d)
 
-    calc.evaluateExpressions(batch1)
-    calc.evaluateFold(acc1, batch1)
+    calc.evaluateExpressions(batch1, Time(now), IndexedSeq.empty)
+    calc.evaluateFold(acc1, batch1, Time(now), IndexedSeq.empty)
 
     Then("fields filled with initial values (row or zero value depending on aggregate function)")
 
@@ -185,8 +185,8 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     batch2.set(2, metric(TestTableFields.TEST_STRING_FIELD), "bar")
 
     And("fold called")
-    calc.evaluateExpressions(batch2)
-    calc.evaluateFold(acc2, batch2)
+    calc.evaluateExpressions(batch2, Time(now), IndexedSeq.empty)
+    calc.evaluateFold(acc2, batch2, Time(now), IndexedSeq.empty)
 
     Then("fields filled with aggregated values")
     val expectedTime2 = Time(now.toInstant.atOffset(ZoneOffset.UTC).minusDays(1).truncatedTo(ChronoUnit.DAYS))
@@ -322,14 +322,14 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       )
     )
 
-    val qc = new QueryContext(query, Time(now), None, tokenizer, JIT, NoMetricCollector)
+    val qc = new QueryContext(query, None, tokenizer, JIT, NoMetricCollector)
     val calc = qc.calculator
     val batch = BatchDataset(qc)
 
     batch.set(0, Time(now.minusDays(2)))
     batch.set(0, dimension(TestDims.DIM_A), "Вкусная водичка №7")
 
-    calc.evaluateExpressions(batch)
+    calc.evaluateExpressions(batch, Time(now), IndexedSeq.empty)
 
     batch.get(0, LengthExpr(dimension(TestDims.DIM_A))) shouldEqual 18
     batch.get(0, split(dimension(TestDims.DIM_A))) should contain theSameElementsInOrderAs List(
@@ -363,7 +363,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       )
     )
 
-    val qc = new QueryContext(query, Time(now), None, tokenizer, JIT, NoMetricCollector)
+    val qc = new QueryContext(query, None, tokenizer, JIT, NoMetricCollector)
     val calc = qc.calculator
 
     val batch = BatchDataset(qc)
@@ -371,7 +371,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     batch.set(0, Time(now.minusDays(2)))
     batch.set(0, dimension(TestDims.DIM_A), "Вкусная водичка №7")
 
-    calc.evaluateExpressions(batch)
+    calc.evaluateExpressions(batch, Time(now), IndexedSeq.empty)
 
     batch.get(0, arrayLength(tokens(dimension(TestDims.DIM_A)))) shouldEqual 3
     batch.get(0, contains(tokens(dimension(TestDims.DIM_A)), const("vodichk"))) shouldEqual true
@@ -418,13 +418,13 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       )
     )
 
-    val qc = new QueryContext(query, Time(System.currentTimeMillis()), None, tokenizer, JIT, NoMetricCollector)
+    val qc = new QueryContext(query, None, tokenizer, JIT, NoMetricCollector)
     val calc = qc.calculator
 
     val batch = BatchDataset(qc)
     batch.set(0, Time(pointTime))
 
-    calc.evaluateExpressions(batch)
+    calc.evaluateExpressions(batch, Time(LocalDateTime.now()), IndexedSeq.empty)
 
     batch.get(0, truncYear(time)) shouldEqual Time(OffsetDateTime.of(2021, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC))
     batch.get(0, truncQuarter(time)) shouldEqual Time(OffsetDateTime.of(2021, 10, 1, 0, 0, 0, 0, ZoneOffset.UTC))
@@ -466,7 +466,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       )
     )
 
-    val qc = new QueryContext(query, Time(now), None, tokenizer, JIT, NoMetricCollector)
+    val qc = new QueryContext(query, None, tokenizer, JIT, NoMetricCollector)
     val calc = qc.calculator
 
     val batch = BatchDataset(qc)
@@ -474,7 +474,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     batch.set(0, dimension(TestDims.DIM_A), "a value")
     batch.set(0, metric(TestTableFields.TEST_FIELD), 42d)
 
-    calc.evaluateExpressions(batch)
+    calc.evaluateExpressions(batch, Time(now), IndexedSeq.empty)
 
     batch.get(0, tuple(dimension(TestDims.DIM_A), minus(metric(TestTableFields.TEST_FIELD)))) shouldEqual (
       (
@@ -500,7 +500,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       Some(lt(min(time), const(Time(now.minusMonths(1)))))
     )
 
-    val qc = new QueryContext(query, Time(now), None, tokenizer, JIT, NoMetricCollector)
+    val qc = new QueryContext(query, None, tokenizer, JIT, NoMetricCollector)
     val calc = qc.calculator
 
     val batch = BatchDataset(qc)
@@ -516,13 +516,13 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     batch.set(2, Time(now.minusDays(35)))
     batch.set(2, dimension(TestDims.DIM_A), "BBB")
 
-    calc.evaluateExpressions(batch)
-    calc.evaluateFold(acc, batch)
+    calc.evaluateExpressions(batch, Time(now), IndexedSeq.empty)
+    calc.evaluateFold(acc, batch, Time(now), IndexedSeq.empty)
 
     val batch2 = acc.iterator.next()
     calc.evaluatePostCombine(batch2)
     calc.evaluatePostAggregateExprs(batch2)
-    calc.evaluatePostFilter(batch2)
+    calc.evaluatePostFilter(batch2, Time(now), IndexedSeq.empty)
 
     batch2.get(0, dimension(TestDims.DIM_A)) shouldEqual "AAA"
     batch2.get(0, min(time)) shouldEqual Time(now.minusDays(32))
@@ -553,7 +553,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       Some(lt(min(time), const(Time(now.minusMonths(1)))))
     )
 
-    val qc = new QueryContext(query, Time(now), None, tokenizer, JIT, NoMetricCollector)
+    val qc = new QueryContext(query, None, tokenizer, JIT, NoMetricCollector)
     val calc = qc.calculator
 
     val batch = BatchDataset(qc)
@@ -585,7 +585,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       )
     )
 
-    val qc = new QueryContext(query, Time(now), Some(cond), tokenizer, JIT, NoMetricCollector)
+    val qc = new QueryContext(query, Some(cond), tokenizer, JIT, NoMetricCollector)
     val calc = qc.calculator
 
     val batch = BatchDataset(qc)
@@ -593,7 +593,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     batch.set(0, Time(now.minusDays(1)))
     batch.set(0, metric(TestTableFields.TEST_FIELD2), 42d)
 
-    calc.evaluateFilter(batch)
+    calc.evaluateFilter(batch, Time(now), IndexedSeq.empty)
     batch.isDeleted(0) shouldEqual true
   }
 
@@ -610,7 +610,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       )
     )
 
-    val qc = new QueryContext(query, Time(now), Some(cond), tokenizer, JIT, NoMetricCollector)
+    val qc = new QueryContext(query, Some(cond), tokenizer, JIT, NoMetricCollector)
     val calc = qc.calculator
 
     val batch = BatchDataset(qc)
@@ -618,7 +618,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     batch.set(0, metric(TestTableFields.TEST_FIELD), 42d)
     batch.set(0, metric(TestTableFields.TEST_LONG_FIELD), 2234512L)
 
-    calc.evaluateFilter(batch)
+    calc.evaluateFilter(batch, Time(now), IndexedSeq.empty)
     batch.isDeleted(0) shouldBe true
   }
 
@@ -638,7 +638,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       Seq(x as "x")
     )
 
-    val qc = new QueryContext(query, Time(now), None, tokenizer, JIT, NoMetricCollector)
+    val qc = new QueryContext(query, None, tokenizer, JIT, NoMetricCollector)
     val calc = qc.calculator
 
     val batch = BatchDataset(qc)
@@ -646,7 +646,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     batch.set(0, Time(now.minusHours(5)))
     batch.set(0, metric(TestTableFields.TEST_LONG_FIELD), 0L)
     batch.set(0, dimension(TestDims.DIM_Y), 3L)
-    calc.evaluateExpressions(batch)
+    calc.evaluateExpressions(batch, Time(now), IndexedSeq.empty)
 
     batch.get(0, x) shouldEqual -1L
   }
@@ -667,7 +667,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       Seq(x as "x")
     )
 
-    val qc = new QueryContext(query, Time(now), None, tokenizer, JIT, NoMetricCollector)
+    val qc = new QueryContext(query, None, tokenizer, JIT, NoMetricCollector)
     val calc = qc.calculator
 
     val batch = BatchDataset(qc)
@@ -681,8 +681,8 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     batch.set(1, dimension(TestDims.DIM_Y), 2L)
 
     val acc = HashTableDataset(qc)
-    calc.evaluateExpressions(batch)
-    calc.evaluateFold(acc, batch)
+    calc.evaluateExpressions(batch, Time(now), IndexedSeq.empty)
+    calc.evaluateFold(acc, batch, Time(now), IndexedSeq.empty)
     val batch2 = acc.iterator.next()
     calc.evaluatePostCombine(batch2)
 
@@ -709,7 +709,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       Seq(x as "x", y as "y", z as "z")
     )
 
-    val qc = new QueryContext(query, Time(now), None, tokenizer, JIT, NoMetricCollector)
+    val qc = new QueryContext(query, None, tokenizer, JIT, NoMetricCollector)
 
     val batch = BatchDataset(qc)
 
@@ -719,7 +719,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     batch.set(0, dimension(TestDims.DIM_B), 7.toShort)
     batch.set(0, metric(TestTableFields.TEST_LONG_FIELD), 3L)
 
-    qc.calculator.evaluateExpressions(batch)
+    qc.calculator.evaluateExpressions(batch, Time(now), IndexedSeq.empty)
 
     batch.get(0, x) shouldEqual 11d
     batch.get(0, y) shouldEqual 10L
@@ -738,7 +738,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     )
 
     val query = Query(TestSchema.testTable, const(Time(now.minusDays(5))), const(Time(now.minusDays(2))), Seq(a as "a"))
-    val qc = new QueryContext(query, Time(now), None, tokenizer, JIT, NoMetricCollector)
+    val qc = new QueryContext(query, None, tokenizer, JIT, NoMetricCollector)
 
     val batch = BatchDataset(qc)
 
@@ -749,10 +749,10 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     batch.set(1, Time(now.minusDays(3)))
     batch.set(1, metric(TestTableFields.TEST_FIELD), 1d)
 
-    qc.calculator.evaluateExpressions(batch)
+    qc.calculator.evaluateExpressions(batch, Time(now), IndexedSeq.empty)
 
     val acc = HashTableDataset(qc)
-    qc.calculator.evaluateFold(acc, batch)
+    qc.calculator.evaluateFold(acc, batch, Time(now), IndexedSeq.empty)
 
     val batch2 = acc.iterator.next()
     qc.calculator.evaluatePostCombine(batch2)
@@ -772,7 +772,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     )
 
     val query = Query(TestSchema.testTable, const(Time(now.minusDays(5))), const(Time(now.minusDays(2))), Seq(a as "a"))
-    val qc = new QueryContext(query, Time(now), None, tokenizer, JIT, NoMetricCollector)
+    val qc = new QueryContext(query, None, tokenizer, JIT, NoMetricCollector)
 
     val batch = BatchDataset(qc)
 
@@ -784,10 +784,10 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     batch.set(1, dimension(TestDims.DIM_B), 5.toShort)
     batch.set(1, metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(2))
 
-    qc.calculator.evaluateExpressions(batch)
+    qc.calculator.evaluateExpressions(batch, Time(now), IndexedSeq.empty)
     val acc = HashTableDataset(qc)
 
-    qc.calculator.evaluateFold(acc, batch)
+    qc.calculator.evaluateFold(acc, batch, Time(now), IndexedSeq.empty)
     val batch2 = acc.iterator.next()
 
     qc.calculator.evaluatePostCombine(batch2)

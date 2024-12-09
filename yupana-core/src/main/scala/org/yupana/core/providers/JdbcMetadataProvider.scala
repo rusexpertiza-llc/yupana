@@ -82,7 +82,7 @@ class JdbcMetadataProvider(
 
   def describeTable(tableName: String): Either[String, Result] =
     schema.getTable(tableName) map { table =>
-      val rollup = schema.rollups.find(_.toTable == table).collect { case t: TsdbRollup => t }
+      val rollup = schema.rollups.find(_.toTables.exists(_.name == tableName)).collect { case t: TsdbRollup => t }
 
       val metricColumns = table.metrics.map { f =>
         val desc = rollup.flatMap(r => rollupMetricDesc(r, f))
@@ -189,7 +189,7 @@ class JdbcMetadataProvider(
   }
 
   private def rollupDesc(tableName: String): Option[String] = {
-    schema.rollups.find(_.toTable.name == tableName).map {
+    schema.rollups.find(_.toTables.exists(_.name == tableName)).map {
       case TsdbRollup(_, _, from, _, filter, _, groupBy) =>
         val where = filter.map(flt => s" WHERE $flt").getOrElse("")
         s"Rollup from $from$where GROUP BY ${groupBy.mkString(", ")}"

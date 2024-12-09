@@ -42,7 +42,6 @@ case class Query(
     groupBy: Seq[Expression[_]] = Seq.empty,
     limit: Option[Int] = None,
     postFilter: Option[Condition] = None,
-    params: IndexedSeq[Any] = IndexedSeq.empty,
     hints: Seq[QueryHint] = Seq.empty
 ) {
 
@@ -81,10 +80,6 @@ case class Query(
       builder.append(s"""  POSTFILTER:
            |    $pf
            |""".stripMargin)
-    }
-
-    if (params.nonEmpty) {
-      builder.append(s"""  PARAMS: ${params.zipWithIndex.map { case (p, i) => s"#$i = $p" }.mkString(", ")}\n""")
     }
 
     builder.append(")")

@@ -8,7 +8,6 @@ import org.yupana.api.query.syntax.All.{ and, const, dimension, ge, lt, metric, 
 import org.yupana.core.utils.metric.NoMetricCollector
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.yupana.core.auth.YupanaUser
 import org.yupana.core.jit.JIT
 import org.yupana.utils.RussianTokenizer
 
@@ -41,7 +40,7 @@ class TsdHBaseRowIteratorTest extends AnyFlatSpec with Matchers {
     Seq.empty
   )
 
-  val queryContext = new QueryContext(query, now, None, RussianTokenizer, JIT, NoMetricCollector)
+  val queryContext = new QueryContext(query, None, RussianTokenizer, JIT, NoMetricCollector)
 
   val datasetSchema = queryContext.datasetSchema
 
@@ -50,8 +49,6 @@ class TsdHBaseRowIteratorTest extends AnyFlatSpec with Matchers {
       TestSchema.testTable,
       exprs.map(_.expr).toSet,
       and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-      YupanaUser.ANONYMOUS,
-      Time(100000L),
       IndexedSeq.empty
     )
   val internalQueryContext = InternalQueryContext(internalQuery, NoMetricCollector)

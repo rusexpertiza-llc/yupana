@@ -1,6 +1,6 @@
 package org.yupana.core.sql
 
-import org.scalatest.{ Inside, OptionValues }
+import org.scalatest.{ EitherValues, Inside, OptionValues }
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.MetricValue
@@ -14,7 +14,7 @@ import org.yupana.api.types.{ DataType, SimpleStringReaderWriter, StringReaderWr
 
 import java.time.{ LocalDateTime, OffsetDateTime, Period, ZoneOffset }
 
-class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with OptionValues {
+class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with OptionValues with EitherValues {
 
   import org.yupana.api.query.syntax.All._
 
@@ -441,16 +441,7 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
     val from = OffsetDateTime.of(2017, 9, 1, 0, 0, 0, 0, ZoneOffset.UTC)
     val to = OffsetDateTime.of(2017, 9, 15, 0, 0, 0, 0, ZoneOffset.UTC)
 
-    inside(
-      createQuery(
-        statement,
-        Map(
-          1 -> TypedParameter(Time(from)),
-          2 -> TypedParameter(Time(to)),
-          3 -> TypedParameter("123456789")
-        )
-      )
-    ) {
+    inside(createQuery(statement)) {
       case Right(q) =>
         q.table.value.name shouldEqual "test_table"
         q.filter.value shouldBe and(
@@ -464,7 +455,16 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
           truncMonth(time) as "m",
           dimension(DIM_B) as "b"
         )
-        q.params should contain theSameElementsInOrderAs List(Time(from), Time(to), "123456789")
+        sqlQueryProcessor
+          .bindParameters(
+            q,
+            Map(
+              1 -> TypedParameter(Time(from)),
+              2 -> TypedParameter(Time(to)),
+              3 -> TypedParameter("123456789")
+            )
+          )
+          .value should contain theSameElementsInOrderAs List(Time(from), Time(to), "123456789")
       case Left(msg) => fail(msg)
     }
   }
@@ -479,16 +479,7 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
     val from = "2024-03-27T15:49:44"
     val to = "2024-03-27T23:57:32"
 
-    inside(
-      createQuery(
-        statement,
-        Map(
-          1 -> UntypedParameter(from),
-          2 -> UntypedParameter(to),
-          3 -> TypedParameter("123456789")
-        )
-      )
-    ) {
+    inside(createQuery(statement)) {
       case Right(q) =>
         q.table.value.name shouldEqual "test_table"
         q.filter.value shouldBe and(
@@ -496,7 +487,16 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
           lt(time, PlaceholderExpr(2, DataType[Time])),
           equ(lower(dimension(DIM_A)), PlaceholderExpr(3, DataType[String]))
         )
-        q.params should contain theSameElementsInOrderAs List(
+        sqlQueryProcessor
+          .bindParameters(
+            q,
+            Map(
+              1 -> UntypedParameter(from),
+              2 -> UntypedParameter(to),
+              3 -> TypedParameter("123456789")
+            )
+          )
+          .value should contain theSameElementsInOrderAs List(
           Time(LocalDateTime.of(2024, 3, 27, 15, 49, 44)),
           Time(LocalDateTime.of(2024, 3, 27, 23, 57, 32)),
           "123456789"
@@ -540,18 +540,18 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
         |   WHERE time >= TIMESTAMP '2018-1-1' AND time < ?
       """.stripMargin
 
-    inside(
-      createQuery(statement).flatMap(q =>
-        sqlQueryProcessor.bindParameters(
-          q,
-          Map(
-            1 -> TypedParameter("Test me"),
-            2 -> TypedParameter(Time(OffsetDateTime.of(2018, 1, 23, 16, 44, 20, 0, ZoneOffset.UTC)))
-          )
+    inside(for {
+
+      q <- createQuery(statement)
+      p <- sqlQueryProcessor.bindParameters(
+        q,
+        Map(
+          1 -> TypedParameter("Test me"),
+          2 -> TypedParameter(Time(OffsetDateTime.of(2018, 1, 23, 16, 44, 20, 0, ZoneOffset.UTC)))
         )
       )
-    ) {
-      case Right(q) =>
+    } yield (q, p)) {
+      case Right((q, _)) =>
         q.table.value.name shouldEqual "test_table"
         q.filter.value shouldBe and(
           ge(time, ConstantExpr(Time(OffsetDateTime.of(2018, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC)))),
@@ -1458,9 +1458,9 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
     }
   }
 
-  private def createQuery(sql: String, params: Map[Int, Parameter] = Map.empty): Either[String, Query] = {
+  private def createQuery(sql: String): Either[String, Query] = {
     SqlParser.parse(sql) flatMap {
-      case s: parser.Select => sqlQueryProcessor.createQuery(s).flatMap(sqlQueryProcessor.bindParameters(_, params))
+      case s: parser.Select => sqlQueryProcessor.createQuery(s)
       case x                => Left(s"Select expected but got $x")
     }
   }

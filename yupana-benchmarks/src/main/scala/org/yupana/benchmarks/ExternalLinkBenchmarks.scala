@@ -105,8 +105,7 @@ class ExternalLinkBenchmarkState {
       )
     )
   )
-  val now = Time(OffsetDateTime.now())
-  val queryContext: QueryContext = new QueryContext(query, now, None, RussianTokenizer, JIT, NoMetricCollector)
+  val queryContext: QueryContext = new QueryContext(query, None, RussianTokenizer, JIT, NoMetricCollector)
 
   var externalLink: ExternalLink.Aux[Int] = BenchLink
   var batch: BatchDataset = {

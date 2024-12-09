@@ -71,12 +71,12 @@ class TSDaoHBase(
 
   override def putDataset(
       mr: MapReducible[Iterator],
-      table: Table,
+      tables: Seq[Table],
       dataset: Iterator[BatchDataset],
       username: String
   ): Iterator[UpdateInterval] = {
     mr.flatMap(dataset) { batch =>
-      doPutBatchDataset(connection, dictionaryProvider, namespace, username, batch, table)
+      tables.flatMap(table => doPutBatchDataset(connection, dictionaryProvider, namespace, username, batch, table))
     }
   }
 }

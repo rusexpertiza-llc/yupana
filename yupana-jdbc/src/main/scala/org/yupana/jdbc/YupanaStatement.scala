@@ -81,7 +81,7 @@ class YupanaStatement(val connection: YupanaConnection) extends Statement {
 
   @throws[SQLException]
   override def setQueryTimeout(i: Int): Unit =
-    throw new SQLFeatureNotSupportedException("Method not supported: setQueryTimeout(int)")
+    if (i != 0) throw new SQLFeatureNotSupportedException("Timeout limit is not supported")
 
   @throws[SQLException]
   override def cancel(): Unit = {

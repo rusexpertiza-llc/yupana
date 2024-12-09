@@ -24,7 +24,7 @@ import org.yupana.utils.RussianTokenizer
 
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
-import java.time.{ Duration, OffsetDateTime, LocalDateTime, ZoneOffset }
+import java.time.{ Duration, LocalDateTime, OffsetDateTime, ZoneOffset }
 import java.util.Properties
 
 class TsdbTest
@@ -52,6 +52,8 @@ class TsdbTest
   import org.yupana.api.query.syntax.All._
 
   "TSDB" should "put datapoint to database" in {
+
+    val writer = YupanaUser("famous writer", None, TsdbRole.ReadWrite)
 
     val tsdbDaoMock = mock[TSTestDao]
     val changelogDaoMock = mock[ChangelogDao]
@@ -83,7 +85,7 @@ class TsdbTest
 
     (tsdbDaoMock.put _)
       .expects(where { (_, dps, user) =>
-        dps.toSeq == Seq(dp1, dp2, dp3) && user == YupanaUser.ANONYMOUS.name
+        dps.toSeq == Seq(dp1, dp2, dp3) && user == writer.name
       })
       .returning(Iterator(interval1, interval2, interval1))
 
@@ -95,7 +97,7 @@ class TsdbTest
     (externalLinkServiceMock.put(_: Seq[DataPoint])).expects(Seq(dp1, dp2))
     (externalLinkServiceMock.put(_: Seq[DataPoint])).expects(Seq(dp3))
 
-    tsdb.put(Iterator(dp1, dp2, dp3))
+    tsdb.put(Iterator(dp1, dp2, dp3), writer)
   }
 
   it should "not allow put if disabled" in {
@@ -159,8 +161,6 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           ),
-          YupanaUser.ANONYMOUS,
-          startTime,
           IndexedSeq.empty
         ),
         *,
@@ -207,8 +207,7 @@ class TsdbTest
           ge(time, param[Time](2)),
           lt(time, param[Time](3))
         )
-      ),
-      params = params
+      )
     )
 
     val pointTime = qtime.toInstant.toEpochMilli + 10
@@ -224,13 +223,10 @@ class TsdbTest
             dimension(TestDims.DIM_B)
           ),
           and(
-            equ(dimension(TestDims.DIM_A), param[String](1)),
-            ge(time, param[Time](2)),
-            lt(time, param[Time](3))
-          ),
-          YupanaUser.ANONYMOUS,
-          startTime,
-          params
+            equ(dimension(TestDims.DIM_A), const("test1")),
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to)))
+          )
         ),
         *,
         *,
@@ -245,7 +241,7 @@ class TsdbTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query, startTime)
+    val res = tsdb.query(query, startTime, params)
     res.next() shouldBe true
 
     res.get[Time]("time_time") shouldBe Time(pointTime)
@@ -282,24 +278,22 @@ class TsdbTest
         dimension(TestDims.DIM_A),
         dimension(TestDims.DIM_B),
         link(TestLinks.TEST_LINK, "testField")
-      ),
-      params = params
+      )
     )
 
     (() => testCatalogServiceMock.externalLink).expects().returning(TestLinks.TEST_LINK).anyNumberOfTimes()
 
-    val c = equ(link(TestLinks.TEST_LINK, "testField"), param[String](2))
+    val c = equ(link(TestLinks.TEST_LINK, "testField"), const[String](params(1).asInstanceOf[String]))
 
     (testCatalogServiceMock.transformCondition _)
       .expects(
         new FlatAndCondition(
           from.millis,
           now.millis + 1,
-          Seq(c),
-          YupanaUser.ANONYMOUS,
-          now,
-          params
-        )
+          Seq(c)
+        ),
+        now,
+        YupanaUser.ANONYMOUS
       )
       .returning(
         ConditionTransformation.replace(
@@ -330,9 +324,7 @@ class TsdbTest
             le(time, const(now)),
             in(dimension(TestDims.DIM_A), Set("X", "Y"))
           ),
-          YupanaUser.ANONYMOUS,
-          now,
-          params
+          Seq.empty
         ),
         *,
         *,
@@ -347,7 +339,7 @@ class TsdbTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query, now)
+    val res = tsdb.query(query, now, params)
     res.next() shouldBe true
     res.get[Time]("day") shouldBe Time(LocalDateTime.of(2024, 5, 3, 0, 0, 0))
     res.get[Double]("sum_testField") shouldBe 3d
@@ -372,8 +364,7 @@ class TsdbTest
           lt(time, NowExpr)
         )
       ),
-      Seq(truncDay(time)),
-      params = IndexedSeq(2d)
+      Seq(truncDay(time))
     )
 
     (tsdbDaoMock.query _)
@@ -388,8 +379,6 @@ class TsdbTest
             ge(time, const(Time(now.minusDays(1)))),
             lt(time, const(Time(now)))
           ),
-          YupanaUser.ANONYMOUS,
-          Time(now),
           IndexedSeq.empty
         ),
         *,
@@ -403,7 +392,7 @@ class TsdbTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query, Time(now))
+    val res = tsdb.query(query, Time(now), IndexedSeq(2d))
     res.next() shouldBe true
     res.get[Time]("day") shouldBe Time(LocalDateTime.of(2024, 5, 22, 0, 0, 0))
     res.get[Double]("x") shouldBe 5d
@@ -447,8 +436,6 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           ),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -503,8 +490,6 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           ),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -562,8 +547,6 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           ),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -627,8 +610,6 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           ),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -702,8 +683,6 @@ class TsdbTest
             lt(time, const(Time(to))),
             neq(dimension(TestDims.DIM_A), const("test11"))
           ),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -764,8 +743,6 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           ),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -789,6 +766,28 @@ class TsdbTest
     res.get[Double]("sum_testField") shouldBe 1d
     res.get[String]("A") shouldBe "test1"
     res.get[Short]("B") shouldBe 2
+  }
+
+  it should "return empty result if filter is false" in withTsdbMock { (tsdb, _) =>
+    val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+
+    val query = Query(
+      TestSchema.testTable,
+      const(Time(qtime)),
+      const(Time(qtime.plusDays(1))),
+      Seq(
+        time as "time_time",
+        sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
+        dimension(TestDims.DIM_A) as "A",
+        dimension(TestDims.DIM_B) as "B"
+      ),
+      Some(FalseExpr),
+      Seq(time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B))
+    )
+
+    val res = tsdb.query(query)
+    res.next() shouldBe false
+    res.isLast() shouldBe true
   }
 
   it should "execute query with downsampling" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -828,8 +827,6 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           ),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -890,8 +887,6 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           ),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -976,8 +971,6 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           ),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -1051,8 +1044,6 @@ class TsdbTest
           TestSchema.testTable,
           Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD)),
           and(ge(time, const(Time(qtime))), lt(time, const(Time(qtime.plusDays(1))))),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -1099,8 +1090,6 @@ class TsdbTest
           TestSchema.testTable,
           Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD)),
           and(ge(time, const(Time(qtime))), lt(time, const(Time(qtime.plusDays(1))))),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -1178,8 +1167,6 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           ),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -1248,11 +1235,10 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             c
-          ),
-          YupanaUser.ANONYMOUS,
-          now,
-          IndexedSeq.empty
-        )
+          )
+        ),
+        now,
+        YupanaUser.ANONYMOUS
       )
       .returning(
         ConditionTransformation.replace(
@@ -1291,8 +1277,6 @@ class TsdbTest
             lt(time, const(Time(to))),
             in(dimension(TestDims.DIM_A), Set("test1", "test12"))
           ),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -1381,11 +1365,10 @@ class TsdbTest
               ge(time, const(Time(from))),
               lt(time, const(Time(to))),
               c
-            ),
-            YupanaUser.ANONYMOUS,
-            now,
-            IndexedSeq.empty
-          )
+            )
+          ),
+          now,
+          YupanaUser.ANONYMOUS
         )
         .returning(
           ConditionTransformation.replace(
@@ -1409,8 +1392,6 @@ class TsdbTest
               lt(time, const(Time(to))),
               in(dimension(TestDims.DIM_A), Set())
             ),
-            YupanaUser.ANONYMOUS,
-            now,
             IndexedSeq.empty
           ),
           *,
@@ -1460,11 +1441,10 @@ class TsdbTest
               ge(time, const(Time(from))),
               lt(time, const(Time(to))),
               c
-            ),
-            YupanaUser.ANONYMOUS,
-            now,
-            IndexedSeq.empty
-          )
+            )
+          ),
+          now,
+          YupanaUser.ANONYMOUS
         )
         .returning(
           ConditionTransformation.replace(
@@ -1488,8 +1468,6 @@ class TsdbTest
               lt(time, const(Time(to))),
               DimIdInExpr(TestDims.DIM_A, SortedSetIterator.empty[(Int, Long)])
             ),
-            YupanaUser.ANONYMOUS,
-            now,
             IndexedSeq.empty
           ),
           *,
@@ -1544,11 +1522,10 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             c
-          ),
-          YupanaUser.ANONYMOUS,
-          now,
-          IndexedSeq.empty
-        )
+          )
+        ),
+        now,
+        YupanaUser.ANONYMOUS
       )
       .returning(
         ConditionTransformation.replace(
@@ -1585,8 +1562,6 @@ class TsdbTest
             lt(time, const(Time(to))),
             notIn(dimension(TestDims.DIM_A), Set("test11", "test12"))
           ),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -1657,11 +1632,10 @@ class TsdbTest
               ge(time, const(Time(from))),
               lt(time, const(Time(to))),
               c
-            ),
-            YupanaUser.ANONYMOUS,
-            now,
-            IndexedSeq.empty
-          )
+            )
+          ),
+          now,
+          YupanaUser.ANONYMOUS
         )
         .returning(
           ConditionTransformation.replace(
@@ -1698,8 +1672,6 @@ class TsdbTest
               lt(time, const(Time(to))),
               DimIdNotInExpr(TestDims.DIM_A, SortedSetIterator((1, 1L), (2, 2L)))
             ),
-            YupanaUser.ANONYMOUS,
-            now,
             IndexedSeq.empty
           ),
           *,
@@ -1782,11 +1754,10 @@ class TsdbTest
               lt(time, const(Time(to))),
               c,
               c2
-            ),
-            YupanaUser.ANONYMOUS,
-            now,
-            IndexedSeq.empty
-          )
+            )
+          ),
+          now,
+          YupanaUser.ANONYMOUS
         )
         .returning(
           ConditionTransformation.replace(
@@ -1806,11 +1777,10 @@ class TsdbTest
               lt(time, const(Time(to))),
               c3,
               c4
-            ),
-            YupanaUser.ANONYMOUS,
-            now,
-            IndexedSeq.empty
-          )
+            )
+          ),
+          now,
+          YupanaUser.ANONYMOUS
         )
         .returning(
           ConditionTransformation.replace(
@@ -1848,8 +1818,6 @@ class TsdbTest
               notIn(dimension(TestDims.DIM_A), Set("test11", "test12")),
               in(dimension(TestDims.DIM_A), Set("test12", "test13"))
             ),
-            YupanaUser.ANONYMOUS,
-            now,
             IndexedSeq.empty
           ),
           *,
@@ -1927,11 +1895,10 @@ class TsdbTest
             c2,
             c3,
             c4
-          ),
-          YupanaUser.ANONYMOUS,
-          now,
-          IndexedSeq.empty
-        )
+          )
+        ),
+        now,
+        YupanaUser.ANONYMOUS
       )
       .returning(
         ConditionTransformation.replace(
@@ -1969,8 +1936,6 @@ class TsdbTest
             notIn(dimension(TestDims.DIM_A), Set("test13")),
             neq(dimension(TestDims.DIM_A), const("test11"))
           ),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -2037,11 +2002,10 @@ class TsdbTest
               lt(time, const(Time(to))),
               c1,
               c2
-            ),
-            YupanaUser.ANONYMOUS,
-            now,
-            IndexedSeq.empty
-          )
+            )
+          ),
+          now,
+          YupanaUser.ANONYMOUS
         )
         .returning(
           ConditionTransformation.replace(
@@ -2061,11 +2025,10 @@ class TsdbTest
               lt(time, const(Time(to))),
               c3,
               c4
-            ),
-            YupanaUser.ANONYMOUS,
-            now,
-            IndexedSeq.empty
-          )
+            )
+          ),
+          now,
+          YupanaUser.ANONYMOUS
         )
         .returning(
           ConditionTransformation.replace(
@@ -2093,8 +2056,6 @@ class TsdbTest
               in(dimension(TestDims.DIM_A), Set("test12")),
               in(dimension(TestDims.DIM_A), Set("test11", "test12"))
             ),
-            YupanaUser.ANONYMOUS,
-            now,
             IndexedSeq.empty
           ),
           *,
@@ -2165,11 +2126,10 @@ class TsdbTest
             lt(time, const(Time(to))),
             c1,
             c2
-          ),
-          YupanaUser.ANONYMOUS,
-          now,
-          IndexedSeq.empty
-        )
+          )
+        ),
+        now,
+        YupanaUser.ANONYMOUS
       )
       .returning(
         ConditionTransformation.replace(
@@ -2188,11 +2148,10 @@ class TsdbTest
             lt(time, const(Time(to))),
             c3,
             c4
-          ),
-          YupanaUser.ANONYMOUS,
-          now,
-          IndexedSeq.empty
-        )
+          )
+        ),
+        now,
+        YupanaUser.ANONYMOUS
       )
       .returning(
         ConditionTransformation.replace(
@@ -2220,8 +2179,6 @@ class TsdbTest
             in(dimension(TestDims.DIM_B), Set(23.toShort, 24.toShort)),
             in(dimension(TestDims.DIM_A), Set("test11", "test12"))
           ),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -2285,11 +2242,10 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             c
-          ),
-          YupanaUser.ANONYMOUS,
-          now,
-          IndexedSeq.empty
-        )
+          )
+        ),
+        now,
+        YupanaUser.ANONYMOUS
       )
       .returning(
         ConditionTransformation.replace(
@@ -2316,8 +2272,6 @@ class TsdbTest
             lt(time, const(Time(to))),
             in(dimension(TestDims.DIM_A), Set("Test a 1", "Test a 2", "Test a 3"))
           ),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -2399,11 +2353,10 @@ class TsdbTest
             lt(time, const(Time(to))),
             in(dimension(TestDims.DIM_B), Set(1.toShort, 2.toShort)),
             c
-          ),
-          YupanaUser.ANONYMOUS,
-          now,
-          IndexedSeq.empty
-        )
+          )
+        ),
+        now,
+        YupanaUser.ANONYMOUS
       )
       .returning(
         ConditionTransformation.replace(
@@ -2431,8 +2384,6 @@ class TsdbTest
             in(dimension(TestDims.DIM_B), Set(1.toShort, 2.toShort)),
             in(dimension(TestDims.DIM_A), Set("A 1", "A 2", "A 3"))
           ),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -2557,8 +2508,6 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           ),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -2617,7 +2566,6 @@ class TsdbTest
     val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
     val from = qtime.toInstant.toEpochMilli
     val to = qtime.plusDays(1).toInstant.toEpochMilli
-    val now = Time(LocalDateTime.now())
 
     val query1 = Query(
       TestSchema.testTable,
@@ -2645,8 +2593,6 @@ class TsdbTest
             dimension(TestDims.DIM_A)
           ),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -2776,8 +2722,6 @@ class TsdbTest
           TestSchema.testTable,
           Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -2867,8 +2811,6 @@ class TsdbTest
             dimension(TestDims.DIM_B)
           ),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -2939,8 +2881,6 @@ class TsdbTest
             dimension(TestDims.DIM_B)
           ),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -3005,8 +2945,6 @@ class TsdbTest
             dimension(TestDims.DIM_B)
           ),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -3067,11 +3005,10 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             c
-          ),
-          YupanaUser.ANONYMOUS,
-          now,
-          IndexedSeq.empty
-        )
+          )
+        ),
+        now,
+        YupanaUser.ANONYMOUS
       )
       .returning(
         ConditionTransformation.replace(
@@ -3107,8 +3044,6 @@ class TsdbTest
             lt(time, const(Time(to))),
             in(dimension(TestDims.DIM_A), Set("test1", "test12"))
           ),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -3193,8 +3128,6 @@ class TsdbTest
             dimension(TestDims.DIM_B)
           ),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -3301,8 +3234,6 @@ class TsdbTest
             dimension(TestDims.DIM_B)
           ),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -3405,8 +3336,6 @@ class TsdbTest
           TestSchema.testTable,
           Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -3492,8 +3421,6 @@ class TsdbTest
           TestSchema.testTable,
           Set[Expression[_]](time, dimension(TestDims.DIM_A)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -3560,8 +3487,6 @@ class TsdbTest
           TestSchema.testTable,
           Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -3641,8 +3566,6 @@ class TsdbTest
           TestSchema.testTable,
           Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -3714,8 +3637,6 @@ class TsdbTest
           TestSchema.testTable,
           Set[Expression[_]](time, dimension(TestDims.DIM_A)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -3777,8 +3698,6 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           ),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -3923,8 +3842,6 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           ),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -3965,6 +3882,8 @@ class TsdbTest
         new PersistentMetricQueryReporter(metricDao, asyncSaving = false),
         new Slf4jMetricReporter[MetricQueryCollector]
       )
+
+    val testUser = YupanaUser("test", None, TsdbRole.ReadOnly)
 
     val tsdb =
       new TSDB(
@@ -4014,11 +3933,10 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             c
-          ),
-          YupanaUser.ANONYMOUS,
-          now,
-          IndexedSeq.empty
-        )
+          )
+        ),
+        now,
+        testUser
       )
       .returning(
         ConditionTransformation.replace(
@@ -4042,8 +3960,6 @@ class TsdbTest
             lt(time, const(Time(to))),
             notIn(dimension(TestDims.DIM_A), Set("test1", "test12"))
           ),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -4079,7 +3995,7 @@ class TsdbTest
       .expects(capture(capturedMetrics))
       .atLeastOnce()
 
-    val res = tsdb.query(query, now, YupanaUser("test", None, TsdbRole.ReadOnly))
+    val res = tsdb.query(query, now, IndexedSeq.empty, testUser)
 
     res.next() shouldBe true
     res.next() shouldBe false

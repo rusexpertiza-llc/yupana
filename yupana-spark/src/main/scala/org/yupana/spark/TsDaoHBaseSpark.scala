@@ -89,12 +89,14 @@ class TsDaoHBaseSpark(
 
   override def putDataset(
       mr: MapReducible[RDD],
-      table: Table,
+      tables: Seq[Table],
       dataset: RDD[BatchDataset],
       username: String
   ): RDD[UpdateInterval] = {
     mr.flatMap(dataset) { batch =>
-      doPutBatchDataset(connection, dictionaryProvider, config.hbaseNamespace, username, batch, table)
+      tables.flatMap(table =>
+        doPutBatchDataset(connection, dictionaryProvider, config.hbaseNamespace, username, batch, table)
+      )
     }
   }
 
