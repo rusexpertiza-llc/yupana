@@ -29,6 +29,8 @@ import java.time.LocalDateTime
 
 class ProcessRowsBenchmark {
 
+  private val now = Time(LocalDateTime.now())
+
   @Benchmark
   def processRows(state: TsdbBaseBenchmarkState): Int = {
     val mc = new StandaloneMetricCollector(state.query, "admin", "bench", 1000, new Slf4jMetricReporter)
@@ -37,7 +39,9 @@ class ProcessRowsBenchmark {
         state.queryContext,
         mc,
         IteratorMapReducible.iteratorMR,
-        state.dataset.iterator
+        state.dataset.iterator,
+        now,
+        IndexedSeq.empty
       )
     var i = 0
     while (res.next()) {

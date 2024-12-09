@@ -20,7 +20,6 @@ import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.utils.ConditionMatchers.{ GeMatcher, GtMatcher, LeMatcher, LtMatcher }
-import org.yupana.core.auth.YupanaUser
 import org.yupana.core.{ ConstantCalculator, QueryOptimizer }
 
 /**
@@ -29,14 +28,7 @@ import org.yupana.core.{ ConstantCalculator, QueryOptimizer }
   * @param to end time of the condition
   * @param conditions sequence of conditions
   */
-case class FlatAndCondition(
-    from: Long,
-    to: Long,
-    conditions: Seq[SimpleCondition],
-    user: YupanaUser,
-    startTime: Time,
-    params: IndexedSeq[Any]
-) {
+case class FlatAndCondition(from: Long, to: Long, conditions: Seq[SimpleCondition]) {
   override def hashCode(): Int = encoded.hashCode
 
   override def equals(obj: Any): Boolean = {
@@ -56,32 +48,20 @@ object FlatAndCondition {
 
   private case class FlatAndConditionParts(from: Option[Long], to: Option[Long], conditions: Seq[SimpleCondition])
 
-  def apply(
-      constantCalculator: ConstantCalculator,
-      condition: Condition,
-      user: YupanaUser,
-      startTime: Time,
-      params: IndexedSeq[Any]
-  ): Seq[FlatAndCondition] = {
-    val parts = fromCondition(constantCalculator, startTime, params, Seq.empty, condition)
+  def apply(constantCalculator: ConstantCalculator, condition: Condition): Seq[FlatAndCondition] = {
+    val parts = fromCondition(constantCalculator, Seq.empty, condition)
     val (errs, result) = parts.partitionMap { fac =>
       for {
         from <- fac.from.toRight(s"FROM time is not defined for ${AndExpr(fac.conditions)}")
         to <- fac.to.toRight(s"TO time is not defined for ${AndExpr(fac.conditions)}")
-      } yield FlatAndCondition(from, to, fac.conditions, user, startTime, params)
+      } yield FlatAndCondition(from, to, fac.conditions)
     }
 
     if (errs.isEmpty) result else throw new IllegalArgumentException(errs.mkString(", "))
   }
 
-  def single(
-      constantCalculator: ConstantCalculator,
-      condition: Condition,
-      user: YupanaUser,
-      startTime: Time,
-      params: IndexedSeq[Any]
-  ): FlatAndCondition = {
-    FlatAndCondition(constantCalculator, condition, user, startTime, params) match {
+  def single(constantCalculator: ConstantCalculator, condition: Condition): FlatAndCondition = {
+    FlatAndCondition(constantCalculator, condition) match {
       case Seq(tbc) =>
         tbc
       case _ =>
@@ -109,8 +89,6 @@ object FlatAndCondition {
 
   private def fromCondition(
       expressionCalculator: ConstantCalculator,
-      startTime: Time,
-      params: IndexedSeq[Any],
       tbcs: Seq[FlatAndConditionParts],
       condition: Condition
   ): Seq[FlatAndConditionParts] = {
@@ -121,7 +99,7 @@ object FlatAndCondition {
 
     def updateFrom(c: SimpleCondition, e: Expression[Time], offset: Long): Seq[FlatAndConditionParts] = {
       if (e.kind == Const) {
-        val const = expressionCalculator.evaluateConstant(e, Some(startTime), params)
+        val const = expressionCalculator.evaluateConstant(e)
         update(t =>
           t.copy(from = t.from.map(o => math.max(const.millis + offset, o)) orElse Some(const.millis + offset))
         )
@@ -132,7 +110,7 @@ object FlatAndCondition {
 
     def updateTo(c: SimpleCondition, e: Expression[Time], offset: Long): Seq[FlatAndConditionParts] = {
       if (e.kind == Const) {
-        val const = expressionCalculator.evaluateConstant(e, Some(startTime), params)
+        val const = expressionCalculator.evaluateConstant(e)
         update(t => t.copy(to = t.to.map(o => math.min(const.millis + offset, o)) orElse Some(const.millis + offset)))
       } else {
         update(t => t.copy(conditions = t.conditions :+ c))
@@ -152,9 +130,9 @@ object FlatAndCondition {
       case c @ LeTime(TimeExpr, e) => updateTo(c, e, 1L)
       case c @ GeTime(e, TimeExpr) => updateTo(c, e, 1L)
 
-      case AndExpr(cs) => cs.foldLeft(tbcs)((t, c) => fromCondition(expressionCalculator, startTime, params, t, c))
+      case AndExpr(cs) => cs.foldLeft(tbcs)((t, c) => fromCondition(expressionCalculator, t, c))
 
-      case OrExpr(cs) => cs.flatMap(c => fromCondition(expressionCalculator, startTime, params, tbcs, c))
+      case OrExpr(cs) => cs.flatMap(c => fromCondition(expressionCalculator, tbcs, c))
 
       case x: SimpleCondition => update(t => t.copy(conditions = t.conditions :+ x))
 

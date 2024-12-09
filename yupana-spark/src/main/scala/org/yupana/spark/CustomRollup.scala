@@ -30,7 +30,7 @@ abstract class CustomRollup(
     override val name: String,
     override val timeExpr: Expression[Time],
     override val fromTable: Table,
-    override val toTable: Table,
+    override val toTables: Seq[Table],
     override val filter: Option[Condition]
 ) extends Rollup
     with Serializable {

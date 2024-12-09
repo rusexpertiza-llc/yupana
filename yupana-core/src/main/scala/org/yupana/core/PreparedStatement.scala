@@ -23,7 +23,7 @@ import org.yupana.core.sql.parser.Statement
 
 sealed trait PreparedStatement
 
-case class PreparedSelect(query: Query) extends PreparedStatement
+case class PreparedSelect(query: Query, params: IndexedSeq[Any]) extends PreparedStatement
 
 case class PreparedCommand(
     statement: Statement,

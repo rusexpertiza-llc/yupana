@@ -32,7 +32,7 @@ object Object {
   case object Queries extends Object
 }
 
-class PermissionService(putEnabled: Boolean) {
+class PermissionService(putEnabled: Boolean) extends Serializable {
   def hasPermission(user: YupanaUser, subject: Object, action: Action): Boolean = {
     val correction = subject match {
       case Object.Table(_) => action == Action.Read || putEnabled

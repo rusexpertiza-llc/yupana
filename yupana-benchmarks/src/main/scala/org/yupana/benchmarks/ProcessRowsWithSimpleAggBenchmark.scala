@@ -28,6 +28,8 @@ import java.time.LocalDateTime
 
 class ProcessRowsWithSimpleAggBenchmark {
 
+  private val now = Time(LocalDateTime.now())
+
   @Benchmark
   def processRowsWithSimpleAgg(state: TsdbBaseBenchmarkStateSimpleAgg): Int = {
     val res = state.tsdb
@@ -35,7 +37,9 @@ class ProcessRowsWithSimpleAggBenchmark {
         state.queryContext,
         NoMetricCollector,
         IteratorMapReducible.iteratorMR,
-        state.dataset.iterator
+        state.dataset.iterator,
+        now,
+        IndexedSeq.empty
       )
     var i = 0
     while (res.next()) {

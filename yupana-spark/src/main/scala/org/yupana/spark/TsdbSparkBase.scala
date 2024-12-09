@@ -24,7 +24,7 @@ import org.apache.spark.rdd.RDD
 import org.yupana.api.query.{ Query, QueryHint }
 import org.yupana.api.schema.Schema
 import org.yupana.api.utils.CloseableIterator
-import org.yupana.core.auth.YupanaUser
+import org.yupana.core.auth.{ PermissionService, YupanaUser }
 import org.yupana.core.dao.{ DictionaryProvider, TSDao, TsdbQueryMetricsDao }
 import org.yupana.core.jit.{ ExpressionCalculatorFactory, JIT }
 import org.yupana.core.model.BatchDataset
@@ -90,6 +90,8 @@ abstract class TsdbSparkBase(
   override val putBatchSize: Int = conf.putBatchSize
 
   override val calculatorFactory: ExpressionCalculatorFactory = JIT
+
+  override val permissionService: PermissionService = new PermissionService(conf.putEnabled)
 
   HBaseUtils.initStorage(
     ConnectionFactory.createConnection(TsDaoHBaseSpark.hbaseConfiguration(conf)),

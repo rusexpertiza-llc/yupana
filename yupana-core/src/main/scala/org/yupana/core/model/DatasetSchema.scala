@@ -202,7 +202,7 @@ final class DatasetSchema(
 }
 
 object DatasetSchema {
-  def apply(table: Table) = {
+  def apply(table: Table): DatasetSchema = {
 
     val dimExprs = table.dimensionSeq.map { dim =>
       dim.name -> DimensionExpr(dim.aux)
@@ -223,5 +223,10 @@ object DatasetSchema {
     }.toMap
 
     new DatasetSchema(valueExprIndex, refExprIndex, nameMapping, Some(table))
+  }
+
+  def fromTables(tables: Seq[Table]): DatasetSchema = {
+    // TODO: Check if schema is the same
+    DatasetSchema(tables.head)
   }
 }

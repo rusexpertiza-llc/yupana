@@ -124,7 +124,7 @@ object SqlParser {
 
   def constExpr[$: P]: P[Constant] = P(ValueParser.value).map(Constant)
 
-  def arrayExpr[$: P]: P[SqlArray] = P("{" ~ ValueParser.value.rep(min = 1, sep = ",") ~ "}").map(SqlArray)
+  def arrayExpr[$: P]: P[SqlArray] = P("{" ~ ValueParser.literal.rep(min = 1, sep = ",") ~ "}").map(SqlArray)
 
   def caseExpr[$: P]: P[Case] =
     P(
@@ -190,10 +190,10 @@ object SqlParser {
   }
 
   def in[$: P]: P[SqlExpr => SqlExpr] =
-    P(inWord ~/ "(" ~ ValueParser.value.rep(min = 1, sep = ",") ~ ")").map(vs => e => In(e, vs))
+    P(inWord ~/ "(" ~ (ValueParser.literalOrTuple).rep(min = 1, sep = ",") ~ ")").map(vs => e => In(e, vs))
 
   def notIn[$: P]: P[SqlExpr => SqlExpr] =
-    P(notWord ~ inWord ~/ "(" ~ ValueParser.value.rep(min = 1, sep = ",") ~ ")").map(vs => e => NotIn(e, vs))
+    P(notWord ~ inWord ~/ "(" ~ (ValueParser.literalOrTuple).rep(min = 1, sep = ",") ~ ")").map(vs => e => NotIn(e, vs))
 
   def isNull[$: P]: P[SqlExpr => SqlExpr] = P(isWord ~ nullWord).map(_ => IsNull)
 
@@ -260,7 +260,18 @@ object SqlParser {
     P(nestedSelectFrom(fields) | normalSelectFrom(fields))
   }
 
-  def select[$: P]: P[Select] = P(selectFields.flatMap(selectFrom(_)))
+  def select[$: P]: P[Select] = P(selectFields.flatMap(selectFrom(_)) ~/ where.?) map {
+    case (sel, Some(cond)) => sel.copy(condition = Some(andConditions(sel.condition, cond)))
+    case (sel, None)       => sel
+  }
+
+  private def andConditions(filter: Option[SqlExpr], extra: SqlExpr): SqlExpr = {
+    filter match {
+      case Some(And(cs)) => And(cs :+ extra)
+      case Some(c)       => And(Seq(c, extra))
+      case None          => extra
+    }
+  }
 
   def substituteNested(expr: SqlExpr, nestedFields: Seq[SqlField]): SqlExpr = {
     expr match {

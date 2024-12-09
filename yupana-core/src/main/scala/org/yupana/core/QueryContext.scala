@@ -16,7 +16,6 @@
 
 package org.yupana.core
 
-import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.utils.Tokenizer
@@ -26,7 +25,6 @@ import org.yupana.core.utils.metric.MetricQueryCollector
 
 class QueryContext(
     val query: Query,
-    startTime: Time,
     val postCondition: Option[Condition],
     tokenizer: Tokenizer,
     calculatorFactory: ExpressionCalculatorFactory,
@@ -50,7 +48,7 @@ class QueryContext(
 
   private def init(): Unit = {
     metricCollector.initQueryContext.measure(1) {
-      val (calculator, dsSchema) = calculatorFactory.makeCalculator(query, startTime, postCondition, tokenizer)
+      val (calculator, dsSchema) = calculatorFactory.makeCalculator(query, postCondition, tokenizer)
       calc = calculator
       schema = dsSchema
     }

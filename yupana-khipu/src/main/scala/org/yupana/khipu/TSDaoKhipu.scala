@@ -89,7 +89,7 @@ class TSDaoKhipu(schema: Schema, settings: Settings) extends TSDao[Iterator, Lon
 
   override def putDataset(
       mr: MapReducible[Iterator],
-      table: Table,
+      tables: Seq[Table],
       dataset: Iterator[BatchDataset],
       username: String
   ): Iterator[UpdateInterval] = ???

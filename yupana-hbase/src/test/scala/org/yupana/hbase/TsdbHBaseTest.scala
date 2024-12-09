@@ -5,6 +5,7 @@ import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
 import org.yupana.api.query.{ DataPoint, Query }
 import org.yupana.api.schema.MetricValue
+import org.yupana.core.auth.{ TsdbRole, YupanaUser }
 import org.yupana.core.SimpleTsdbConfig
 import org.yupana.settings.Settings
 import org.yupana.testutils.{ TestDims, TestSchema, TestTableFields }
@@ -31,6 +32,7 @@ trait TsdbHBaseTest extends HBaseTestBase with AnyFlatSpecLike with Matchers {
       )
 
     val now = LocalDateTime.now()
+    val writer = YupanaUser("writer", None, TsdbRole.ReadWrite)
 
     val dps = Seq(
       DataPoint(
@@ -71,7 +73,7 @@ trait TsdbHBaseTest extends HBaseTestBase with AnyFlatSpecLike with Matchers {
       )
     )
 
-    tsdb.put(dps.iterator)
+    tsdb.put(dps.iterator, writer)
 
     val result = tsdb.query(
       Query(

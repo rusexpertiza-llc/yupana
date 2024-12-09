@@ -66,6 +66,9 @@ class YupanaStatementTest extends AnyFlatSpec with Matchers with MockFactory {
     an[SQLFeatureNotSupportedException] should be thrownBy statement.setMaxFieldSize(1234)
     an[SQLFeatureNotSupportedException] should be thrownBy statement.getMaxFieldSize
 
+    statement.setQueryTimeout(0)
+    statement.getQueryTimeout shouldEqual 0
+
     an[SQLFeatureNotSupportedException] should be thrownBy statement.setQueryTimeout(60)
     statement.getQueryTimeout shouldEqual 0
 
