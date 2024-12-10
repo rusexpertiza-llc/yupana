@@ -20,13 +20,14 @@ import com.typesafe.scalalogging.StrictLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.streaming.dstream.DStream
 import org.yupana.api.query.DataPoint
+import org.yupana.core.auth.YupanaUser
 
 import scala.language.implicitConversions
 
 object ETLFunctions extends StrictLogging {
 
-  def processTransactions(context: EtlContext, dataPoints: RDD[DataPoint]): Unit = {
-    dataPoints.foreachPartition({ ls => context.tsdb.put(ls) })
+  def processTransactions(context: EtlContext, dataPoints: RDD[DataPoint], user: YupanaUser): Unit = {
+    dataPoints.foreachPartition({ ls => context.tsdb.put(ls, user) })
   }
 
   implicit def dStream2Functions(stream: DStream[DataPoint]): DataPointStreamFunctions =
@@ -35,9 +36,9 @@ object ETLFunctions extends StrictLogging {
 }
 
 class DataPointStreamFunctions(stream: DStream[DataPoint]) extends Serializable {
-  def saveDataPoints(context: EtlContext): DStream[DataPoint] = {
+  def saveDataPoints(context: EtlContext, user: YupanaUser): DStream[DataPoint] = {
     stream.foreachRDD { rdd =>
-      ETLFunctions.processTransactions(context, rdd)
+      ETLFunctions.processTransactions(context, rdd, user)
     }
 
     stream
@@ -45,7 +46,7 @@ class DataPointStreamFunctions(stream: DStream[DataPoint]) extends Serializable 
 }
 
 class DataPointRddFunctions(rdd: RDD[DataPoint]) extends Serializable {
-  def saveDataPoints(context: EtlContext): Unit = {
-    ETLFunctions.processTransactions(context, rdd)
+  def saveDataPoints(context: EtlContext, user: YupanaUser): Unit = {
+    ETLFunctions.processTransactions(context, rdd, user)
   }
 }
