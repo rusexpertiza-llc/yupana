@@ -142,7 +142,7 @@ object HBaseScanRDD {
 
   @tailrec
   def splitRanges(parts: Int, rs: Array[(Array[Byte], Array[Byte])]): Array[(Array[Byte], Array[Byte])] = {
-    if (rs.isEmpty || rs.length >= parts ) rs
+    if (rs.isEmpty || rs.length >= parts) rs
     else {
       val bisectedRanges = rs.flatMap(bisect)
       splitRanges(parts, bisectedRanges)
