@@ -16,6 +16,7 @@
 
 package org.yupana.spark
 
+import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase.TableName
 import org.apache.hadoop.hbase.client.{ Connection, ConnectionFactory, Result => HBaseResult }
 import org.apache.hadoop.hbase.util.Bytes
@@ -36,7 +37,8 @@ class HBaseScanRDD(
     toTime: Long,
     rangeScanDimsIds: Map[Dimension, Seq[_]],
     listener: RddProgressListener[HBaseScanPartition]
-) extends RDD[HBaseResult](sc, Nil) {
+) extends RDD[HBaseResult](sc, Nil)
+    with StrictLogging {
 
   override protected def getPartitions: Array[Partition] = {
     val regions = Using.resource(createConnection()) { connection =>
@@ -67,6 +69,11 @@ class HBaseScanRDD(
         }
     }
 
+    logger.info(
+      s"Requested regions: ${regionsRequested.map(r => s"(${Bytes.toHex(r._1)}, ${Bytes.toHex(r._2)})").mkString(", ")}"
+    )
+
+    logger.info("Num of partitions: " + config.minHBaseScanPartitions)
     val partitions = HBaseScanRDD
       .splitRanges(config.minHBaseScanPartitions, regionsRequested)
       .zipWithIndex
@@ -135,7 +142,8 @@ object HBaseScanRDD {
 
   @tailrec
   def splitRanges(parts: Int, rs: Array[(Array[Byte], Array[Byte])]): Array[(Array[Byte], Array[Byte])] = {
-    if (rs.length >= parts) rs
+    if (rs.isEmpty) Array.empty
+    else if (rs.length >= parts) rs
     else {
       val bisectedRanges = rs.flatMap(bisect)
       splitRanges(parts, bisectedRanges)
