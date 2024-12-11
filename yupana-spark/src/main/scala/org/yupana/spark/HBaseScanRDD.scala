@@ -69,11 +69,11 @@ class HBaseScanRDD(
         }
     }
 
-    logger.info(
+    logger.debug(
       s"Requested regions: ${regionsRequested.map(r => s"(${Bytes.toHex(r._1)}, ${Bytes.toHex(r._2)})").mkString(", ")}"
     )
 
-    logger.info("Num of partitions: " + config.minHBaseScanPartitions)
+    logger.debug("Num of partitions: " + config.minHBaseScanPartitions)
     val partitions = HBaseScanRDD
       .splitRanges(config.minHBaseScanPartitions, regionsRequested)
       .zipWithIndex
@@ -142,8 +142,7 @@ object HBaseScanRDD {
 
   @tailrec
   def splitRanges(parts: Int, rs: Array[(Array[Byte], Array[Byte])]): Array[(Array[Byte], Array[Byte])] = {
-    if (rs.isEmpty) Array.empty
-    else if (rs.length >= parts) rs
+    if (rs.isEmpty || rs.length >= parts ) rs
     else {
       val bisectedRanges = rs.flatMap(bisect)
       splitRanges(parts, bisectedRanges)

@@ -21,6 +21,6 @@ class HBaseScanRDDTest extends AnyFlatSpec with Matchers {
 
   it should "split empty ranges" in {
     val splitted = HBaseScanRDD.splitRanges(50, Array.empty)
-    splitted.map(r => Bytes.toLong(r._1) -> Bytes.toLong(r._2)).toList shouldBe List.empty
+    splitted shouldBe empty
   }
 }
