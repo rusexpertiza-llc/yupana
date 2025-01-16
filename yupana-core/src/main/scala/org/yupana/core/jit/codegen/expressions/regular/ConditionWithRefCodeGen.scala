@@ -16,7 +16,7 @@
 
 package org.yupana.core.jit.codegen.expressions.regular
 
-import org.yupana.api.query.UnaryOperationExpr
+import org.yupana.api.query.{ UnaryOperationExpr, ValueExpr }
 import org.yupana.core.jit.codegen.CommonGen
 import org.yupana.core.jit.codegen.expressions.ExpressionCodeGen
 import org.yupana.core.jit.{ CodeGenResult, State }
@@ -28,7 +28,7 @@ trait ConditionWithRefCodeGen extends ExpressionCodeGen[UnaryOperationExpr[_, Bo
 
   def tree(value: Tree, ref: Tree): Tree
 
-  def refValue: Set[Any]
+  def refValue: Set[ValueExpr[Any]]
 
   override def generateEvalCode(state: State, row: TermName): CodeGenResult = {
     val (n, ns) = state.withRef(refValue, tq"Set[${CommonGen.mkType(expression.operand)}]")
@@ -39,12 +39,12 @@ trait ConditionWithRefCodeGen extends ExpressionCodeGen[UnaryOperationExpr[_, Bo
 object ConditionWithRefCodeGen {
   def apply(
       expr: UnaryOperationExpr[_, Boolean],
-      ref: Set[Any],
+      ref: Set[ValueExpr[Any]],
       code: (Tree, Tree) => Tree
   ): ConditionWithRefCodeGen = {
     new ConditionWithRefCodeGen() {
       override def expression: UnaryOperationExpr[_, Boolean] = expr
-      override def refValue: Set[Any] = ref
+      override def refValue: Set[ValueExpr[Any]] = ref
       override def tree(value: Tree, ref: Tree): universe.Tree = code(value, ref)
     }
   }

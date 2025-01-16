@@ -38,8 +38,9 @@ trait ExpressionSyntax {
   def condition[T](condition: Condition, positive: Expression[T], negative: Expression[T]) =
     ConditionExpr(condition, positive, negative)
 
-  def in[T](e: Expression[T], consts: Set[T]): InExpr[T] = InExpr(e, consts)
-  def notIn[T](e: Expression[T], consts: Set[T]): NotInExpr[T] = NotInExpr(e, consts)
+  def in[T](e: Expression[T], consts: Set[T]): InExpr[T] = InExpr(e, consts.map(x => ConstantExpr(x)(e.dataType)))
+  def notIn[T](e: Expression[T], consts: Set[T]): NotInExpr[T] =
+    NotInExpr(e, consts.map(x => ConstantExpr(x)(e.dataType)))
 
   def and(exprs: Condition*): Condition = AndExpr(Seq(exprs: _*))
   def or(exprs: Condition*): Condition = OrExpr(Seq(exprs: _*))

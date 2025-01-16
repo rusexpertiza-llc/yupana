@@ -156,16 +156,17 @@ final case class DistinctRandomExpr[I](override val expr: Expression[I])
   override val dataType: DataType.Aux[I] = expr.dataType
 }
 
-sealed trait ConstExpr[T] extends Expression[T] {
-  override val kind: ExprKind = Const
+sealed trait ValueExpr[T] extends Expression[T] {
   override def fold[O](z: O)(f: (O, Expression[_]) => O): O = f(z, this)
   override def transform(f: Transform): Expression[T] = f.applyOrDefault(this, this)
 }
 
+sealed trait ConstExpr[T] extends ValueExpr[T] {
+  override val kind: ExprKind = Const
+}
+
 final case class NullExpr[T](override val dataType: DataType.Aux[T]) extends ConstExpr[T] {
-
   override val isNullable: Boolean = true
-
   override def encode: String = "null"
 }
 
@@ -184,12 +185,14 @@ final case class ConstantExpr[T](v: T)(implicit override val dataType: DataType.
   }
 }
 
-final case class PlaceholderExpr[T](id: Int, override val dataType: DataType.Aux[T]) extends SimpleExpr[T] {
+final case class PlaceholderExpr[T](id: Int, override val dataType: DataType.Aux[T]) extends ValueExpr[T] {
+  override val kind: ExprKind = Simple
   override val isNullable: Boolean = true
   override def encode: String = s"?$id:${dataType.meta.javaTypeName}"
 }
 
-final case class UntypedPlaceholderExpr(id: Int) extends SimpleExpr[Null] {
+final case class UntypedPlaceholderExpr(id: Int) extends ValueExpr[Null] {
+  override val kind: ExprKind = Simple
   override val dataType: DataType.Aux[Null] = DataType[Null]
   override val isNullable: Boolean = true
   override def encode: String = s"?$id"
@@ -623,7 +626,7 @@ final case class ConditionExpr[T](
   override def encode: String = s"if(${condition.encode},${positive.encode},${negative.encode}"
 }
 
-final case class InExpr[T](expr: Expression[T], values: Set[T])
+final case class InExpr[T](expr: Expression[T], values: Set[ValueExpr[T]])
     extends UnaryOperationExpr[T, Boolean](expr, "in", InExpr(_, values))
     with SimpleCondition {
 
@@ -632,7 +635,7 @@ final case class InExpr[T](expr: Expression[T], values: Set[T])
     expr.toString + CollectionUtils.mkStringWithLimit(values, 10, " IN (", ", ", ")")
 }
 
-final case class NotInExpr[T](expr: Expression[T], values: Set[T])
+final case class NotInExpr[T](expr: Expression[T], values: Set[ValueExpr[T]])
     extends UnaryOperationExpr[T, Boolean](expr, "notIn", NotInExpr(_, values))
     with SimpleCondition {
 

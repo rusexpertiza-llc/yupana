@@ -106,11 +106,11 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
       case Byte2DoubleExpr(e)       => evaluateUnary(e)(_.toDouble)
       case ToStringExpr(e)          => evaluateUnary(e)(_.toString)
 
-      case InExpr(e, vs) => vs contains evaluateConstant(e)
+      case InExpr(e, vs) => vs.map(evaluateConstant) contains evaluateConstant(e)
 
       case NotInExpr(e, vs) =>
         val eValue = evaluateConstant(e)
-        eValue != null && !vs.contains(eValue)
+        eValue != null && !vs.map(evaluateConstant).contains(eValue)
 
       case AndExpr(cs) =>
         val executed = cs.map(c => evaluateConstant(c))

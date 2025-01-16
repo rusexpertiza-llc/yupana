@@ -258,16 +258,16 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
         createExpr(nameResolver, e, ExprType.Cmp).flatMap {
           case ce: Expression[t] =>
             CollectionUtils
-              .collectErrors(vs.map(v => convertLiteral(v, ce.dataType)))
-              .map(cvs => InExpr(ce, cvs.toSet))
+              .collectErrors(vs.map(v => convertValue(v, ExprType.Math, ce.dataType)))
+              .map(cvs => InExpr(ce, cvs.toSet[ValueExpr[t]]))
         }
 
       case parser.NotIn(e, vs) =>
         createExpr(nameResolver, e, ExprType.Cmp).flatMap {
           case ce: Expression[t] =>
             CollectionUtils
-              .collectErrors(vs.map(v => convertLiteral(v, ce.dataType)))
-              .map(cvs => NotInExpr(ce, cvs.toSet))
+              .collectErrors(vs.map(v => convertValue(v, ExprType.Math, ce.dataType)))
+              .map(cvs => NotInExpr(ce, cvs.toSet[ValueExpr[t]]))
         }
       case parser.And(cs) =>
         CollectionUtils.collectErrors(cs.map(c => createCondition(nameResolver, c))).map(AndExpr)
@@ -333,7 +333,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
     } yield u
   }
 
-  private def createArrayExpr(expressions: Seq[ConstExpr[_]]): Either[String, Expression[_]] = {
+  private def createArrayExpr(expressions: Seq[ValueExpr[_]]): Either[String, Expression[_]] = {
     // we assume all expressions have exact same type, but it might require to align type in future
     val first = expressions.head
 
@@ -413,10 +413,16 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
     )
   }
 
-  private def convertLiteral[T](v: parser.Literal, dataType: DataType.Aux[T]): Either[String, T] = {
-    convertValue(v, ExprType.Cmp).flatMap {
-      case const: ConstExpr[_] => DataTypeUtils.constCast(const, dataType, calculator)
-      case x                   => Left(s"Only literals allowed, but got $x")
+  private def convertValue[T](
+      v: parser.Value,
+      exprType: ExprType,
+      tpe: DataType.Aux[T]
+  ): Either[String, ValueExpr[T]] = {
+    v match {
+      case parser.Placeholder(id) => Right(PlaceholderExpr(id, tpe))
+      case l: parser.Literal =>
+        val v = convertLiteral(l, exprType)
+        DataTypeUtils.constCast(v, tpe, calculator)
     }
   }
 
@@ -424,7 +430,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
       v: parser.Value,
       exprType: ExprType,
       tpe: Option[DataType] = None
-  ): Either[String, Expression[_]] = {
+  ): Either[String, ValueExpr[_]] = {
     v match {
       case parser.Placeholder(id) =>
         tpe match {
@@ -435,7 +441,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
     }
   }
 
-  private def convertLiteral(v: parser.Literal, exprType: ExprType): Either[String, ConstExpr[_]] = {
+  private def convertLiteral(v: parser.Value, exprType: ExprType): Either[String, ConstExpr[_]] = {
     v match {
       case tv @ parser.TypedValue(s) if tv.dataType == DataType[String] =>
         val const = if (exprType == ExprType.Cmp) s.asInstanceOf[String].toLowerCase else s.asInstanceOf[String]
