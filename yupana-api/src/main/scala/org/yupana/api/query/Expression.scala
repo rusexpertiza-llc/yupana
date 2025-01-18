@@ -185,6 +185,13 @@ final case class ConstantExpr[T](v: T)(implicit override val dataType: DataType.
   }
 }
 
+case class TupleValueExpr[T, U](t: ValueExpr[T], u: ValueExpr[U]) extends ValueExpr[(T, U)] {
+  override val dataType: DataType.Aux[(T, U)] = DataType.tupleDt(t.dataType, u.dataType)
+  override val kind: ExprKind = ExprKind.combine(t.kind, u.kind)
+  override val isNullable: Boolean = false
+  override def encode: String = s"(${t.encode}, ${u.encode})"
+}
+
 final case class PlaceholderExpr[T](id: Int, override val dataType: DataType.Aux[T]) extends ValueExpr[T] {
   override val kind: ExprKind = Simple
   override val isNullable: Boolean = true

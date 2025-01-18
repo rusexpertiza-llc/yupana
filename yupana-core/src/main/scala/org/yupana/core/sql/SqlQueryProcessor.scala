@@ -259,7 +259,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
           case ce: Expression[t] =>
             CollectionUtils
               .collectErrors(vs.map(v => convertValue(v, ExprType.Math, ce.dataType)))
-              .map(cvs => InExpr(ce, cvs.toSet[ValueExpr[t]]))
+              .map(cvs => InExpr(ce, cvs.toSet))
         }
 
       case parser.NotIn(e, vs) =>
@@ -267,7 +267,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
           case ce: Expression[t] =>
             CollectionUtils
               .collectErrors(vs.map(v => convertValue(v, ExprType.Math, ce.dataType)))
-              .map(cvs => NotInExpr(ce, cvs.toSet[ValueExpr[t]]))
+              .map(cvs => NotInExpr(ce, cvs.toSet))
         }
       case parser.And(cs) =>
         CollectionUtils.collectErrors(cs.map(c => createCondition(nameResolver, c))).map(AndExpr)
@@ -356,16 +356,6 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
   private def createTuple[T, U](a: Expression[T], b: Expression[U]): Expression[_] =
     TupleExpr(a, b)(a.dataType, b.dataType)
 
-  private def createTupleValue[T, U](
-      a: ConstExpr[T],
-      b: ConstExpr[U]
-  ): Either[String, ConstExpr[_]] = {
-    for {
-      av <- DataTypeUtils.constCast(a, a.dataType, calculator)
-      bv <- DataTypeUtils.constCast(b, b.dataType, calculator)
-    } yield ConstantExpr((av, bv))(DataType.tupleDt(a.dataType, b.dataType))
-  }
-
   private def createBinary(
       nameResolver: NameResolver,
       l: parser.SqlExpr,
@@ -422,7 +412,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
       case parser.Placeholder(id) => Right(PlaceholderExpr(id, tpe))
       case l: parser.Literal =>
         val v = convertLiteral(l, exprType)
-        DataTypeUtils.constCast(v, tpe, calculator)
+        v.flatMap(vv => DataTypeUtils.valueCast(vv, tpe))
     }
   }
 
@@ -441,7 +431,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
     }
   }
 
-  private def convertLiteral(v: parser.Value, exprType: ExprType): Either[String, ConstExpr[_]] = {
+  private def convertLiteral(v: parser.Value, exprType: ExprType): Either[String, ValueExpr[_]] = {
     v match {
       case tv @ parser.TypedValue(s) if tv.dataType == DataType[String] =>
         val const = if (exprType == ExprType.Cmp) s.asInstanceOf[String].toLowerCase else s.asInstanceOf[String]
@@ -466,8 +456,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
         for {
           ae <- convertLiteral(a, exprType)
           be <- convertLiteral(b, exprType)
-          te <- createTupleValue(ae, be)
-        } yield te
+        } yield TupleValueExpr(ae, be)
     }
   }
 

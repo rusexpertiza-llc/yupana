@@ -70,6 +70,8 @@ object DataTypeUtils {
     }
   }
 
+  def valueCast[U, T](value: ValueExpr[U], dataType: DataType.Aux[T]): Either[String, ValueExpr[T]] = ???
+
   def exprCast[U, T](
       e: Expression[U],
       dataType: DataType.Aux[T],
