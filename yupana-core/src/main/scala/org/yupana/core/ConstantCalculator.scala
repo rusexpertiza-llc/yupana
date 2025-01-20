@@ -120,7 +120,8 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
         val executed = cs.map(c => evaluateConstant(c))
         executed.reduce((a, b) => a || b)
 
-      case TupleExpr(e1, e2) => (evaluateConstant(e1), evaluateConstant(e2))
+      case TupleExpr(e1, e2)      => (evaluateConstant(e1), evaluateConstant(e2))
+      case TupleValueExpr(e1, e2) => (evaluateConstant(e1), evaluateConstant(e2))
 
       case LowerExpr(e)  => evaluateUnary(e)(_.toLowerCase)
       case UpperExpr(e)  => evaluateUnary(e)(_.toUpperCase)

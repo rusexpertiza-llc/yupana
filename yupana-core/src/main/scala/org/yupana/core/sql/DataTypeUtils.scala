@@ -70,7 +70,22 @@ object DataTypeUtils {
     }
   }
 
-  def valueCast[U, T](value: ValueExpr[U], dataType: DataType.Aux[T]): Either[String, ValueExpr[T]] = ???
+  def valueCast[U, T](
+      value: ValueExpr[U],
+      dataType: DataType.Aux[T],
+      calc: ConstantCalculator
+  ): Either[String, ValueExpr[T]] = {
+    value match {
+      case UntypedPlaceholderExpr(id) => Right(PlaceholderExpr(id, dataType))
+      case PlaceholderExpr(id, dt)    => ???
+      case ConstantExpr(v) => constCast(v, value.dataType, dataType, calc).map(c => ConstantExpr(c)(dataType))
+      case TrueExpr | FalseExpr =>
+        if (dataType == DataType[Boolean]) Right(value.asInstanceOf[ValueExpr[T]])
+        else Left(s"Cannot cast value $value to $dataType")
+      case NullExpr(_)          => Right(NullExpr(dataType))
+      case TupleValueExpr(a, b) => ???
+    }
+  }
 
   def exprCast[U, T](
       e: Expression[U],

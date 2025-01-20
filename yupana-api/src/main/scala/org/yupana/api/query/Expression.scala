@@ -576,11 +576,8 @@ final case class ContainsSameExpr[T](override val a: Expression[Seq[T]], overrid
   override val dataType: DataType.Aux[Boolean] = DataType[Boolean]
 }
 
-final case class TupleExpr[T, U](e1: Expression[T], e2: Expression[U])(
-    implicit rtt: DataType.Aux[T],
-    rtu: DataType.Aux[U]
-) extends Expression[(T, U)] {
-  override val dataType: DataType.Aux[(T, U)] = DataType[(T, U)]
+final case class TupleExpr[T, U](e1: Expression[T], e2: Expression[U]) extends Expression[(T, U)] {
+  override val dataType: DataType.Aux[(T, U)] = DataType.tupleDt(e1.dataType, e2.dataType)
   override val kind: ExprKind = ExprKind.combine(e1.kind, e2.kind)
   override val isNullable: Boolean = false
 

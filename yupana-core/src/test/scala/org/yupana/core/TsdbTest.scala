@@ -532,7 +532,10 @@ class TsdbTest
       ),
       AndExpr(
         Seq(
-          InExpr(tuple(time, dimension(TestDims.DIM_A)), Set((Time(pointTime2), "test42")))
+          InExpr(
+            tuple(time, dimension(TestDims.DIM_A)),
+            Set[ValueExpr[(Time, String)]](tupleValue(Time(pointTime2), "test42"))
+          )
         )
       )
     )
@@ -1530,7 +1533,7 @@ class TsdbTest
       .returning(
         ConditionTransformation.replace(
           Seq(c),
-          NotInExpr(dimension(TestDims.DIM_A), Set("test11", "test12"))
+          in(dimension(TestDims.DIM_A), Set("test11", "test12"))
         )
       )
 
@@ -2335,8 +2338,8 @@ class TsdbTest
       Some(
         AndExpr(
           Seq(
-            InExpr(dimension(TestDims.DIM_B), Set(1.toShort, 2.toShort)),
-            InExpr(link(TestLinks.TEST_LINK, "testField"), Set("testFieldValue1", "testFieldValue2"))
+            in(dimension(TestDims.DIM_B), Set(1.toShort, 2.toShort)),
+            in(link(TestLinks.TEST_LINK, "testField"), Set("testFieldValue1", "testFieldValue2"))
           )
         )
       ),
