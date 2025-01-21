@@ -23,7 +23,7 @@ import org.yupana.api.schema.ExternalLink
 import org.yupana.api.types.{ ID, InternalStorable }
 import org.yupana.api.utils.ConditionMatchers._
 import org.yupana.core.model.{ BatchDataset, TimeSensitiveFieldValues }
-import org.yupana.core.utils.{ CollectionUtils, FlatAndCondition, Table }
+import org.yupana.core.utils.{ CollectionUtils, ConditionUtils, FlatAndCondition, Table }
 
 import scala.collection.mutable
 
@@ -31,7 +31,7 @@ object ExternalLinkUtils {
 
   /**
     * Extracts external link fields from time bounded condition
-    * @note this function doesn't care if the field condition case sensitive or not
+    * @note this function doesn't care if the field condition case-sensitive or not
     *
     * @param simpleCondition condition to extract values from
     * @param linkName the external link name.
@@ -58,7 +58,7 @@ object ExternalLinkUtils {
             ((cond, field.name, Set[Any](v)) :: cat, neg, oth)
 
           case InExpr(LinkExpr(c, field), cs) if c.linkName == linkName =>
-            ((cond, field.name, cs) :: cat, neg, oth)
+            ((cond, field.name, cs.map(ConditionUtils.value)) :: cat, neg, oth)
 
           case NeqExpr(LinkExpr(c, field), ConstantExpr(v)) if c.linkName == linkName =>
             (cat, (cond, field.name, Set[Any](v)) :: neg, oth)
@@ -67,7 +67,7 @@ object ExternalLinkUtils {
             (cat, (cond, field.name, Set[Any](v)) :: neg, oth)
 
           case NotInExpr(LinkExpr(c, field), cs) if c.linkName == linkName =>
-            (cat, (cond, field.name, cs) :: neg, oth)
+            (cat, (cond, field.name, cs.map(ConditionUtils.value)) :: neg, oth)
 
           case EqString(LowerExpr(LinkExpr(c, field)), ConstantExpr(v)) if c.linkName == linkName =>
             ((cond, field.name, Set[Any](v)) :: cat, neg, oth)
