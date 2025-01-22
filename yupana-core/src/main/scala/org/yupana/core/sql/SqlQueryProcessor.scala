@@ -258,7 +258,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
         createExpr(nameResolver, e, ExprType.Cmp).flatMap {
           case ce: Expression[t] =>
             CollectionUtils
-              .collectErrors(vs.map(v => convertValue(v, ExprType.Math, ce.dataType)))
+              .collectErrors(vs.map(v => convertValue(v, ExprType.Cmp, ce.dataType)))
               .map(cvs => InExpr(ce, cvs.toSet))
         }
 
@@ -266,7 +266,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
         createExpr(nameResolver, e, ExprType.Cmp).flatMap {
           case ce: Expression[t] =>
             CollectionUtils
-              .collectErrors(vs.map(v => convertValue(v, ExprType.Math, ce.dataType)))
+              .collectErrors(vs.map(v => convertValue(v, ExprType.Cmp, ce.dataType)))
               .map(cvs => NotInExpr(ce, cvs.toSet))
         }
       case parser.And(cs) =>

@@ -422,9 +422,9 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       q.filter.value shouldEqual and(
         ge(time, const(Time(LocalDateTime.of(2022, 5, 1, 0, 0)))),
         lt(time, const(Time(LocalDateTime.of(2022, 5, 5, 0, 0)))),
-        in(
+        inValues(
           tuple(lower(metric(TestTableFields.TEST_STRING_FIELD)), metric(TestTableFields.TEST_LONG_FIELD)),
-          Set(("foo", 1L), ("bar", 21L))
+          Set(tupleValue("foo", 1L), tupleValue("bar", 21L))
         )
       )
       q.groupBy should contain theSameElementsAs Seq(truncHour(time))

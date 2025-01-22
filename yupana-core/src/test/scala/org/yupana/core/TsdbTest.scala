@@ -530,14 +530,7 @@ class TsdbTest
         metric(TestTableFields.TEST_FIELD) as "testField",
         dimension(TestDims.DIM_A) as "A"
       ),
-      AndExpr(
-        Seq(
-          InExpr(
-            tuple(time, dimension(TestDims.DIM_A)),
-            Set[ValueExpr[(Time, String)]](tupleValue(Time(pointTime2), "test42"))
-          )
-        )
-      )
+      inValues(tuple(time, dimension(TestDims.DIM_A)), Set(tupleValue(Time(pointTime2), "test42")))
     )
 
     (tsdbDaoMock.query _)
@@ -546,7 +539,7 @@ class TsdbTest
           TestSchema.testTable,
           Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(
-            in(tuple(time, dimension(TestDims.DIM_A)), Set((Time(pointTime2), "test42"))),
+            inValues(tuple(time, dimension(TestDims.DIM_A)), Set(tupleValue(Time(pointTime2), "test42"))),
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           ),
