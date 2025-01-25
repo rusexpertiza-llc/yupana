@@ -201,7 +201,9 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
                   rowNum += 1
                }
             """
-        } else { q"()" }}
+        } else {
+          q"()"
+        }}
         }
 
        override def createKey($batch: BatchDataset, rowNum: Int): AnyRef = {
