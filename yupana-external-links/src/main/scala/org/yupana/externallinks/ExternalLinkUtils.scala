@@ -76,7 +76,7 @@ object ExternalLinkUtils {
             ((cond, field.name, Set[Any](v)) :: cat, neg, oth)
 
           case InString(LowerExpr(LinkExpr(c, field)), cs) if c.linkName == linkName =>
-            ((cond, field.name, cs.asInstanceOf[Set[Any]]) :: cat, neg, oth)
+            ((cond, field.name, cs.map(ConditionUtils.value).asInstanceOf[Set[Any]]) :: cat, neg, oth)
 
           case NeqString(LowerExpr(LinkExpr(c, field)), ConstantExpr(v)) if c.linkName == linkName =>
             (cat, (cond, field.name, Set[Any](v)) :: neg, oth)
@@ -85,7 +85,7 @@ object ExternalLinkUtils {
             (cat, (cond, field.name, Set[Any](v)) :: neg, oth)
 
           case NotInString(LowerExpr(LinkExpr(c, field)), cs) if c.linkName == linkName =>
-            (cat, (cond, field.name, cs.asInstanceOf[Set[Any]]) :: neg, oth)
+            (cat, (cond, field.name, cs.map(ConditionUtils.value).asInstanceOf[Set[Any]]) :: neg, oth)
 
           case _ => (cat, neg, cond :: oth)
         }

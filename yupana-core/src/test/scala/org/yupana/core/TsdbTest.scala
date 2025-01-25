@@ -1526,7 +1526,7 @@ class TsdbTest
       .returning(
         ConditionTransformation.replace(
           Seq(c),
-          in(dimension(TestDims.DIM_A), Set("test11", "test12"))
+          notIn(dimension(TestDims.DIM_A), Set("test11", "test12"))
         )
       )
 

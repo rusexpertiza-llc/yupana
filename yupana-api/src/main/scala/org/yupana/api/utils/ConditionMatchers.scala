@@ -105,7 +105,7 @@ object ConditionMatchers {
   }
 
   object InUntyped {
-    def unapply(e: Expression[_]): Option[(Expression[_], Set[_])] = {
+    def unapply(e: Expression[_]): Option[(Expression[_], Set[ValueExpr[Any]])] = {
       e match {
         case InExpr(t: Expression[_], v) => Some((t, v))
         case _                           => None

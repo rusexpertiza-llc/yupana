@@ -1235,7 +1235,7 @@ class TSDaoHBaseTest
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            equ(tuple(time, dimension(TestDims.DIM_A)), const((Time(pointTime2), "test42")))
+            equ(tuple(time, dimension(TestDims.DIM_A)), tupleValue(Time(pointTime2), "test42"))
           ),
           IndexedSeq.empty
         ),
@@ -1312,7 +1312,10 @@ class TSDaoHBaseTest
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            in(tuple(time, dimension(TestDims.DIM_A)), Set((Time(pointTime2), "test42"), (Time(pointTime1), "test51")))
+            inValues(
+              tuple(time, dimension(TestDims.DIM_A)),
+              Set(tupleValue(Time(pointTime2), "test42"), tupleValue(Time(pointTime1), "test51"))
+            )
           ),
           IndexedSeq.empty
         ),

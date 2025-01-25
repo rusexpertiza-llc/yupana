@@ -57,11 +57,12 @@ object ConditionUtils {
 
   def value[T](v: ValueExpr[T]): T = {
     v match {
-      case ConstantExpr(t) => t
-      case NullExpr(_)     => null.asInstanceOf[T]
-      case TrueExpr        => true
-      case FalseExpr       => false
-      case x               => throw new IllegalStateException(s"Unexpected value $x in DAO")
+      case ConstantExpr(t)      => t
+      case NullExpr(_)          => null.asInstanceOf[T]
+      case TrueExpr             => true
+      case FalseExpr            => false
+      case TupleValueExpr(a, b) => (value(a), value(b))
+      case x                    => throw new IllegalStateException(s"Unexpected value $x in DAO")
     }
   }
 }
