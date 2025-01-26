@@ -30,7 +30,7 @@ class MessageDecoder(charset: Charset) extends ReplayingDecoder[Unit] {
 
     def wrapError(msg: Either[String, AnyRef]): Unit = {
       msg match {
-        case Right(value) => out.add(msg)
+        case Right(value) => out.add(value)
         case Left(err)    => ctx.write(ErrorResponse(err))
       }
     }
