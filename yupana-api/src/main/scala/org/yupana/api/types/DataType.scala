@@ -90,15 +90,6 @@ class TupleDataType[A, B](val aType: DataType.Aux[A], val bType: DataType.Aux[B]
   override val ordering: Option[Ordering[(A, B)]] = None
   override val integral: Option[Integral[(A, B)]] = None
   override val fractional: Option[Fractional[(A, B)]] = None
-
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: TupleDataType[_, _] => this.aType == that.aType && this.bType == that.bType
-      case _                         => false
-    }
-  }
-
-  override def hashCode(): Int = aType.hashCode() * 41 + bType.hashCode()
 }
 
 object DataType {
