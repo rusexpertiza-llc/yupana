@@ -302,7 +302,7 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     header.tableName shouldEqual "result 1"
 
     ch.writeInbound(Cancel(1).toFrame(Unpooled.buffer()))
-    readMessage(ch, Canceled).id shouldEqual 1
+    readMessage(ch, Cancelled).id shouldEqual 1
 
     ch.writeInbound(NextBatch(1, 10).toFrame(Unpooled.buffer()))
     val err = readMessage(ch, ErrorMessage)

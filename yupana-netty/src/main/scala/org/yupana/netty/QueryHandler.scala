@@ -101,7 +101,7 @@ class QueryHandler(serverContext: ServerContext, user: YupanaUser) extends Frame
         case Some(s) =>
           streams -= cancel.id
           s.close()
-          writeResponse(ctx, Canceled(cancel.id))
+          writeResponse(ctx, Cancelled(cancel.id))
         case None => writeResponse(ctx, ErrorMessage(s"Unknown stream id ${cancel.id}", Some(cancel.id)))
       }
     }
