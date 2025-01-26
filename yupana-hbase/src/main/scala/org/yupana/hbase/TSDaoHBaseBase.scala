@@ -296,7 +296,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
     }
   }
 
-  private def dimIdValueFromString[R](dim: Dimension.Aux2[_, R], value: String): Option[R] = {
+  private def dimIdValueFromString[R](dim: Dimension.AuxR[R], value: String): Option[R] = {
     Try(Hex.decodeHex(value.toCharArray)).toOption.map { a =>
       dim.rStorable.read(MemoryBuffer.ofBytes(a))(readerWriter)
     }
@@ -306,10 +306,10 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
     def handleEq(condition: Condition, builder: Filters.Builder): Filters.Builder = {
       condition match {
         case EqExpr(DimensionExpr(dim), ConstantExpr(c)) =>
-          builder.includeValue(dim.aux, c)
+          builder.includeValue(dim, c)
 
         case EqExpr(ConstantExpr(c), DimensionExpr(dim)) =>
-          builder.includeValue(dim.aux, c)
+          builder.includeValue(dim, c)
 
         case EqString(LowerExpr(DimensionExpr(dim)), ConstantExpr(c)) =>
           builder.includeValue(dim.aux, c)
@@ -344,10 +344,10 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
     def handleNeq(condition: Condition, builder: Filters.Builder): Filters.Builder = {
       condition match {
         case NeqExpr(DimensionExpr(dim), ConstantExpr(c)) =>
-          builder.excludeValue(dim.aux, c)
+          builder.excludeValue(dim, c)
 
         case NeqExpr(ConstantExpr(c), DimensionExpr(dim)) =>
-          builder.excludeValue(dim.aux, c)
+          builder.excludeValue(dim, c)
 
         case NeqString(LowerExpr(DimensionExpr(dim)), ConstantExpr(c)) =>
           builder.excludeValue(dim.aux, c)
@@ -494,8 +494,8 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
       case LeTime(ConstantExpr(_), TimeExpr)              => true
       case InTime(TimeExpr, _)                            => true
       case NotInTime(TimeExpr, _)                         => true
-      case _: DimIdInExpr[_, _]                           => true
-      case _: DimIdNotInExpr[_, _]                        => true
+      case _: DimIdInExpr[_]                              => true
+      case _: DimIdNotInExpr[_]                           => true
       case InExpr(_: DimensionExpr[_], _)                 => true
       case NotInExpr(_: DimensionExpr[_], _)              => true
       case InString(LowerExpr(_: DimensionExpr[_]), _)    => true
