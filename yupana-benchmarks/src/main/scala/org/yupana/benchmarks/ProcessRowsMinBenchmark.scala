@@ -28,8 +28,6 @@ import java.time.LocalDateTime
 
 class ProcessRowsMinBenchmark {
 
-  private val now = Time(LocalDateTime.now())
-
   @Benchmark
   def processRowsMinimal(state: TsdbBaseBenchmarkStateMin): Int = {
     val res = state.tsdb
@@ -38,7 +36,7 @@ class ProcessRowsMinBenchmark {
         NoMetricCollector,
         IteratorMapReducible.iteratorMR,
         state.dataset.iterator,
-        now,
+        state.now,
         IndexedSeq.empty
       )
     var i = 0
@@ -51,6 +49,8 @@ class ProcessRowsMinBenchmark {
 
 @State(Scope.Benchmark)
 class TsdbBaseBenchmarkStateMin extends TsdbBaseBenchmarkStateBase {
+  override val now: Time = Time(LocalDateTime.now())
+
   override val query: Query = Query(
     table = Tables.itemsKkmTable,
     from = const(Time(LocalDateTime.now().minusDays(1))),
