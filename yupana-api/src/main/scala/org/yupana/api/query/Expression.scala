@@ -634,6 +634,19 @@ final case class InExpr[T](expr: Expression[T], values: Set[ValueExpr[T]])
     extends UnaryOperationExpr[T, Boolean](expr, "in", InExpr(_, values))
     with SimpleCondition {
 
+  override def fold[O](z: O)(f: (O, Expression[_]) => O): O =
+    values.foldLeft(expr.fold(f(z, this))(f))((e, v) => v.fold(e)(f))
+
+  override def transform(f: Transform): Expression[Boolean] = {
+    val vs: Set[ValueExpr[T]] = values.map(v =>
+      f.apply(v) match {
+        case Some(x: ValueExpr[_]) => x
+        case _                     => v
+      }
+    )
+    f.applyOrDefault(this, InExpr(expr.transform(f), vs))
+  }
+
   override def encode: String = values.toSeq.map(_.toString).sorted.mkString(s"in(${expr.encode}, (", ",", "))")
   override def toString: String =
     expr.toString + CollectionUtils.mkStringWithLimit(values, 10, " IN (", ", ", ")")
@@ -642,6 +655,19 @@ final case class InExpr[T](expr: Expression[T], values: Set[ValueExpr[T]])
 final case class NotInExpr[T](expr: Expression[T], values: Set[ValueExpr[T]])
     extends UnaryOperationExpr[T, Boolean](expr, "notIn", NotInExpr(_, values))
     with SimpleCondition {
+
+  override def fold[O](z: O)(f: (O, Expression[_]) => O): O =
+    values.foldLeft(expr.fold(f(z, this))(f))((e, v) => v.fold(e)(f))
+
+  override def transform(f: Transform): Expression[Boolean] = {
+    val vs: Set[ValueExpr[T]] = values.map(v =>
+      f.apply(v) match {
+        case Some(x: ValueExpr[_]) => x
+        case _                     => v
+      }
+    )
+    f.applyOrDefault(this, NotInExpr(expr.transform(f), vs))
+  }
 
   override def encode: String = values.toSeq.map(_.toString).sorted.mkString(s"notIn(${expr.encode}, (", ",", "))")
   override def toString: String =
