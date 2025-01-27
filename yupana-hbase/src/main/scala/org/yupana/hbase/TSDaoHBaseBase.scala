@@ -329,13 +329,15 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
         case EqTime(ConstantExpr(c), TimeExpr) =>
           builder.includeTime(c)
 
-        case EqUntyped(t: TupleExpr[a, b], v: TupleValueExpr[_, _]) =>
-          val filters1 = createFilters(InExpr(t.e1, Set(v.v1).asInstanceOf[Set[ValueExpr[a]]]), builder)
-          createFilters(InExpr(t.e2, Set(v.v2).asInstanceOf[Set[ValueExpr[b]]]), filters1)
+        case EqUntyped(t: TupleExpr[a, b], v: ValueExpr[_]) =>
+          val (x, y) = ConditionUtils.value(v.asInstanceOf[ValueExpr[(a, b)]])
+          val filters1 = createFilters(InExpr(t.e1, Set[ValueExpr[a]](ConstantExpr(x)(t.e1.dataType))), builder)
+          createFilters(InExpr(t.e2, Set[ValueExpr[b]](ConstantExpr(y)(t.e2.dataType))), filters1)
 
         case EqUntyped(v: TupleValueExpr[_, _], t: TupleExpr[a, b]) =>
-          val filters1 = createFilters(InExpr(t.e1, Set(v.v1).asInstanceOf[Set[ValueExpr[a]]]), builder)
-          createFilters(InExpr(t.e2, Set(v.v2).asInstanceOf[Set[ValueExpr[b]]]), filters1)
+          val (x, y) = ConditionUtils.value(v.asInstanceOf[ValueExpr[(a, b)]])
+          val filters1 = createFilters(InExpr(t.e1, Set[ValueExpr[a]](ConstantExpr(x)(t.e1.dataType))), builder)
+          createFilters(InExpr(t.e2, Set[ValueExpr[b]](ConstantExpr(y)(t.e2.dataType))), filters1)
 
         case _ => builder
       }
@@ -389,8 +391,15 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
           )
 
         case InUntyped(t: TupleExpr[a, b], vs) =>
-          val filters1 = createFilters(InExpr(t.e1, vs.asInstanceOf[Set[TupleValueExpr[a, b]]].map(_.v1)), builder)
-          createFilters(InExpr(t.e2, vs.asInstanceOf[Set[TupleValueExpr[a, b]]].map(_.v2)), filters1)
+          val values: Set[(a, b)] = vs.asInstanceOf[Set[ValueExpr[(a, b)]]].map(ConditionUtils.value)
+          val filters1 = createFilters(
+            InExpr(t.e1, values.map(x => ConstantExpr(x._1)(t.e1.dataType)).asInstanceOf[Set[ValueExpr[a]]]),
+            builder
+          )
+          createFilters(
+            InExpr(t.e2, values.map(x => ConstantExpr(x._2)(t.e2.dataType)).asInstanceOf[Set[ValueExpr[b]]]),
+            filters1
+          )
 
         case _ => builder
       }
