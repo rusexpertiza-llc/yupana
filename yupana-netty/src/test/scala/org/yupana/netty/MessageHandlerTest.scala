@@ -154,9 +154,9 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     val row = readMessage(ch, ResultRow)
     row.id shouldEqual 11
     row.values should contain theSameElementsInOrderAs List(
-      Array(5),
-      Array(0, 0, 0, 3) ++ "abc".getBytes(),
-      Array(0)
+      Array[Byte](5),
+      Array[Byte](0, 0, 0, 3) ++ "abc".getBytes(),
+      Array[Byte](0)
     )
 
     Then("reply with footer")
@@ -302,7 +302,7 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     header.tableName shouldEqual "result 1"
 
     ch.writeInbound(Cancel(1).toFrame(Unpooled.buffer()))
-    readMessage(ch, Canceled).id shouldEqual 1
+    readMessage(ch, Cancelled).id shouldEqual 1
 
     ch.writeInbound(NextBatch(1, 10).toFrame(Unpooled.buffer()))
     val err = readMessage(ch, ErrorMessage)

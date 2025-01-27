@@ -648,7 +648,7 @@ final case class NotInExpr[T](expr: Expression[T], values: Set[ValueExpr[T]])
     expr.toString + CollectionUtils.mkStringWithLimit(values, 10, " NOT IN (", ", ", ")")
 }
 
-final case class DimIdInExpr[T, R](dim: Dimension.Aux2[T, R], values: SortedSetIterator[R])
+final case class DimIdInExpr[R](dim: Dimension.AuxR[R], values: SortedSetIterator[R])
     extends SimpleCondition
     with SimpleExpr[Boolean] {
   override val isNullable: Boolean = false
@@ -659,7 +659,7 @@ final case class DimIdInExpr[T, R](dim: Dimension.Aux2[T, R], values: SortedSetI
   override def equals(that: Any): Boolean = false
 }
 
-final case class DimIdNotInExpr[T, R](dim: Dimension.Aux2[T, R], values: SortedSetIterator[R])
+final case class DimIdNotInExpr[R](dim: Dimension.AuxR[R], values: SortedSetIterator[R])
     extends SimpleCondition
     with SimpleExpr[Boolean] {
   override val isNullable: Boolean = false

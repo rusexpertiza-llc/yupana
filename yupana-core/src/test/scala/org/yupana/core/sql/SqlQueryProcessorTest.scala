@@ -13,6 +13,7 @@ import org.threeten.extra.PeriodDuration
 import org.yupana.api.types.{ DataType, SimpleStringReaderWriter, StringReaderWriter }
 
 import java.time.{ LocalDateTime, OffsetDateTime, Period, ZoneOffset }
+import org.yupana.api.schema.Dimension
 
 class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with OptionValues with EitherValues {
 
@@ -1319,7 +1320,7 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
         val dp = dps.head
         dp.table shouldEqual TestSchema.testTable
         dp.time shouldEqual OffsetDateTime.of(2020, 1, 2, 23, 25, 40, 0, ZoneOffset.UTC).toInstant.toEpochMilli
-        dp.dimensions shouldEqual Map(TestDims.DIM_B -> 21.toShort, TestDims.DIM_A -> "bar")
+        dp.dimensions shouldEqual Map[Dimension, Any](TestDims.DIM_B -> 21.toShort, TestDims.DIM_A -> "bar")
         dp.metrics should contain theSameElementsAs Seq(
           MetricValue(TestTableFields.TEST_FIELD, 55d),
           MetricValue(TestTableFields.TEST_STRING_FIELD, "baz")
@@ -1369,13 +1370,13 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
         val dp1 = dps(0)
         dp1.table shouldEqual TestSchema.testTable
         dp1.time shouldEqual t1.toInstant.toEpochMilli
-        dp1.dimensions shouldEqual Map(TestDims.DIM_B -> 12, TestDims.DIM_A -> "aaa")
+        dp1.dimensions shouldEqual Map[Dimension, Any](TestDims.DIM_B -> 12, TestDims.DIM_A -> "aaa")
         dp1.metrics shouldEqual Seq(MetricValue(TestTableFields.TEST_FIELD, 1.1d))
 
         val dp2 = dps(1)
         dp2.table shouldEqual TestSchema.testTable
         dp2.time shouldEqual t2.toInstant.toEpochMilli
-        dp2.dimensions shouldEqual Map(TestDims.DIM_B -> 34, TestDims.DIM_A -> "ccc")
+        dp2.dimensions shouldEqual Map[Dimension, Any](TestDims.DIM_B -> 34, TestDims.DIM_A -> "ccc")
         dp2.metrics shouldEqual Seq(MetricValue(TestTableFields.TEST_FIELD, 2.2d))
 
       case Left(e) => fail(e)
@@ -1396,19 +1397,19 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
         val dp1 = dps(0)
         dp1.table shouldEqual TestSchema.testTable
         dp1.time shouldEqual t1.atOffset(ZoneOffset.UTC).toInstant.toEpochMilli
-        dp1.dimensions shouldEqual Map(TestDims.DIM_B -> 12, TestDims.DIM_A -> "a")
+        dp1.dimensions shouldEqual Map[Dimension, Any](TestDims.DIM_B -> 12, TestDims.DIM_A -> "a")
         dp1.metrics shouldEqual Seq(MetricValue(TestTableFields.TEST_FIELD, 1.5d))
 
         val dp2 = dps(1)
         dp2.table shouldEqual TestSchema.testTable
         dp2.time shouldEqual t2.atOffset(ZoneOffset.UTC).toInstant.toEpochMilli
-        dp2.dimensions shouldEqual Map(TestDims.DIM_B -> 34, TestDims.DIM_A -> "c")
+        dp2.dimensions shouldEqual Map[Dimension, Any](TestDims.DIM_B -> 34, TestDims.DIM_A -> "c")
         dp2.metrics shouldEqual Seq(MetricValue(TestTableFields.TEST_FIELD, 3d))
 
         val dp3 = dps(2)
         dp3.table shouldEqual TestSchema.testTable
         dp3.time shouldEqual t3.atOffset(ZoneOffset.UTC).toInstant.toEpochMilli
-        dp3.dimensions shouldEqual Map(TestDims.DIM_B -> 56, TestDims.DIM_A -> "e")
+        dp3.dimensions shouldEqual Map[Dimension, Any](TestDims.DIM_B -> 56, TestDims.DIM_A -> "e")
         dp3.metrics shouldEqual Seq(MetricValue(TestTableFields.TEST_FIELD, 321.5d))
 
       case Left(msg) => fail(msg)

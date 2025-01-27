@@ -297,10 +297,10 @@ class TSDaoKhipu(schema: Schema, settings: Settings) extends TSDao[Iterator, Lon
     def handleEq(condition: Condition, builder: Filters.Builder): Filters.Builder = {
       condition match {
         case EqExpr(DimensionExpr(dim), ConstantExpr(c)) =>
-          builder.includeValue(dim.aux, c)
+          builder.includeValue(dim, c)
 
         case EqExpr(ConstantExpr(c), DimensionExpr(dim)) =>
-          builder.includeValue(dim.aux, c)
+          builder.includeValue(dim, c)
 
         case EqString(LowerExpr(DimensionExpr(dim)), ConstantExpr(c)) =>
           builder.includeValue(dim.aux, c)
@@ -335,10 +335,10 @@ class TSDaoKhipu(schema: Schema, settings: Settings) extends TSDao[Iterator, Lon
     def handleNeq(condition: Condition, builder: Filters.Builder): Filters.Builder = {
       condition match {
         case NeqExpr(DimensionExpr(dim), ConstantExpr(c)) =>
-          builder.excludeValue(dim.aux, c)
+          builder.excludeValue(dim, c)
 
         case NeqExpr(ConstantExpr(c), DimensionExpr(dim)) =>
-          builder.excludeValue(dim.aux, c)
+          builder.excludeValue(dim, c)
 
         case NeqString(LowerExpr(DimensionExpr(dim)), ConstantExpr(c)) =>
           builder.excludeValue(dim.aux, c)
@@ -485,8 +485,8 @@ class TSDaoKhipu(schema: Schema, settings: Settings) extends TSDao[Iterator, Lon
       case LeTime(ConstantExpr(_), TimeExpr)              => true
       case InTime(TimeExpr, _)                            => true
       case NotInTime(TimeExpr, _)                         => true
-      case _: DimIdInExpr[_, _]                           => true
-      case _: DimIdNotInExpr[_, _]                        => true
+      case _: DimIdInExpr[_]                              => true
+      case _: DimIdNotInExpr[_]                           => true
       case InExpr(_: DimensionExpr[_], _)                 => true
       case NotInExpr(_: DimensionExpr[_], _)              => true
       case InString(LowerExpr(_: DimensionExpr[_]), _)    => true
@@ -505,7 +505,7 @@ class TSDaoKhipu(schema: Schema, settings: Settings) extends TSDao[Iterator, Lon
     SortedSetIterator(it)
   }
 
-  private def dimIdValueFromString[R](dim: Dimension.Aux2[_, R], value: String): Option[R] = {
+  private def dimIdValueFromString[R](dim: Dimension.AuxR[R], value: String): Option[R] = {
     //    Try {
     //      val bytes = javax.xml.bind.DatatypeConverter.parseHexBinary(value)
     //      dim.rStorable.read(bytes)

@@ -27,7 +27,7 @@ import scala.collection.mutable.ArrayBuffer
 final class HashTableDataset(schema: DatasetSchema) {
   import HashTableDataset._
 
-  private val hashMap = new mutable.AnyRefMap[AnyRef, RowPointer]
+  private val hashMap = new mutable.HashMap[AnyRef, RowPointer]
 
   private var batches = Array(new BatchDataset(schema: DatasetSchema))
 
