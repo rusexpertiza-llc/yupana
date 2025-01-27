@@ -77,7 +77,7 @@ class TSDB(
   ): Iterator[BatchDataset] = {
     val batchesArray = batches.toArray
 
-    val groups = mutable.AnyRefMap.empty[AnyRef, mutable.ArrayBuffer[Long]]
+    val groups = mutable.HashMap.empty[AnyRef, mutable.ArrayBuffer[Long]]
 
     val keyDataRowIdSeq = mutable.ArrayBuffer.empty[(AnyRef, Long)]
 
@@ -96,7 +96,7 @@ class TSDB(
         }
     }
 
-    val sortedGroups = groups.mapValuesNow { rowIds =>
+    val sortedGroups = groups.view.mapValues { rowIds =>
       rowIds.sortInPlaceBy { rowId =>
         val batchIdx = (rowId >> 32).toInt
         val rowNum = (rowId & 0xFFFFFFFFL).toInt
@@ -109,7 +109,7 @@ class TSDB(
 
     val winExprGroupsWithValues = queryContext.query.fields.map(_.expr).collect {
       case winFuncExpr: WindowFunctionExpr[_, _] =>
-        val values = sortedGroups.mapValuesNow { rowIdToPosMap =>
+        val values = sortedGroups.mapValues { rowIdToPosMap =>
           val funcValues = winFuncExpr.expr.dataType.classTag.newArray(rowIdToPosMap.size)
           rowIdToPosMap.foreachEntry { (rowId, _) =>
             val batchIdx = (rowId >> 32).toInt

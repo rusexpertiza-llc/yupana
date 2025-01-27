@@ -81,9 +81,9 @@ class ItemsInvertedIndexImplTest
     val ac1 = actual(1)
     ac1 shouldBe a[AddCondition]
     val dimIn1 = ac1.asInstanceOf[AddCondition].c
-    dimIn1 shouldBe a[DimIdInExpr[_, _]]
-    dimIn1.asInstanceOf[DimIdInExpr[String, (Int, Long)]].dim shouldBe Dimensions.ITEM
-    dimIn1.asInstanceOf[DimIdInExpr[String, (Int, Long)]].values.toList should contain theSameElementsAs si(
+    dimIn1 shouldBe a[DimIdInExpr[_]]
+    dimIn1.asInstanceOf[DimIdInExpr[(Int, Long)]].dim shouldBe Dimensions.ITEM
+    dimIn1.asInstanceOf[DimIdInExpr[(Int, Long)]].values.toList should contain theSameElementsAs si(
       "колбаса вареная",
       "колбаса вареная молочная",
       "щупальца кальмара"
@@ -93,9 +93,9 @@ class ItemsInvertedIndexImplTest
     val ac2 = actual(3)
     ac2 shouldBe a[AddCondition]
     val dimIn2 = ac2.asInstanceOf[AddCondition].c
-    dimIn2 shouldBe a[DimIdNotInExpr[_, _]]
-    dimIn2.asInstanceOf[DimIdNotInExpr[String, (Int, Long)]].dim shouldBe Dimensions.ITEM
-    dimIn2.asInstanceOf[DimIdNotInExpr[String, (Int, Long)]].values.toList should contain theSameElementsAs si(
+    dimIn2 shouldBe a[DimIdNotInExpr[_]]
+    dimIn2.asInstanceOf[DimIdNotInExpr[(Int, Long)]].dim shouldBe Dimensions.ITEM
+    dimIn2.asInstanceOf[DimIdNotInExpr[(Int, Long)]].values.toList should contain theSameElementsAs si(
       "колбаса хол копчения"
     ).toSeq
   }
