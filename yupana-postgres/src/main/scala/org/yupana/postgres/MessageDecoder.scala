@@ -27,6 +27,14 @@ import java.util
 class MessageDecoder(charset: Charset) extends ReplayingDecoder[Unit] {
 
   override def decode(ctx: ChannelHandlerContext, in: ByteBuf, out: util.List[AnyRef]): Unit = {
+
+    def wrapError(msg: Either[String, AnyRef]): Unit = {
+      msg match {
+        case Right(value) => out.add(value)
+        case Left(err)    => ctx.write(ErrorResponse(err))
+      }
+    }
+
     val tag = in.readByte()
     val size = in.readInt()
     val slice = in.readSlice(size - 4)
@@ -36,11 +44,12 @@ class MessageDecoder(charset: Charset) extends ReplayingDecoder[Unit] {
       case 'X' => out.add(Quit)
       case 'P' => out.add(Parse.decode(slice, charset))
       case 'B' => out.add(Bind.decode(slice, charset))
-      case 'D' => Describe.decode(slice, charset).fold[Any](err => ctx.write(ErrorResponse(err)), out.add)
+      case 'D' => wrapError(Describe.decode(slice, charset))
       case 'E' => out.add(Execute.decode(slice, charset))
       case 'S' => out.add(Sync)
-      case 'C' => Close.decode(slice, charset).fold[Any](err => ctx.write(ErrorResponse(err)), out.add)
+      case 'C' => wrapError(Close.decode(slice, charset))
       case 'p' => out.add(PasswordMessage.decode(slice, charset))
     }
   }
+
 }

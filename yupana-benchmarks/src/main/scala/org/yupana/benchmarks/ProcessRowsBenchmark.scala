@@ -29,8 +29,6 @@ import java.time.LocalDateTime
 
 class ProcessRowsBenchmark {
 
-  private val now = Time(LocalDateTime.now())
-
   @Benchmark
   def processRows(state: TsdbBaseBenchmarkState): Int = {
     val mc = new StandaloneMetricCollector(state.query, "admin", "bench", 1000, new Slf4jMetricReporter)
@@ -40,7 +38,7 @@ class ProcessRowsBenchmark {
         mc,
         IteratorMapReducible.iteratorMR,
         state.dataset.iterator,
-        now,
+        state.now,
         IndexedSeq.empty
       )
     var i = 0
@@ -56,7 +54,9 @@ class ProcessRowsBenchmark {
 
 @State(Scope.Benchmark)
 class TsdbBaseBenchmarkState extends TsdbBaseBenchmarkStateBase {
-  val query: Query = Query(
+  override val now: Time = Time(LocalDateTime.now())
+
+  override val query: Query = Query(
     table = Tables.itemsKkmTable,
     from = const(Time(LocalDateTime.now().minusDays(1))),
     to = const(Time(LocalDateTime.now())),
@@ -74,7 +74,7 @@ class TsdbBaseBenchmarkState extends TsdbBaseBenchmarkStateBase {
     groupBy = Seq.empty
   )
 
-  val daoExprs: Seq[Expression[_]] =
+  override val daoExprs: Seq[Expression[_]] =
     Seq(
       time,
       dimension(Dimensions.ITEM),

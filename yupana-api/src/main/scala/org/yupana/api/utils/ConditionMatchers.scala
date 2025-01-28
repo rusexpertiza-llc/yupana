@@ -77,18 +77,18 @@ object ConditionMatchers {
   }
 
   trait InMatcher[T] {
-    def unapply(condition: SimpleCondition): Option[(Expression[T], Set[T])] = {
+    def unapply(condition: SimpleCondition): Option[(Expression[T], Set[ValueExpr[T]])] = {
       condition match {
-        case InExpr(a, b) => Some((a.asInstanceOf[Expression[T]], b.asInstanceOf[Set[T]]))
+        case InExpr(a, b) => Some((a.asInstanceOf[Expression[T]], b.asInstanceOf[Set[ValueExpr[T]]]))
         case _            => None
       }
     }
   }
 
   trait NotInMatcher[T] {
-    def unapply(condition: SimpleCondition): Option[(Expression[T], Set[T])] = {
+    def unapply(condition: SimpleCondition): Option[(Expression[T], Set[ValueExpr[T]])] = {
       condition match {
-        case NotInExpr(a, b) => Some((a.asInstanceOf[Expression[T]], b.asInstanceOf[Set[T]]))
+        case NotInExpr(a, b) => Some((a.asInstanceOf[Expression[T]], b.asInstanceOf[Set[ValueExpr[T]]]))
         case _               => None
       }
     }
@@ -105,7 +105,7 @@ object ConditionMatchers {
   }
 
   object InUntyped {
-    def unapply(e: Expression[_]): Option[(Expression[_], Set[_])] = {
+    def unapply(e: Expression[_]): Option[(Expression[_], Set[ValueExpr[Any]])] = {
       e match {
         case InExpr(t: Expression[_], v) => Some((t, v))
         case _                           => None

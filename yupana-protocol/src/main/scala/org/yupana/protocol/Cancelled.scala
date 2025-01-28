@@ -17,9 +17,9 @@
 package org.yupana.protocol
 
 /** Server response when the query was canceled by [[Cancel]] command */
-case class Canceled(id: Int) extends Response[Canceled](Canceled)
+case class Cancelled(id: Int) extends Response[Cancelled](Cancelled)
 
-object Canceled extends MessageHelper[Canceled] {
+object Cancelled extends MessageHelper[Cancelled] {
   override val tag: Tags.Tags = Tags.CANCELED
-  override val readWrite: ReadWrite[Canceled] = ReadWrite[Int].imap(Canceled.apply)(_.id)
+  override val readWrite: ReadWrite[Cancelled] = ReadWrite[Int].imap(Cancelled.apply)(_.id)
 }

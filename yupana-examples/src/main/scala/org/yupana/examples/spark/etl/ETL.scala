@@ -21,6 +21,8 @@ import org.apache.spark.{ SparkConf, SparkContext }
 import org.yupana.api.{ Blob, Currency }
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema.{ Dimension, MetricValue }
+import org.yupana.core.auth.TsdbRole.ReadWrite
+import org.yupana.core.auth.YupanaUser
 import org.yupana.examples.ExampleSchema
 import org.yupana.schema._
 import org.yupana.spark.{ EtlConfig, EtlContext, SparkConfUtils }
@@ -30,7 +32,7 @@ import java.time.ZoneOffset
 object ETL extends StrictLogging {
 
   def main(args: Array[String]): Unit = {
-
+    val user = YupanaUser("ETL", None, ReadWrite)
     val conf = new SparkConf().setAppName("Yupana-ETL")
     SparkConfUtils.removeSparkPrefix(conf)
     val sc = SparkContext.getOrCreate(conf)
@@ -45,7 +47,7 @@ object ETL extends StrictLogging {
 
     receiptsRdd
       .flatMap(toDataPoints)
-      .saveDataPoints(ctx)
+      .saveDataPoints(ctx, user)
 
   }
 

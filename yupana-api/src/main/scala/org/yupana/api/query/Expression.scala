@@ -157,16 +157,17 @@ final case class DistinctRandomExpr[I](override val expr: Expression[I])
   override val dataType: DataType.Aux[I] = expr.dataType
 }
 
-sealed trait ConstExpr[T] extends Expression[T] {
-  override val kind: ExprKind = Const
+sealed trait ValueExpr[T] extends Expression[T] {
   override def fold[O](z: O)(f: (O, Expression[_]) => O): O = f(z, this)
   override def transform(f: Transform): Expression[T] = f.applyOrDefault(this, this)
 }
 
+sealed trait ConstExpr[T] extends ValueExpr[T] {
+  override val kind: ExprKind = Const
+}
+
 final case class NullExpr[T](override val dataType: DataType.Aux[T]) extends ConstExpr[T] {
-
   override val isNullable: Boolean = true
-
   override def encode: String = "null"
 }
 
@@ -185,12 +186,21 @@ final case class ConstantExpr[T](v: T)(implicit override val dataType: DataType.
   }
 }
 
-final case class PlaceholderExpr[T](id: Int, override val dataType: DataType.Aux[T]) extends SimpleExpr[T] {
+case class TupleValueExpr[T, U](v1: ValueExpr[T], v2: ValueExpr[U]) extends ValueExpr[(T, U)] {
+  override val dataType: DataType.Aux[(T, U)] = DataType.tupleDt(v1.dataType, v2.dataType)
+  override val kind: ExprKind = ExprKind.combine(v1.kind, v2.kind)
+  override val isNullable: Boolean = false
+  override def encode: String = s"(${v1.encode}, ${v2.encode})"
+}
+
+final case class PlaceholderExpr[T](id: Int, override val dataType: DataType.Aux[T]) extends ValueExpr[T] {
+  override val kind: ExprKind = Simple
   override val isNullable: Boolean = true
   override def encode: String = s"?$id:${dataType.meta.javaTypeName}"
 }
 
-final case class UntypedPlaceholderExpr(id: Int) extends SimpleExpr[Null] {
+final case class UntypedPlaceholderExpr(id: Int) extends ValueExpr[Null] {
+  override val kind: ExprKind = Simple
   override val dataType: DataType.Aux[Null] = DataType[Null]
   override val isNullable: Boolean = true
   override def encode: String = s"?$id"
@@ -555,11 +565,8 @@ final case class ContainsSameExpr[T](override val a: Expression[Seq[T]], overrid
   override val dataType: DataType.Aux[Boolean] = DataType[Boolean]
 }
 
-final case class TupleExpr[T, U](e1: Expression[T], e2: Expression[U])(
-    implicit rtt: DataType.Aux[T],
-    rtu: DataType.Aux[U]
-) extends Expression[(T, U)] {
-  override val dataType: DataType.Aux[(T, U)] = DataType[(T, U)]
+final case class TupleExpr[T, U](e1: Expression[T], e2: Expression[U]) extends Expression[(T, U)] {
+  override val dataType: DataType.Aux[(T, U)] = DataType.tupleDt(e1.dataType, e2.dataType)
   override val kind: ExprKind = ExprKind.combine(e1.kind, e2.kind)
   override val isNullable: Boolean = false
 
@@ -612,25 +619,51 @@ final case class ConditionExpr[T](
   override def encode: String = s"if(${condition.encode},${positive.encode},${negative.encode}"
 }
 
-final case class InExpr[T](expr: Expression[T], values: Set[T])
+final case class InExpr[T](expr: Expression[T], values: Set[ValueExpr[T]])
     extends UnaryOperationExpr[T, Boolean](expr, "in", InExpr(_, values))
     with SimpleCondition {
+
+  override def fold[O](z: O)(f: (O, Expression[_]) => O): O =
+    values.foldLeft(expr.fold(f(z, this))(f))((e, v) => v.fold(e)(f))
+
+  override def transform(f: Transform): Expression[Boolean] = {
+    val vs: Set[ValueExpr[T]] = values.map(v =>
+      f.apply(v) match {
+        case Some(x: ValueExpr[_]) => x
+        case _                     => v
+      }
+    )
+    f.applyOrDefault(this, InExpr(expr.transform(f), vs))
+  }
 
   override def encode: String = values.toSeq.map(_.toString).sorted.mkString(s"in(${expr.encode}, (", ",", "))")
   override def toString: String =
     expr.toString + CollectionUtils.mkStringWithLimit(values, 10, " IN (", ", ", ")")
 }
 
-final case class NotInExpr[T](expr: Expression[T], values: Set[T])
+final case class NotInExpr[T](expr: Expression[T], values: Set[ValueExpr[T]])
     extends UnaryOperationExpr[T, Boolean](expr, "notIn", NotInExpr(_, values))
     with SimpleCondition {
+
+  override def fold[O](z: O)(f: (O, Expression[_]) => O): O =
+    values.foldLeft(expr.fold(f(z, this))(f))((e, v) => v.fold(e)(f))
+
+  override def transform(f: Transform): Expression[Boolean] = {
+    val vs: Set[ValueExpr[T]] = values.map(v =>
+      f.apply(v) match {
+        case Some(x: ValueExpr[_]) => x
+        case _                     => v
+      }
+    )
+    f.applyOrDefault(this, NotInExpr(expr.transform(f), vs))
+  }
 
   override def encode: String = values.toSeq.map(_.toString).sorted.mkString(s"notIn(${expr.encode}, (", ",", "))")
   override def toString: String =
     expr.toString + CollectionUtils.mkStringWithLimit(values, 10, " NOT IN (", ", ", ")")
 }
 
-final case class DimIdInExpr[T, R](dim: Dimension.Aux2[T, R], values: SortedSetIterator[R])
+final case class DimIdInExpr[R](dim: Dimension.AuxR[R], values: SortedSetIterator[R])
     extends SimpleCondition
     with SimpleExpr[Boolean] {
   override val isNullable: Boolean = false
@@ -641,7 +674,7 @@ final case class DimIdInExpr[T, R](dim: Dimension.Aux2[T, R], values: SortedSetI
   override def equals(that: Any): Boolean = false
 }
 
-final case class DimIdNotInExpr[T, R](dim: Dimension.Aux2[T, R], values: SortedSetIterator[R])
+final case class DimIdNotInExpr[R](dim: Dimension.AuxR[R], values: SortedSetIterator[R])
     extends SimpleCondition
     with SimpleExpr[Boolean] {
   override val isNullable: Boolean = false

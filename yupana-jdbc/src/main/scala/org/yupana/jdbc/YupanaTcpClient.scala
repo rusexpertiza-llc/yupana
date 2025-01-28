@@ -248,7 +248,7 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Opt
       val f = runCommand(
         Cancel(id),
         (p: Promise[Unit]) =>
-          waitFor(Canceled).onComplete { cancelled =>
+          waitFor(Cancelled).onComplete { cancelled =>
             cancelled.map { c =>
               assert(c.id == id)
               iterators.synchronized {

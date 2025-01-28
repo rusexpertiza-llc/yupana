@@ -90,7 +90,8 @@ object ExpressionCodeGenFactory {
       case we: WindowFunctionExpr[_, _] =>
         new WindowFunctionExprCodeGen(we)
 
-      case e @ TupleExpr(_, _) => TupleExpressionCodeGen(e)
+      case e @ TupleExpr(a, b)      => TupleExpressionCodeGen(e, a, b)
+      case e @ TupleValueExpr(a, b) => TupleExpressionCodeGen(e, a, b)
 
       case e @ GtExpr(_, _)  => OrdExpressionCodeGen(e, (x, y) => q"""$x > $y""", "gt")
       case e @ LtExpr(_, _)  => OrdExpressionCodeGen(e, (x, y) => q"""$x < $y""", "lt")

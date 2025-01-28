@@ -162,7 +162,7 @@ lazy val core = (project in file("yupana-core"))
       "org.scala-lang"                %  "scala-compiler"               % scalaVersion.value,
       "com.typesafe.scala-logging"    %% "scala-logging"                % versions.scalaLogging,
       "com.lihaoyi"                   %% "fastparse"                    % versions.fastparse,
-      "com.twitter"                   %% "algebird-core"                % "0.13.9",
+      "com.twitter"                   %% "algebird-core"                % "0.13.10",
       "at.favre.lib"                  %  "bcrypt"                       % "0.10.2",
       "ch.qos.logback"                %  "logback-classic"              % versions.logback            % Test,
       "org.scalatest"                 %% "scalatest"                    % versions.scalaTest          % Test,
@@ -186,7 +186,7 @@ lazy val hbase = (project in file("yupana-hbase"))
       "io.circe"                    %% "circe-generic"                  % versions.circe,
       "org.scalatest"               %% "scalatest"                      % versions.scalaTest                % Test,
       "org.scalamock"               %% "scalamock"                      % versions.scalaMock                % Test,
-      "com.dimafeng"                %% "testcontainers-scala-scalatest" % "0.41.4"                         % Test
+      "com.dimafeng"                %% "testcontainers-scala-scalatest" % "0.41.5"                          % Test
     ),
     excludeDependencies ++= Seq(
       // workaround for https://github.com/sbt/sbt/issues/3618
@@ -252,7 +252,7 @@ lazy val spark = (project in file("yupana-spark"))
       "org.scalatest"               %% "scalatest"                      % versions.scalaTest      % Test,
       "ch.qos.logback"              %  "logback-classic"                % versions.logback        % Test,
       "ch.qos.logback"              %  "logback-core"                   % versions.logback        % Test,
-      "com.dimafeng"                %% "testcontainers-scala-scalatest" % "0.41.4"                % Test
+      "com.dimafeng"                %% "testcontainers-scala-scalatest" % "0.41.5"                % Test
     ),
     excludeDependencies ++= Seq(
       // workaround for https://github.com/sbt/sbt/issues/3618
@@ -487,9 +487,9 @@ def minMaj(v: String, default: String): String = {
 }
 
 lazy val versions = new {
-  val scala213 = "2.13.14"
+  val scala213 = "2.13.16"
 
-  val spark = "3.5.3"
+  val spark = "3.5.4"
 
   val threeTenExtra = "1.8.0"
 
@@ -518,7 +518,7 @@ lazy val versions = new {
 
   val scalaTest = "3.2.19"
   val scalaTestCheck = "3.2.19.0"
-  val scalaMock = "6.0.0"
+  val scalaMock = "6.1.1"
 }
 
 val commonSettings = Seq(
