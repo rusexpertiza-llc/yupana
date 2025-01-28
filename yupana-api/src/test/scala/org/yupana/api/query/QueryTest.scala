@@ -62,7 +62,7 @@ class QueryTest extends AnyFlatSpec with Matchers {
         |    IF (double2decimal(metric(F)) >= const(100:BigDecimal)) THEN const(1:Integer) ELSE const(0:Integer) as IS_BIG
         |  FROM: test_table
         |  FILTER:
-        |    (time() > const(1970-01-01T00:00:12.345Z:Time) AND time() < const(1970-01-01T00:00:23.456Z:Time) AND dim(A) IN (5, 1, 2, 3, 8))
+        |    (time() > const(1970-01-01T00:00:12.345Z:Time) AND time() < const(1970-01-01T00:00:23.456Z:Time) AND dim(A) IN (const(1:Integer), const(2:Integer), const(8:Integer), const(5:Integer), const(3:Integer)))
         |  GROUP BY: dim(A), dim(B)
         |  LIMIT: 100
         |  POSTFILTER:

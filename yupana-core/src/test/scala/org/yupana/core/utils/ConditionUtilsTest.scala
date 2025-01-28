@@ -14,7 +14,7 @@ class ConditionUtilsTest extends AnyFlatSpec with Matchers {
 
     ConditionUtils.flatMap(c) {
       case InString(DimensionExpr(DictionaryDimension("x", None)), _) =>
-        InExpr(DimensionExpr(DictionaryDimension("y", None)), Set("x"))
+        in(dimension(DictionaryDimension("y", None)), Set("x"))
 
       case _ => ConstantExpr(true)
     } shouldEqual in(dimension(DictionaryDimension("y")), Set("x"))
@@ -25,7 +25,7 @@ class ConditionUtilsTest extends AnyFlatSpec with Matchers {
 
     ConditionUtils.flatMap(c) {
       case InExpr(DimensionExpr(RawDimension("y")), _) =>
-        InExpr(DimensionExpr(DictionaryDimension("z", None)), Set("x"))
+        in(dimension(DictionaryDimension("z", None)), Set("x"))
       case _ => ConstantExpr(true)
     } shouldEqual ConstantExpr(true)
   }

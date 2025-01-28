@@ -9,6 +9,7 @@ import org.threeten.extra.PeriodDuration
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, MetricValue }
+import org.yupana.api.types.DataType
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.cache.CacheFactory
 import org.yupana.core.auth.{ TsdbRole, YupanaUser }
@@ -530,11 +531,7 @@ class TsdbTest
         metric(TestTableFields.TEST_FIELD) as "testField",
         dimension(TestDims.DIM_A) as "A"
       ),
-      AndExpr(
-        Seq(
-          InExpr(tuple(time, dimension(TestDims.DIM_A)), Set((Time(pointTime2), "test42")))
-        )
-      )
+      inValues(tuple(time, dimension(TestDims.DIM_A)), Set(tupleValue(Time(pointTime2), "test42")))
     )
 
     (tsdbDaoMock.query _)
@@ -705,6 +702,73 @@ class TsdbTest
     res.get[Double]("sum_testField") shouldBe 1d
     res.get[String]("A") shouldBe "test12"
     res.get[Short]("B") shouldBe 2
+  }
+
+  it should "handle placeholders in conditions" in withTsdbMock { (tsdb, tsdbDaoMock) =>
+    val qtime = LocalDateTime.of(2025, 1, 27, 16, 49).atOffset(ZoneOffset.UTC)
+    val from = qtime.toInstant.toEpochMilli
+    val to = qtime.plusDays(1).toInstant.toEpochMilli
+    val now = Time(LocalDateTime.now())
+
+    val query = Query(
+      TestSchema.testTable,
+      const(Time(from)),
+      const(Time(to)),
+      Seq(
+        time as "time",
+        sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
+        dimension(TestDims.DIM_A) as "A",
+        dimension(TestDims.DIM_B) as "B"
+      ),
+      Some(
+        AndExpr(
+          Seq(
+            inValues(
+              dimension(TestDims.DIM_B),
+              Set[ValueExpr[Short]](PlaceholderExpr(1, DataType[Short]), PlaceholderExpr(2, DataType[Short]))
+            ),
+            gt(metric(TestTableFields.TEST_LONG_FIELD), PlaceholderExpr(3, DataType[Long]))
+          )
+        )
+      ),
+      Seq(time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B))
+    )
+
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set[Expression[_]](
+            time,
+            dimension(TestDims.DIM_A),
+            dimension(TestDims.DIM_B),
+            metric(TestTableFields.TEST_LONG_FIELD),
+            metric(TestTableFields.TEST_FIELD)
+          ),
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            inValues(dimension(TestDims.DIM_B), Set[ValueExpr[Short]](const(1.toShort), const(2.toShort))),
+            gt(metric(TestTableFields.TEST_LONG_FIELD), const(100L))
+          )
+        ),
+        *,
+        *,
+        NoMetricCollector
+      )
+      .onCall { (_, _, dsSchema, _) =>
+        val batch = new BatchDataset(dsSchema)
+        batch.set(0, Time(qtime))
+        batch.set(0, dimension(TestDims.DIM_A), "test!")
+        batch.set(0, dimension(TestDims.DIM_B), 1.toShort)
+        batch.set(0, metric(TestTableFields.TEST_FIELD), 3d)
+        batch.set(0, metric(TestTableFields.TEST_LONG_FIELD), 101L)
+        Iterator(batch)
+      }
+
+    val res = tsdb.query(query, now, IndexedSeq[Any](1.toShort, 2.toShort, 100L))
+
+    res.next() shouldBe true
   }
 
   it should "execute query" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -1530,7 +1594,7 @@ class TsdbTest
       .returning(
         ConditionTransformation.replace(
           Seq(c),
-          NotInExpr(dimension(TestDims.DIM_A), Set("test11", "test12"))
+          notIn(dimension(TestDims.DIM_A), Set("test11", "test12"))
         )
       )
 
@@ -2335,8 +2399,8 @@ class TsdbTest
       Some(
         AndExpr(
           Seq(
-            InExpr(dimension(TestDims.DIM_B), Set(1.toShort, 2.toShort)),
-            InExpr(link(TestLinks.TEST_LINK, "testField"), Set("testFieldValue1", "testFieldValue2"))
+            in(dimension(TestDims.DIM_B), Set(1.toShort, 2.toShort)),
+            in(link(TestLinks.TEST_LINK, "testField"), Set("testFieldValue1", "testFieldValue2"))
           )
         )
       ),

@@ -16,20 +16,24 @@
 
 package org.yupana.core.jit.codegen.expressions.regular
 
-import org.yupana.api.query.TupleExpr
+import org.yupana.api.query.Expression
 import org.yupana.core.jit.codegen.CommonGen
 import org.yupana.core.jit.codegen.expressions.ExpressionCodeGen
-import org.yupana.core.jit.{ ExpressionCodeGenFactory, CodeGenResult, State }
+import org.yupana.core.jit.{ CodeGenResult, ExpressionCodeGenFactory, State }
 
 import scala.reflect.runtime.universe._
 
-trait TupleExpressionCodeGen[E <: TupleExpr[_, _]] extends ExpressionCodeGen[E] {
+trait TupleExpressionCodeGen[E <: Expression[_], E1 <: Expression[_], E2 <: Expression[_]]
+    extends ExpressionCodeGen[E] {
+
+  val e1: E1
+  val e2: E2
 
   override def generateEvalCode(state: State, row: TermName): CodeGenResult = {
     val (valDecl, exprState) = state.withLocalValueDeclaration(expression)
 
-    val ra = ExpressionCodeGenFactory.codeGenerator(expression.e1).generateEvalCode(exprState, row)
-    val rb = ExpressionCodeGenFactory.codeGenerator(expression.e2).generateEvalCode(ra.state, row)
+    val ra = ExpressionCodeGenFactory.codeGenerator(e1).generateEvalCode(exprState, row)
+    val rb = ExpressionCodeGenFactory.codeGenerator(e2).generateEvalCode(ra.state, row)
 
     val validityTree =
       q"val ${valDecl.validityFlagName} = ${ra.valueDeclaration.validityFlagName} && ${rb.valueDeclaration.validityFlagName}"
@@ -53,9 +57,15 @@ trait TupleExpressionCodeGen[E <: TupleExpr[_, _]] extends ExpressionCodeGen[E] 
 
 object TupleExpressionCodeGen {
 
-  def apply[E <: TupleExpr[_, _]](expr: E): TupleExpressionCodeGen[E] = {
-    new TupleExpressionCodeGen[E] {
-      override def expression: E = expr
+  def apply[E <: Expression[_], E1 <: Expression[_], E2 <: Expression[_]](
+      expr: E,
+      a: E1,
+      b: E2
+  ): TupleExpressionCodeGen[E, E1, E2] = {
+    new TupleExpressionCodeGen[E, E1, E2] {
+      override val e1: E1 = a
+      override val e2: E2 = b
+      override val expression: E = expr
     }
   }
 }

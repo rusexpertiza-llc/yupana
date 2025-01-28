@@ -26,7 +26,7 @@ import org.yupana.api.utils.{ PrefetchedSortedSetIterator, SortedSetIterator }
 import org.yupana.core.dao.TSDao
 import org.yupana.core.{ ConstantCalculator, IteratorMapReducible, MapReducible, QueryContext }
 import org.yupana.core.model.{ BatchDataset, DatasetSchema, InternalQuery, UpdateInterval }
-import org.yupana.core.utils.{ CollectionUtils, FlatAndCondition }
+import org.yupana.core.utils.{ CollectionUtils, ConditionUtils, FlatAndCondition }
 import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.khipu.storage.{ Cursor, DB, KTable, Prefix, Row, StorageFormat }
 import org.yupana.serialization.{ ByteBufferEvalReaderWriter, MemoryBuffer, MemoryBufferEvalReaderWriter }
@@ -320,13 +320,15 @@ class TSDaoKhipu(schema: Schema, settings: Settings) extends TSDao[Iterator, Lon
         case EqTime(ConstantExpr(c), TimeExpr) =>
           builder.includeTime(c)
 
-        case EqUntyped(t: TupleExpr[a, b], ConstantExpr(v: (_, _))) =>
-          val filters1 = createFilters(InExpr(t.e1, Set(v._1).asInstanceOf[Set[a]]), builder)
-          createFilters(InExpr(t.e2, Set(v._2).asInstanceOf[Set[b]]), filters1)
+        case EqUntyped(t: TupleExpr[a, b], v: TupleValueExpr[_, _]) =>
+          val (x, y) = ConditionUtils.value(v.asInstanceOf[ValueExpr[(a, b)]])
+          val filters1 = createFilters(InExpr(t.e1, Set[ValueExpr[a]](ConstantExpr(x)(t.e1.dataType))), builder)
+          createFilters(InExpr(t.e2, Set[ValueExpr[b]](ConstantExpr(y)(t.e2.dataType))), filters1)
 
-        case EqUntyped(ConstantExpr(v: (_, _)), t: TupleExpr[a, b]) =>
-          val filters1 = createFilters(InExpr(t.e1, Set(v._1).asInstanceOf[Set[a]]), builder)
-          createFilters(InExpr(t.e2, Set(v._2).asInstanceOf[Set[b]]), filters1)
+        case EqUntyped(v: TupleValueExpr[_, _], t: TupleExpr[a, b]) =>
+          val (x, y) = ConditionUtils.value(v.asInstanceOf[ValueExpr[(a, b)]])
+          val filters1 = createFilters(InExpr(t.e1, Set[ValueExpr[a]](ConstantExpr(x)(t.e1.dataType))), builder)
+          createFilters(InExpr(t.e2, Set[ValueExpr[b]](ConstantExpr(y)(t.e2.dataType))), filters1)
 
         case _ => builder
       }
@@ -365,23 +367,30 @@ class TSDaoKhipu(schema: Schema, settings: Settings) extends TSDao[Iterator, Lon
     def handleIn(condition: Condition, builder: Filters.Builder): Filters.Builder = {
       condition match {
         case InExpr(DimensionExpr(dim), consts) =>
-          builder.includeValues(dim, consts)
+          builder.includeValues(dim, consts.map(ConditionUtils.value))
 
         case InString(LowerExpr(DimensionExpr(dim)), consts) =>
-          builder.includeValues(dim, consts)
+          builder.includeValues(dim, consts.map(ConditionUtils.value))
 
         case InTime(TimeExpr, consts) =>
-          builder.includeTime(consts)
+          builder.includeTime(consts.map(ConditionUtils.value))
 
         case InString(DimensionIdExpr(dim), dimIds) =>
           builder.includeIds(
             dim.aux,
-            dimIds.toSeq.flatMap(v => dimIdValueFromString(dim.aux, v))
+            dimIds.toSeq.flatMap(v => dimIdValueFromString(dim.aux, ConditionUtils.value(v)))
           )
 
         case InUntyped(t: TupleExpr[a, b], vs) =>
-          val filters1 = createFilters(InExpr(t.e1, vs.asInstanceOf[Set[(a, b)]].map(_._1)), builder)
-          createFilters(InExpr(t.e2, vs.asInstanceOf[Set[(a, b)]].map(_._2)), filters1)
+          val values: Set[(a, b)] = vs.asInstanceOf[Set[ValueExpr[(a, b)]]].map(ConditionUtils.value)
+          val filters1 = createFilters(
+            InExpr(t.e1, values.map(x => ConstantExpr(x._1)(t.e1.dataType)).asInstanceOf[Set[ValueExpr[a]]]),
+            builder
+          )
+          createFilters(
+            InExpr(t.e2, values.map(x => ConstantExpr(x._2)(t.e2.dataType)).asInstanceOf[Set[ValueExpr[b]]]),
+            filters1
+          )
 
         case _ => builder
       }
@@ -390,19 +399,19 @@ class TSDaoKhipu(schema: Schema, settings: Settings) extends TSDao[Iterator, Lon
     def handleNotIn(condition: Condition, builder: Filters.Builder): Filters.Builder = {
       condition match {
         case NotInExpr(DimensionExpr(dim), consts) =>
-          builder.excludeValues(dim, consts)
+          builder.excludeValues(dim, consts.map(ConditionUtils.value))
 
         case NotInString(LowerExpr(DimensionExpr(dim)), consts) =>
-          builder.excludeValues(dim, consts)
+          builder.excludeValues(dim, consts.map(ConditionUtils.value))
 
         case NotInString(DimensionIdExpr(dim), dimIds) =>
           builder.excludeIds(
             dim.aux,
-            dimIds.toSeq.flatMap(v => dimIdValueFromString(dim.aux, v))
+            dimIds.toSeq.flatMap(v => dimIdValueFromString(dim.aux, ConditionUtils.value(v)))
           )
 
         case NotInTime(TimeExpr, consts) =>
-          builder.excludeTime(consts)
+          builder.excludeTime(consts.map(ConditionUtils.value))
 
         case _ => builder
       }

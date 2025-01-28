@@ -145,10 +145,10 @@ case class Or(cs: Seq[SqlExpr]) extends SqlExpr {
   override def proposedName: Option[String] = None
 }
 
-case class In(expr: SqlExpr, values: Seq[Literal]) extends SqlExpr {
+case class In(expr: SqlExpr, values: Seq[Value]) extends SqlExpr {
   override def proposedName: Option[String] = None
 }
-case class NotIn(expr: SqlExpr, values: Seq[Literal]) extends SqlExpr {
+case class NotIn(expr: SqlExpr, values: Seq[Value]) extends SqlExpr {
   override def proposedName: Option[String] = None
 }
 

@@ -17,7 +17,7 @@
 package org.yupana.core.sql
 
 import org.yupana.api.query._
-import org.yupana.api.types.DataType
+import org.yupana.api.types.{ DataType, TupleDataType }
 import org.yupana.core.ConstantCalculator
 
 object DataTypeUtils {
@@ -67,6 +67,32 @@ object DataTypeUtils {
       case FalseExpr =>
         if (dataType == DataType[Boolean]) Right(false.asInstanceOf[T])
         else Left(s"Cannot convert FALSE to data type $dataType")
+    }
+  }
+
+  def valueCast[U, T](
+      value: ValueExpr[U],
+      dataType: DataType.Aux[T],
+      calc: ConstantCalculator
+  ): Either[String, ValueExpr[T]] = {
+    value match {
+      case UntypedPlaceholderExpr(id) => Right(PlaceholderExpr(id, dataType))
+      case PlaceholderExpr(id, dt) =>
+        Either.cond(dt == dataType, PlaceholderExpr(id, dataType), s"Expect placeholder type $dataType, but got $dt")
+      case ConstantExpr(v) => constCast(v, value.dataType, dataType, calc).map(c => ConstantExpr(c)(dataType))
+      case TrueExpr | FalseExpr =>
+        if (dataType == DataType[Boolean]) Right(value.asInstanceOf[ValueExpr[T]])
+        else Left(s"Cannot cast value $value to $dataType")
+      case NullExpr(_) => Right(NullExpr(dataType))
+      case TupleValueExpr(a, b) =>
+        dataType match {
+          case tdt: TupleDataType[x, y] =>
+            for {
+              ac <- valueCast(a, tdt.aType, calc)
+              bc <- valueCast(b, tdt.bType, calc)
+            } yield TupleValueExpr(ac, bc).asInstanceOf[ValueExpr[T]]
+          case _ => Left(s"Cannot cast tuple to $dataType")
+        }
     }
   }
 
