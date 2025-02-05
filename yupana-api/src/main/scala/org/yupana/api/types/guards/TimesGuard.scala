@@ -24,7 +24,7 @@ trait TimesGuard[N, M, R] extends Guard2[N, M, R] {
 }
 
 object TimesGuard {
-  private lazy val instances: Map[(DataType, DataType), TimesGuard[_, _, _]] = Map(
+  private lazy val instances: Map[DataType, List[(DataType, TimesGuard[_, _, _])]] = List(
     entry[Byte, Byte, Byte],
     entry[Short, Short, Short],
     entry[Int, Int, Int],
@@ -33,24 +33,24 @@ object TimesGuard {
     entry[BigDecimal, BigDecimal, BigDecimal],
     entry[BigDecimal, Double, BigDecimal],
     entry[Double, BigDecimal, BigDecimal],
-    entry[Currency, Int, Currency],
-    entry[Int, Currency, Currency],
     entry[Currency, Long, Currency],
-    entry[Long, Currency, Currency],
     entry[Currency, Double, Currency],
     entry[Double, Currency, Currency],
+    entry[Long, Currency, Currency],
+    entry[Currency, Int, Currency],
+    entry[Int, Currency, Currency],
     entry[Currency, BigDecimal, Currency],
     entry[BigDecimal, Currency, Currency]
-  )
+  ).groupMap(_._1)(x => x._2 -> x._3)
 
   private def entry[A, B, R](
       implicit a: DataType.Aux[A],
       b: DataType.Aux[B],
       g: TimesGuard[A, B, R]
-  ): ((DataType.Aux[A], DataType.Aux[B]), TimesGuard[A, B, R]) = (a, b) -> g
+  ): (DataType, DataType, TimesGuard[A, B, R]) = (a, b, g)
 
-  def get(a: DataType, b: DataType): Option[TimesGuard[_, _, _]] =
-    instances.get((a, b))
+  def get(a: DataType): List[(DataType, TimesGuard[_, _, _])] =
+    instances.getOrElse(a, Nil)
 
   implicit def numGuard[N](implicit num: Numeric[N], dt: DataType.Aux[N]): TimesGuard[N, N, N] =
     create((n: N, m: N) => num.times(n, m))

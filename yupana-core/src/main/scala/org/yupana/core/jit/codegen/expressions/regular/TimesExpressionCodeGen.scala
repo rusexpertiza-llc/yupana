@@ -16,29 +16,23 @@
 
 package org.yupana.core.jit.codegen.expressions.regular
 
-import org.yupana.api.query.MinusExpr
-import org.yupana.core.jit.codegen.expressions.ExpressionCodeGen
-import org.yupana.core.jit.codegen.expressions.regular.CodegenUtils.{ isCurrency, isTime }
+import org.yupana.api.query.TimesExpr
 import org.yupana.core.jit.{ CodeGenResult, State }
+import org.yupana.core.jit.codegen.expressions.ExpressionCodeGen
+import org.yupana.core.jit.codegen.expressions.regular.CodegenUtils.isCurrency
 
 import scala.reflect.runtime.universe._
 
-class MinusExpressionCodeGen(override val expression: MinusExpr[_, _, _])
-    extends ExpressionCodeGen[MinusExpr[_, _, _]] {
+class TimesExpressionCodeGen(override val expression: TimesExpr[_, _, _])
+    extends ExpressionCodeGen[TimesExpr[_, _, _]] {
 
   override def generateEvalCode(state: State, row: TermName): CodeGenResult = {
-    val f: (Tree, Tree) => Tree = {
-      if (isCurrency(expression.a)) { (x, y) =>
-        q"Currency($x.value - $y.value)"
-      } else if (!isTime(expression.a)) { (x, y) =>
-        q"$x - $y"
-      } else {
-        if (isTime(expression.b)) { (x, y) =>
-          q"_root_.scala.math.abs($x.millis - $y.millis)"
-        } else { (t, p) =>
-          q"Time($t.toDateTime.minus($p))"
-        }
-      }
+    val f: (Tree, Tree) => Tree = if (isCurrency(expression.a)) { (x, y) =>
+      q"Currency($x.value * $y)"
+    } else if (isCurrency(expression.b)) { (x, y) =>
+      q"Currency($x * $y.value)"
+    } else { (x, y) =>
+      q"$x * $y"
     }
 
     BinaryExpressionCodeGen(expression, f).generateEvalCode(state, row)

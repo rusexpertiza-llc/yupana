@@ -37,7 +37,7 @@ trait LowPriorityDivGuard {
 }
 
 object DivGuard extends LowPriorityDivGuard {
-  private lazy val instances: Map[(DataType, DataType), DivGuard[_, _, _]] = Map(
+  private lazy val instances: Map[DataType, List[(DataType, DivGuard[_, _, _])]] = List(
     entry[Byte, Byte, Byte],
     entry[Short, Short, Short],
     entry[Int, Int, Int],
@@ -50,17 +50,21 @@ object DivGuard extends LowPriorityDivGuard {
     entry[Double, Long, Double],
     entry[Int, Double, Double],
     entry[Double, Int, Double],
-    entry[Currency, Int, Currency],
     entry[Currency, Long, Currency],
-    entry[Currency, Double, Currency],
     entry[Currency, BigDecimal, Currency],
+    entry[Currency, Int, Currency],
+    entry[Currency, Double, Currency],
     entry[Currency, Currency, Double]
-  )
+  ).groupMap(_._1)(x => (x._2, x._3))
 
-  private def entry[A, B, R](implicit a: DataType.Aux[A], b: DataType.Aux[B], g: DivGuard[A, B, R]) = (a, b) -> g
+  private def entry[A, B, R](
+      implicit a: DataType.Aux[A],
+      b: DataType.Aux[B],
+      g: DivGuard[A, B, R]
+  ): (DataType, DataType, DivGuard[A, B, R]) = (a, b, g)
 
-  def get(a: DataType, b: DataType): Option[DivGuard[_, _, _]] =
-    instances.get((a, b))
+  def get(a: DataType): List[(DataType, DivGuard[_, _, _])] =
+    instances.getOrElse(a, Nil)
 
   implicit def intGuard[N](implicit i: Integral[N], dt: DataType.Aux[N]): DivGuard[N, N, N] =
     create((a: N, d: N) => i.quot(a, d))

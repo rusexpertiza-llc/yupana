@@ -1,7 +1,7 @@
 package org.yupana.core.sql
 
 import org.scalatest.{ EitherValues, Inside, OptionValues }
-import org.yupana.api.Time
+import org.yupana.api.{ Currency, Time }
 import org.yupana.api.query._
 import org.yupana.api.schema.MetricValue
 import org.yupana.core.sql.parser.SqlParser
@@ -930,6 +930,49 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
         |GROUP BY d
         |""".stripMargin) { q =>
       q.table.value.name shouldEqual "test_table"
+      q.fields should contain theSameElementsInOrderAs List(
+        truncDay(time) as "d",
+        sum(metric(TestTableFields.TEST_CURRENCY_FIELD)) as "sum",
+        sum(
+          condition(
+            gt(metric(TestTableFields.TEST_CURRENCY_FIELD), const(Currency.of(100))),
+            const(BigDecimal(1)),
+            const(BigDecimal(0))
+          )
+        ) as "big_count"
+      )
+    }
+  }
+
+  it should "handle Currency math" in {
+    testQuery("""
+        |SELECT
+        |  testCurrencyField / 2 as half,
+        |  testCurrencyField / cast(2 as Currency) as rate,
+        |  testCurrencyField + cast(100 as Currency) as plus100,
+        |  testCurrencyField * 2 as twice
+        |FROM test_table
+        |WHERE time >= TIMESTAMP '2025-1-30' AND time < TIMESTAMP '2025-1-31'
+        |""".stripMargin) { q =>
+      q.table.value.name shouldEqual "test_table"
+      q.fields should contain theSameElementsInOrderAs List(
+        div(metric(TestTableFields.TEST_CURRENCY_FIELD), const(2L)) as "half",
+        div(metric(TestTableFields.TEST_CURRENCY_FIELD), const(Currency.of(2))) as "rate",
+        plus(metric(TestTableFields.TEST_CURRENCY_FIELD), const(Currency.of(100))) as "plus100",
+        times(metric(TestTableFields.TEST_CURRENCY_FIELD), const(2L)) as "twice"
+      )
+    }
+  }
+
+  it should "not convert to currency automatically" in {
+    testError("""
+        | SELECT
+        |   testCurrencyField + 100 as plus100,
+        |   testCurrencyField + testField as plus
+        | FROM test_table
+        | WHERE time >= timestamp '2025-1-31' and time < timestamp '2025-2-1'
+        |""".stripMargin) { msg =>
+      msg shouldEqual "+ is not defined for CURRENCY and DECIMAL"
     }
   }
 

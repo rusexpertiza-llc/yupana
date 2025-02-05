@@ -225,7 +225,7 @@ object FunctionRegistry {
           MinusExpr(a, b)(g)
       }
     ),
-    biGuardAligned(
+    biGuardOrdered(
       "*",
       TimesGuard.get,
       new BindGuard2[TimesGuard] {
@@ -233,7 +233,7 @@ object FunctionRegistry {
           TimesExpr(a, b)(g)
       }
     ),
-    biGuardAligned(
+    biGuardOrdered(
       "/",
       DivGuard.get,
       new BindGuard2[DivGuard] {
@@ -469,6 +469,36 @@ object FunctionRegistry {
               .flatMap(e => guardedExpr(fn, guard, create, e, b))
               .orElse(guardedExpr(fn, guard, create, a, b))
           case (_, _) => guardedExpr(fn, guard, create, a, b)
+        }
+    )
+  }
+
+  private def biGuardOrdered[G[_, _, _] <: Guard2[_, _, _]](
+      fn: String,
+      guard: DataType => List[(DataType, G[_, _, _])],
+      create: BindGuard2[G]
+  ): Function2Desc = {
+
+    val pureGuard = (t1: DataType, t2: DataType) => guard(t1).find(_._1 == t2).map(_._2)
+
+    Function2Desc(
+      fn,
+      (c, a, b) =>
+        (a, b) match {
+          case (_: ConstExpr[_], _: ConstExpr[_]) => guardedExpr(fn, pureGuard, create, a, b)
+          case (_, bc: ConstExpr[_]) =>
+            guard(a.dataType).foldLeft(Left(s"No function $fn found"): Either[String, Expression[_]]) {
+              case (Right(e), _) => Right(e)
+              case (Left(_), (bt, g)) =>
+                DataTypeUtils.alignConst(bc, bt.aux, c).flatMap(e => guardedExpr(fn, pureGuard, create, a, e))
+            }
+          case (ac: ConstExpr[_], _) =>
+            guard(b.dataType).foldLeft(Left(s"No function $fn found"): Either[String, Expression[_]]) {
+              case (Right(e), _) => Right(e)
+              case (Left(_), (at, g)) =>
+                DataTypeUtils.alignConst(ac, at.aux, c).flatMap(e => guardedExpr(fn, pureGuard, create, e, b))
+            }
+          case (_, _) => guardedExpr(fn, pureGuard, create, a, b)
         }
     )
   }

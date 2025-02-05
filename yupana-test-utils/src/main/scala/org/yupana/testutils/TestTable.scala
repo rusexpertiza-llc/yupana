@@ -45,6 +45,7 @@ object TestTableFields {
   val TEST_BYTE_FIELD: Metric.Aux[Byte] = Metric[Byte]("testByteField", 7)
   val TEST_BLOB_FIELD: Metric.Aux[Blob] = Metric[Blob]("testBlobField", 8)
   val TEST_CURRENCY_FIELD: Metric.Aux[Currency] = Metric[Currency]("testCurrencyField", 9)
+  val TEST_CURRENCY_FIELD2: Metric.Aux[Currency] = Metric[Currency]("testCurrencyField2", 10)
 }
 
 object TestTable2Fields {
@@ -116,6 +117,7 @@ object TestSchema {
       TestTableFields.TEST_LONG_FIELD,
       TestTableFields.TEST_BIGDECIMAL_FIELD,
       TestTableFields.TEST_CURRENCY_FIELD,
+      TestTableFields.TEST_CURRENCY_FIELD2,
       TestTableFields.TEST_TIME_FIELD,
       TestTableFields.TEST_BYTE_FIELD,
       TestTableFields.TEST_BLOB_FIELD

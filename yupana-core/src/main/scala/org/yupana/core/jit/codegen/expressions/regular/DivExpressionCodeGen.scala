@@ -34,12 +34,13 @@ class DivExpressionCodeGen(override val expression: DivExpr[_, _, _]) extends Ex
         q"new BigDecimal($x.bigDecimal.divide(_root_.java.math.BigDecimal.valueOf($y), $scale, _root_.java.math.RoundingMode.HALF_EVEN))"
       }
     } else if (isCurrency(expression.a)) {
-      if (isDouble(expression.b)) { (x, y) =>
+      if (isCurrency(expression.b)) { (x, y) =>
+        q"$x.value.toDouble / $y.value"
+      } else if (isDouble(expression.b)) { (x, y) =>
         q"Currency(($x.value.toDouble / $y).toLong)"
       } else { (x, y) =>
         q"Currency($x.value / $y)"
       }
-
     } else {
       if (!isDecimal(expression.b)) { (x, y) =>
         q"$x / $y"
