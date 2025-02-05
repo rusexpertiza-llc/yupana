@@ -105,7 +105,7 @@ object ExpressionCodeGenFactory {
 
       case e @ PlusExpr(_, _)  => new PlusExpressionCodeGen(e)
       case e @ MinusExpr(_, _) => new MinusExpressionCodeGen(e)
-      case e @ TimesExpr(_, _) => BinaryExpressionCodeGen(e, (x, y) => q"""$x * $y""")
+      case e @ TimesExpr(_, _) => new TimesExpressionCodeGen(e)
       case e @ DivExpr(_, _)   => new DivExpressionCodeGen(e)
 
       case e @ Double2BigDecimalExpr(_) => UnaryExpressionCodeGen(e, d => q"BigDecimal($d)")
