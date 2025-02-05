@@ -34,6 +34,9 @@ object Currency {
     Currency((x * SUB).longValue)
   }
 
+  def ofLong(x: Long): Currency = Currency(x * SUB)
+  def ofDouble(x: Double): Currency = Currency((x * SUB).longValue)
+
   implicit val ordering: Ordering[Currency] = Ordering.by(_.value)
   implicit val num: Num[Currency] = new Num[Currency] {
     override def negate(a: Currency): Currency = Currency(-a.value)

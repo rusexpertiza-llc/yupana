@@ -724,18 +724,28 @@ sealed abstract class TypeConvertExpr[T, U](expr: Expression[T], create: Express
   override val dataType: DataType.Aux[U] = dtu
 }
 
+final case class BigDecimal2CurrencyExpr(expr: Expression[BigDecimal])
+    extends TypeConvertExpr[BigDecimal, Currency](expr, BigDecimal2CurrencyExpr)
+final case class Currency2BigDecimalExpr(expr: Expression[Currency])
+    extends TypeConvertExpr[Currency, BigDecimal](expr, Currency2BigDecimalExpr)
+
 final case class Double2BigDecimalExpr(expr: Expression[Double])
     extends TypeConvertExpr[Double, BigDecimal](expr, Double2BigDecimalExpr)
-//final case class Double2CurrencyExpr(expr: Expression[Double]) extends TypeConvertExpr[Double, Currency](expr)
+final case class Double2CurrencyExpr(expr: Expression[Double])
+    extends TypeConvertExpr[Double, Currency](expr, Double2CurrencyExpr)
 
 final case class BigDecimal2DoubleExpr(expr: Expression[BigDecimal])
     extends TypeConvertExpr[BigDecimal, Double](expr, BigDecimal2DoubleExpr)
-//final case class Currency2DoubleExpr(expr: Expression[Currency]) extends TypeConvertExpr[Currency, Double](expr)
+final case class Currency2DoubleExpr(expr: Expression[Currency])
+    extends TypeConvertExpr[Currency, Double](expr, Currency2DoubleExpr)
 
 final case class Long2BigDecimalExpr(expr: Expression[Long])
     extends TypeConvertExpr[Long, BigDecimal](expr, Long2BigDecimalExpr)
-//final case class Long2CurrencyExpr(expr: Expression[Long]) extends TypeConvertExpr[Long, Currency](expr)
+final case class Long2CurrencyExpr(expr: Expression[Long])
+    extends TypeConvertExpr[Long, Currency](expr, Long2CurrencyExpr)
 final case class Long2DoubleExpr(expr: Expression[Long]) extends TypeConvertExpr[Long, Double](expr, Long2DoubleExpr)
+final case class Currency2LongExpr(expr: Expression[Currency])
+    extends TypeConvertExpr[Currency, Long](expr, Currency2LongExpr)
 
 final case class Int2LongExpr(expr: Expression[Int]) extends TypeConvertExpr[Int, Long](expr, Int2LongExpr)
 final case class Int2BigDecimalExpr(expr: Expression[Int])

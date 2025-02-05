@@ -187,7 +187,14 @@ object DataTypeUtils {
     entry[Byte, Double](Byte2DoubleExpr)
   )
 
-  private val manualConverters: Map[(String, String), ToTypeConverter[_, _]] = Map()
+  private val manualConverters: Map[(String, String), ToTypeConverter[_, _]] = Map(
+    entry[BigDecimal, Currency](BigDecimal2CurrencyExpr),
+    entry[Long, Currency](Long2CurrencyExpr),
+    entry[Double, Currency](Double2CurrencyExpr),
+    entry[Currency, BigDecimal](Currency2BigDecimalExpr),
+    entry[Currency, Long](Currency2LongExpr),
+    entry[Currency, Double](Currency2DoubleExpr)
+  )
 
   private def entry[T, U](ttc: ToTypeConverter[T, U])(
       implicit dtt: DataType.Aux[T],

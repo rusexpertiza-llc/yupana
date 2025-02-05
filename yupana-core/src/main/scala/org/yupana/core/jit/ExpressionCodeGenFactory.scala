@@ -110,7 +110,13 @@ object ExpressionCodeGenFactory {
 
       case e @ Double2BigDecimalExpr(_) => UnaryExpressionCodeGen(e, d => q"BigDecimal($d)")
 
-      case e @ BigDecimal2DoubleExpr(_) => UnaryExpressionCodeGen(e, b => q"$b.toDouble")
+      case e @ BigDecimal2DoubleExpr(_)   => UnaryExpressionCodeGen(e, b => q"$b.toDouble")
+      case e @ BigDecimal2CurrencyExpr(_) => UnaryExpressionCodeGen(e, d => q"Currency.of($d)")
+      case e @ Currency2BigDecimalExpr(_) => UnaryExpressionCodeGen(e, c => q"$c.toBigDecimal")
+      case e @ Long2CurrencyExpr(_)       => UnaryExpressionCodeGen(e, l => q"Currency.ofLong($l)")
+      case e @ Currency2LongExpr(_)       => UnaryExpressionCodeGen(e, c => q"$c.value / Currency.SUB")
+      case e @ Double2CurrencyExpr(_)     => UnaryExpressionCodeGen(e, d => q"Currency.ofDouble($d)")
+      case e @ Currency2DoubleExpr(_)     => UnaryExpressionCodeGen(e, c => q"$c.value.toDouble / Currency.SUB")
 
       case e @ Long2BigDecimalExpr(_) => UnaryExpressionCodeGen(e, l => q"BigDecimal($l)")
       case e @ Long2DoubleExpr(_)     => UnaryExpressionCodeGen(e, l => q"$l.toDouble")
@@ -154,13 +160,6 @@ object ExpressionCodeGenFactory {
       case e @ ExtractHourExpr(a)   => UnaryExpressionCodeGen(e, x => q"$x.toLocalDateTime.getHour")
       case e @ ExtractMinuteExpr(a) => UnaryExpressionCodeGen(e, x => q"$x.toLocalDateTime.getMinute")
       case e @ ExtractSecondExpr(a) => UnaryExpressionCodeGen(e, x => q"$x.toLocalDateTime.getSecond")
-
-//      case e @ TimeMinusExpr(a, b) =>
-//        BinaryExpressionCodeGen(e, (x, y) => q"_root_.scala.math.abs($x.millis - $y.millis)")
-//      case e @ TimeMinusPeriodExpr(a, b) =>
-//        BinaryExpressionCodeGen(e, (t, p) => q"Time($t.toDateTime.minus($p))")
-//      case e @ TimePlusPeriodExpr(a, b)   => BinaryExpressionCodeGen(e, (t, p) => q"Time($t.toDateTime.plus($p))")
-//      case e @ PeriodPlusPeriodExpr(a, b) => BinaryExpressionCodeGen(e, (x, y) => q"$x plus $y")
 
       case e @ IsNullExpr(a)    => UnaryExpressionCodeGen(e, _ => q"false", Some(q"true"))
       case e @ IsNotNullExpr(a) => UnaryExpressionCodeGen(e, _ => q"true", Some(q"false"))

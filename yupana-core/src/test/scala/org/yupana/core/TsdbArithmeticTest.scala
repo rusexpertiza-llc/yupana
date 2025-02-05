@@ -197,6 +197,53 @@ class TsdbArithmeticTest
     res.get[BigDecimal]("big_count") shouldBe BigDecimal(2)
   }
 
+  it should "handle currency casts" in withTsdbMock { (tsdb, tsdbDaoMock) =>
+    val sql = s"""
+      | SELECT
+      |   testCurrencyField / cast(testField as currency) as cdc,
+      |   cast(testCurrencyField as double) / testField  as ddd
+      | FROM test_table
+      | WHERE testCurrencyField >= 100 ${timeBounds()}
+      """.stripMargin
+
+    val q = createQuery(sql)
+    val now = Time(LocalDateTime.now())
+
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set[Expression[_]](
+            time,
+            metric(TestTableFields.TEST_CURRENCY_FIELD),
+            metric(TestTableFields.TEST_FIELD)
+          ),
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            ge(metric(TestTableFields.TEST_CURRENCY_FIELD), const(Currency.of(100)))
+          )
+        ),
+        *,
+        *,
+        *
+      )
+      .onCall { (_, _, dsSchema, _) =>
+        val batch = new BatchDataset(dsSchema)
+        batch.set(0, Time(from.plusMinutes(15)))
+        batch.set(0, metric(TestTableFields.TEST_FIELD), 5d)
+        batch.set(0, metric(TestTableFields.TEST_CURRENCY_FIELD), Currency.of(125))
+
+        Iterator(batch)
+      }
+
+    val res = tsdb.query(q, now)
+    res.next() shouldBe true
+
+    res.get[Double]("cdc") shouldEqual 25d
+    res.get[Double]("ddd") shouldEqual 25d
+  }
+
   it should "execute query with arithmetic inside CASE" in withTsdbMock { (tsdb, tsdbDaoMock) =>
     val testCatalogServiceMock = mock[ExternalLinkService[TestLinks.TestLink]]
     tsdb.registerExternalLink(TestLinks.TEST_LINK, testCatalogServiceMock)

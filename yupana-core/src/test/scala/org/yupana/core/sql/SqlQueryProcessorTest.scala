@@ -964,15 +964,30 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
     }
   }
 
-  it should "not convert to currency automatically" in {
-    testError("""
+  it should "be possible convert to / from currency" in {
+    testQuery("""
         | SELECT
         |   testCurrencyField + 100 as plus100,
-        |   testCurrencyField + testField as plus
+        |   cast(testLongField as currency) as l2c,
+        |   cast(testField as currency) as d2c,
+        |   cast(testBigDecimalField as currency) as dec2c,
+        |   cast(testCurrencyField as bigint) as c2l,
+        |   cast(testCurrencyField as double) as c2d,
+        |   cast(testCurrencyField as decimal) as c2dec
         | FROM test_table
         | WHERE time >= timestamp '2025-1-31' and time < timestamp '2025-2-1'
-        |""".stripMargin) { msg =>
-      msg shouldEqual "+ is not defined for CURRENCY and DECIMAL"
+        |""".stripMargin) { q =>
+      q.table.value shouldEqual TestSchema.testTable
+
+      q.fields should contain theSameElementsInOrderAs List(
+        plus(metric(TestTableFields.TEST_CURRENCY_FIELD), const(Currency.of(100))) as "plus100",
+        Long2CurrencyExpr(metric(TestTableFields.TEST_LONG_FIELD)) as "l2c",
+        Double2CurrencyExpr(metric(TestTableFields.TEST_FIELD)) as "d2c",
+        BigDecimal2CurrencyExpr(metric(TestTableFields.TEST_BIGDECIMAL_FIELD)) as "dec2c",
+        Currency2LongExpr(metric(TestTableFields.TEST_CURRENCY_FIELD)) as "c2l",
+        Currency2DoubleExpr(metric(TestTableFields.TEST_CURRENCY_FIELD)) as "c2d",
+        Currency2BigDecimalExpr(metric(TestTableFields.TEST_CURRENCY_FIELD)) as "c2dec"
+      )
     }
   }
 
