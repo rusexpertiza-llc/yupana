@@ -511,33 +511,6 @@ final case class DivExpr[A, B, R](override val a: Expression[A], override val b:
   override val dataType: DataType.Aux[R] = dg.dataType
 }
 
-//final case class TimeMinusExpr(override val a: Expression[Time], override val b: Expression[Time])
-//    extends BinaryOperationExpr[Time, Time, Long](a, b, "-", isInfix = true) {
-//  override val dataType: DataType.Aux[Long] = DataType[Long]
-//}
-//
-//final case class TimeMinusPeriodExpr(override val a: Expression[Time], override val b: Expression[PeriodDuration])
-//    extends BinaryOperationExpr[Time, PeriodDuration, Time](a, b, "-", isInfix = true) {
-//  override val dataType: DataType.Aux[Time] = DataType[Time]
-//}
-//
-//final case class TimePlusPeriodExpr(override val a: Expression[Time], override val b: Expression[PeriodDuration])
-//    extends BinaryOperationExpr[Time, PeriodDuration, Time](a, b, "+", isInfix = true) {
-//  override val dataType: DataType.Aux[Time] = DataType[Time]
-//}
-//
-//final case class PeriodPlusPeriodExpr(
-//    override val a: Expression[PeriodDuration],
-//    override val b: Expression[PeriodDuration]
-//) extends BinaryOperationExpr[PeriodDuration, PeriodDuration, PeriodDuration](a, b, "+", isInfix = true) {
-//  override val dataType: DataType.Aux[PeriodDuration] = DataType[PeriodDuration]
-//}
-//
-//final case class ConcatExpr(override val a: Expression[String], override val b: Expression[String])
-//    extends BinaryOperationExpr[String, String, String](a, b, "+", isInfix = true) {
-//  override val dataType: DataType.Aux[String] = DataType[String]
-//}
-
 final case class ContainsExpr[T](override val a: Expression[Seq[T]], override val b: Expression[T])
     extends BinaryOperationExpr[Seq[T], T, Boolean](a, b, "contains", isInfix = false, ContainsExpr.apply) {
 
