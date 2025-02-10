@@ -17,7 +17,7 @@
 package org.yupana.api.types
 
 import org.threeten.extra.PeriodDuration
-import org.yupana.api.{ Blob, Time }
+import org.yupana.api.{ Blob, Currency, Time }
 
 import scala.reflect.ClassTag
 
@@ -121,6 +121,20 @@ trait ReaderWriter[B, V[_], S, O] {
 
   def writeVTime(b: B, v: V[Time]): S
   def writeVTime(b: B, offset: O, v: V[Time]): S
+
+  def sizeOfCurrency: S
+
+  def readCurrency(b: B): V[Currency]
+  def readCurrency(b: B, offset: O): V[Currency]
+
+  def writeCurrency(b: B, v: V[Currency]): S
+  def writeCurrency(b: B, offset: O, v: V[Currency]): S
+
+  def readVCurrency(b: B): V[Currency]
+  def readVCurrency(b: B, offset: O): V[Currency]
+
+  def writeVCurrency(b: B, v: V[Currency]): S
+  def writeVCurrency(b: B, offset: O, v: V[Currency]): S
 
   def sizeOfTuple[T, U](v: V[(T, U)], tSize: V[T] => S, uSize: V[U] => S): S
 

@@ -16,7 +16,7 @@
 
 package org.yupana.schema
 
-import org.yupana.api.Time
+import org.yupana.api.{ Currency, Time }
 import org.yupana.api.query.UnaryMinusExpr
 import org.yupana.api.schema.{ Metric, QueryFieldToDimension, QueryFieldToMetric }
 
@@ -24,19 +24,19 @@ trait ReceiptTableMetrics {
 
   import Metric.Groups._
 
-  val totalSumField = Metric[BigDecimal]("totalSum", 1)
-  val cashSumField = Metric[BigDecimal]("cashSum", 2, rarelyQueried)
-  val cardSumField = Metric[BigDecimal]("cardSum", 3, rarelyQueried)
+  val totalSumField = Metric[Currency]("totalSum", 1)
+  val cashSumField = Metric[Currency]("cashSum", 2, rarelyQueried)
+  val cardSumField = Metric[Currency]("cardSum", 3, rarelyQueried)
   val positionsCountField = Metric[Long]("positionsCount", 4)
-  val totalTaxField = Metric[BigDecimal]("totalTax", 5, rarelyQueried)
-  val tax00000Field = Metric[BigDecimal]("tax00000", 6, rarelyQueried)
-  val tax09091Field = Metric[BigDecimal]("tax09091", 7, rarelyQueried)
-  val tax10000Field = Metric[BigDecimal]("tax10000", 8, rarelyQueried)
-  val tax15255Field = Metric[BigDecimal]("tax15255", 9, rarelyQueried)
-  val tax16667Field = Metric[BigDecimal]("tax16667", 26, rarelyQueried)
-  val tax18000Field = Metric[BigDecimal]("tax18000", 10, rarelyQueried)
-  val tax20000Field = Metric[BigDecimal]("tax20000", 27, rarelyQueried)
-  val taxNoField = Metric[BigDecimal]("taxNo", 20, rarelyQueried)
+  val totalTaxField = Metric[Currency]("totalTax", 5, rarelyQueried)
+  val tax00000Field = Metric[Currency]("tax00000", 6, rarelyQueried)
+  val tax09091Field = Metric[Currency]("tax09091", 7, rarelyQueried)
+  val tax10000Field = Metric[Currency]("tax10000", 8, rarelyQueried)
+  val tax15255Field = Metric[Currency]("tax15255", 9, rarelyQueried)
+  val tax16667Field = Metric[Currency]("tax16667", 26, rarelyQueried)
+  val tax18000Field = Metric[Currency]("tax18000", 10, rarelyQueried)
+  val tax20000Field = Metric[Currency]("tax20000", 27, rarelyQueried)
+  val taxNoField = Metric[Currency]("taxNo", 20, rarelyQueried)
   val itemsCountField = Metric[Long]("itemsCount", 11)
   val minTimeField = Metric[Time]("minTime", 13, rarelyQueried)
   val maxTimeField = Metric[Time]("maxTime", 14, rarelyQueried)
@@ -45,9 +45,9 @@ trait ReceiptTableMetrics {
   val correctionBasis = Metric[String]("correctionBasis", 17, rarelyQueried)
   val correctionDocumentNumber = Metric[String]("correctionDocumentNumber", 18, rarelyQueried)
   val correctionDocumentDateTime = Metric[Long]("correctionDocumentDateTime", 19, rarelyQueried)
-  val postpaymentSumField = Metric[BigDecimal]("postpaymentSum", 21, rarelyQueried)
-  val counterSubmissionSumField = Metric[BigDecimal]("counterSubmissionSum", 22, rarelyQueried)
-  val prepaymentSumField = Metric[BigDecimal]("prepaymentSum", 23, rarelyQueried)
+  val postpaymentSumField = Metric[Currency]("postpaymentSum", 21, rarelyQueried)
+  val counterSubmissionSumField = Metric[Currency]("counterSubmissionSum", 22, rarelyQueried)
+  val prepaymentSumField = Metric[Currency]("prepaymentSum", 23, rarelyQueried)
   val taxationType = Metric[Int]("taxationType", 24, rarelyQueried)
   val acceptedAt = Metric[Time]("acceptedAt", 25, rarelyQueried)
   val cashReceiptCountField = Metric[Long]("cashReceiptCount", 28)
@@ -139,13 +139,13 @@ trait ReceiptTableMetrics {
       QueryFieldToMetric(count(time) as receiptCountField.name, receiptCountField),
       QueryFieldToMetric(
         sum(
-          condition[Long](gt(metric(cashSumField), const(BigDecimal(0))), const(1L), const(0L))
+          condition[Long](gt(metric(cashSumField), const(Currency(0))), const(1L), const(0L))
         ) as cashReceiptCountField.name,
         cashReceiptCountField
       ),
       QueryFieldToMetric(
         sum(
-          condition[Long](gt(metric(cardSumField), const(BigDecimal(0))), const(1L), const(0L))
+          condition[Long](gt(metric(cardSumField), const(Currency(0))), const(1L), const(0L))
         ) as cardReceiptCountField.name,
         cardReceiptCountField
       )
@@ -166,13 +166,13 @@ trait ReceiptTableMetrics {
       ),
       QueryFieldToMetric(
         sum(
-          condition[BigDecimal](
+          condition[Currency](
             equ(dimension(Dimensions.OPERATION_TYPE), const(2.toByte)),
             metric(totalSumField),
-            condition[BigDecimal](
+            condition[Currency](
               equ(dimension(Dimensions.OPERATION_TYPE), const(3.toByte)),
               UnaryMinusExpr(metric(totalSumField)),
-              const(BigDecimal(0))
+              const(Currency(0))
             )
           )
         ) as totalSumField.name,
@@ -180,13 +180,13 @@ trait ReceiptTableMetrics {
       ),
       QueryFieldToMetric(
         sum(
-          condition[BigDecimal](
+          condition[Currency](
             equ(dimension(Dimensions.OPERATION_TYPE), const(2.toByte)),
             metric(cashSumField),
-            condition[BigDecimal](
+            condition[Currency](
               equ(dimension(Dimensions.OPERATION_TYPE), const(3.toByte)),
               UnaryMinusExpr(metric(cashSumField)),
-              const(BigDecimal(0))
+              const(Currency(0))
             )
           )
         ) as cashSumField.name,
@@ -194,13 +194,13 @@ trait ReceiptTableMetrics {
       ),
       QueryFieldToMetric(
         sum(
-          condition[BigDecimal](
+          condition[Currency](
             equ(dimension(Dimensions.OPERATION_TYPE), const(2.toByte)),
             metric(cardSumField),
-            condition[BigDecimal](
+            condition[Currency](
               equ(dimension(Dimensions.OPERATION_TYPE), const(3.toByte)),
               UnaryMinusExpr(metric(cardSumField)),
-              const(BigDecimal(0))
+              const(Currency(0))
             )
           )
         ) as cardSumField.name,

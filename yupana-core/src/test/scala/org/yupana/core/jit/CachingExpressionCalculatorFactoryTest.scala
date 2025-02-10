@@ -7,8 +7,8 @@ import org.yupana.api.Time
 import org.yupana.api.query.Query
 import org.yupana.api.query.syntax.All._
 import org.yupana.cache.CacheFactory
-import org.yupana.core.{ TestDims, TestSchema, TestTableFields }
 import org.yupana.settings.Settings
+import org.yupana.testutils.{ TestDims, TestSchema, TestTableFields }
 
 import java.util.Properties
 

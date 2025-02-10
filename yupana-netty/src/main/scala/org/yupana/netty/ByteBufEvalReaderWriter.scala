@@ -19,7 +19,7 @@ package org.yupana.netty
 import io.netty.buffer.ByteBuf
 import org.threeten.extra.PeriodDuration
 import org.yupana.api.types.{ ByteReaderWriter, ID }
-import org.yupana.api.{ Blob, Time }
+import org.yupana.api.{ Blob, Currency, Time }
 
 import java.math.BigInteger
 import java.nio.charset.StandardCharsets
@@ -596,4 +596,18 @@ object ByteBufEvalReaderWriter extends ByteReaderWriter[ByteBuf] with Serializab
   override def writePeriodDuration(b: ByteBuf, offset: Int, v: PeriodDuration): Int = {
     writeString(b, offset, v.toString)
   }
+
+  override def sizeOfCurrency: Int = 8
+
+  override def readCurrency(b: ByteBuf): ID[Currency] = Currency(readLong(b))
+  override def readCurrency(b: ByteBuf, offset: Int): ID[Currency] = Currency(readLong(b, offset))
+
+  override def writeCurrency(b: ByteBuf, v: ID[Currency]): Int = writeLong(b, v.value)
+  override def writeCurrency(b: ByteBuf, offset: Int, v: ID[Currency]): Int = writeLong(b, offset, v.value)
+
+  override def readVCurrency(b: ByteBuf): ID[Currency] = Currency(readVLong(b))
+  override def readVCurrency(b: ByteBuf, offset: Int): ID[Currency] = Currency(readVLong(b, offset))
+
+  override def writeVCurrency(b: ByteBuf, v: ID[Currency]): Int = writeVLong(b, v.value)
+  override def writeVCurrency(b: ByteBuf, offset: Int, v: ID[Currency]): Int = writeVLong(b, offset, v.value)
 }

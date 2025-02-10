@@ -6,7 +6,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import org.yupana.api.types.{ ID, ReaderWriter, Storable, StringReaderWriter }
-import org.yupana.api.{ Blob, Time }
+import org.yupana.api.{ Blob, Currency, Time }
 
 import java.time.{ LocalDateTime, ZoneOffset }
 
@@ -23,6 +23,7 @@ trait StorableTestBase
   }
 
   implicit private val genTime: Arbitrary[Time] = Arbitrary(timeGen)
+  implicit private val genCurrency: Arbitrary[Currency] = Arbitrary(Gen.long.map(Currency.apply))
 
   private def timeGen: Gen[Time] = {
     val minTime = LocalDateTime.of(-5000, 1, 1, 0, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli
@@ -47,6 +48,8 @@ trait StorableTestBase
     it should "preserve Longs on write read cycle" in readWriteTest[Long]
 
     it should "preserve BigDecimals on read write cycle" in readWriteTest[BigDecimal]
+
+    it should "preserve Currency on read write cycle" in readWriteTest[Currency]
 
     it should "preserve Strings on read write cycle" in readWriteTest[String]
 
@@ -124,7 +127,7 @@ trait StorableTestBase
   }
 
   def stringStorageTest(stringReaderWriter: StringReaderWriter): Unit = {
-    implicit val srw = stringReaderWriter
+    implicit val srw: StringReaderWriter = stringReaderWriter
 
     "StringSerialization" should "preserve Booleans on write read cycle" in readWriteTest[Boolean]
 
@@ -137,6 +140,7 @@ trait StorableTestBase
 
     it should "preserve Doubles on write read cycle" in readWriteTest[Double]
     it should "preserve BigDecimals on write read cycle" in readWriteTest[BigDecimal]
+    it should "preserve Currency on write read cycle" in readWriteTest[Currency]
 
     it should "preserve Time on write read cycle" in readWriteTest[Time]
 

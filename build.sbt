@@ -170,7 +170,7 @@ lazy val core = (project in file("yupana-core"))
       "org.scalatestplus"             %% "scalacheck-1-18"              % versions.scalaTestCheck     % Test
     )
   )
-  .dependsOn(api, serialization, settings, metrics, cache, utils % Test)
+  .dependsOn(api, serialization, settings, metrics, cache, utils % Test, testUtils % Test)
   .disablePlugins(AssemblyPlugin)
 
 lazy val hbase = (project in file("yupana-hbase"))
@@ -195,15 +195,18 @@ lazy val hbase = (project in file("yupana-hbase"))
       "org.slf4j" % "slf4j-log4j12"
     )
   )
-  .dependsOn(core % "compile->compile ; test->test", cache, caffeine % Test)
+  .dependsOn(core, cache, caffeine % Test, testUtils % Test, hbaseTestUtils % Test)
   .disablePlugins(AssemblyPlugin)
 
 lazy val khipu = (project in file("yupana-khipu"))
   .settings(
     name := "yupana-khipu",
-    allSettings
+    allSettings,
+    libraryDependencies ++= Seq(
+      "org.scalatest"               %% "scalatest"                     % versions.scalaTest           % Test
+    )
   )
-  .dependsOn(core % "compile->compile ; test->test", caffeine % Test)
+  .dependsOn(core, testUtils % Test, caffeine % Test)
   .disablePlugins(AssemblyPlugin)
 
 lazy val netty = (project in file("yupana-netty"))
@@ -218,7 +221,7 @@ lazy val netty = (project in file("yupana-netty"))
       "org.scalatest"               %% "scalatest"                     % versions.scalaTest           % Test,
       "org.scalamock"               %% "scalamock"                     % versions.scalaMock           % Test
     )
-  ).disablePlugins(AssemblyPlugin).dependsOn(api, core % "compile->compile; test->test", protocol)
+  ).disablePlugins(AssemblyPlugin).dependsOn(api, core % "compile->compile; test->test", protocol, testUtils % Test)
 
 lazy val postgres = (project in file("yupana-postgres"))
   .settings(
@@ -233,7 +236,9 @@ lazy val postgres = (project in file("yupana-postgres"))
       "org.scalatest"               %% "scalatest"                     % versions.scalaTest           % Test,
       "org.scalamock"               %% "scalamock"                     % versions.scalaMock           % Test
     )
-  ).disablePlugins(AssemblyPlugin).dependsOn(api, core % "compile->compile; test->test", serialization)
+  )
+  .dependsOn(api, core % "compile->compile; test->test", serialization, testUtils % Test)
+  .disablePlugins(AssemblyPlugin)
 
 lazy val spark = (project in file("yupana-spark"))
   .settings(
@@ -248,7 +253,6 @@ lazy val spark = (project in file("yupana-spark"))
       "ch.qos.logback"              %  "logback-classic"                % versions.logback        % Test,
       "ch.qos.logback"              %  "logback-core"                   % versions.logback        % Test,
       "com.dimafeng"                %% "testcontainers-scala-scalatest" % "0.41.5"                % Test
-
     ),
     excludeDependencies ++= Seq(
       // workaround for https://github.com/sbt/sbt/issues/3618
@@ -389,11 +393,36 @@ lazy val khipuExamples = (project in file("yupana-khipu-examples"))
   .dependsOn(khipu, netty, schema, externalLinks, jdbc, caffeine % Runtime)
   .disablePlugins(AssemblyPlugin)
 
+lazy val testUtils = (project in file("yupana-test-utils"))
+  .settings(
+    name := "yupana-test-utils",
+    allSettings,
+    libraryDependencies ++= Seq(
+      "org.scalatestplus"       %% "scalacheck-1-18"            % versions.scalaTestCheck,
+      "org.scalatest"           %% "scalatest-flatspec"         % versions.scalaTest,
+      "org.scalatest"           %% "scalatest-shouldmatchers"   % versions.scalaTest
+    )
+  )
+  .dependsOn(api, utils)
+  .disablePlugins(AssemblyPlugin)
+
+lazy val hbaseTestUtils = (project in file("yupana-hbase-test-utils"))
+  .settings(
+    name := "yupana-hbase-test-utils",
+    allSettings,
+    libraryDependencies ++= Seq(
+      "org.apache.hbase"            %  "hbase-common"                   % versions.hbase,
+      "org.apache.hbase"            %  "hbase-client"                   % versions.hbase,
+      "org.scala-lang"              %  "scala-reflect"                  % scalaVersion.value,
+    )
+  )
+  .dependsOn(serialization)
+  .disablePlugins(AssemblyPlugin)
 
 lazy val benchmarks = (project in file("yupana-benchmarks"))
   .enablePlugins(JmhPlugin)
   .settings(commonSettings, noPublishSettings)
-  .dependsOn(core % "compile->test", api, schema, externalLinks, hbase, hbase % "compile->test")
+  .dependsOn( api, core, schema, externalLinks, hbase, testUtils, hbaseTestUtils)
   .settings(
     name := "yupana-benchmarks",
     libraryDependencies ++= Seq(

@@ -112,10 +112,9 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
     val readRow = ReadFromStorageRowStage.mkReadRow(query, buf, schema, batch, rowNum)
     val tree =
       q"""
-    import _root_.java.nio.ByteBuffer
     import _root_.org.yupana.serialization.MemoryBuffer
-    import _root_.org.yupana.api.{ Time, Blob }
-    import _root_.org.yupana.api.types.DataType
+    import _root_.org.yupana.api.{ Time, Blob, Currency }
+    import _root_.org.yupana.api.types.{ DataType, Num }
     import _root_.org.yupana.api.utils.Tokenizer
     import _root_.org.yupana.api.schema.Table
     import _root_.org.yupana.core.model.{ BatchDataset, HashTableDataset }
@@ -340,6 +339,7 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
       .replaceAll("\\$plus", "+")
       .replaceAll("\\.\\$minus", " - ")
       .replaceAll("\\.\\$div", " / ")
+      .replaceAll("\\.\\$times", " * ")
       .replaceAll("\\.\\$greater\\$eq", " >= ")
       .replaceAll("\\.\\$greater", " > ")
       .replaceAll("\\.\\$less\\$eq", " <= ")

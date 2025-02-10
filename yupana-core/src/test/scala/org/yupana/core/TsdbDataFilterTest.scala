@@ -13,6 +13,7 @@ import org.yupana.cache.CacheFactory
 import org.yupana.core.auth.YupanaUser
 import org.yupana.core.utils.{ FlatAndCondition, SparseTable }
 import org.yupana.settings.Settings
+import org.yupana.testutils.{ TestDims, TestLinks, TestSchema, TestTableFields, TestTable2Fields }
 import org.yupana.utils.RussianTokenizer
 
 import java.time.{ LocalDateTime, OffsetDateTime, ZoneOffset }

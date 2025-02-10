@@ -6,11 +6,12 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.threeten.extra.PeriodDuration
 import org.yupana.api.Time
-import org.yupana.api.query.{ ConcatExpr, LengthExpr, NullExpr, Query }
+import org.yupana.api.query.{ LengthExpr, NullExpr, Query }
 import org.yupana.api.types.DataType
 import org.yupana.core.model.{ BatchDataset, HashTableDataset }
 import org.yupana.core.utils.metric.NoMetricCollector
-import org.yupana.core.{ QueryContext, TestDims, TestSchema, TestTableFields }
+import org.yupana.core.QueryContext
+import org.yupana.testutils.{ TestDims, TestSchema, TestTableFields }
 
 import java.time.temporal.{ ChronoUnit, TemporalAdjusters }
 import java.time.{ Duration, LocalDateTime, OffsetDateTime, Period, ZoneOffset }
@@ -63,10 +64,10 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       Seq(
         metric(TestTableFields.TEST_FIELD) as "F",
         truncMonth(time) as "T",
-        divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)) as "PRICE",
+        div(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)) as "PRICE",
         plus(dimension(TestDims.DIM_B), const(1.toShort)) as "B_PLUS_1",
-        divInt(dimension(TestDims.DIM_B), plus(dimension(TestDims.DIM_B), const(1.toShort))) as "bbb",
-        divInt(dimension(TestDims.DIM_B), plus(dimension(TestDims.DIM_B), const(1.toShort))) as "bbb_2"
+        div(dimension(TestDims.DIM_B), plus(dimension(TestDims.DIM_B), const(1.toShort))) as "bbb",
+        div(dimension(TestDims.DIM_B), plus(dimension(TestDims.DIM_B), const(1.toShort))) as "bbb_2"
       )
     )
 
@@ -83,7 +84,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     batch.set(1, metric(TestTableFields.TEST_FIELD), 3d)
 
     calc.evaluateExpressions(batch, Time(now), IndexedSeq.empty)
-    batch.get(0, divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2))) shouldEqual 2d
+    batch.get(0, div(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2))) shouldEqual 2d
     batch.get(0, truncMonth(time)) shouldEqual Time(
       now
         .withOffsetSameInstant(ZoneOffset.UTC)
@@ -94,7 +95,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
 
     batch.isNull(
       1,
-      divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2))
+      div(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2))
     ) shouldBe true
   }
 
@@ -115,8 +116,8 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
         hllCount(metric(TestTableFields.TEST_LONG_FIELD), 0.01) as "HLL",
         distinctRandom(metric(TestTableFields.TEST_FIELD)) as "RANDOM",
         truncDay(time) as "T",
-        min(divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2))) as "MIN_PRICE",
-        divFrac(
+        min(div(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2))) as "MIN_PRICE",
+        div(
           plus(max(metric(TestTableFields.TEST_FIELD)), min(metric(TestTableFields.TEST_FIELD))),
           const(2d)
         ) as "MIDDLE"
@@ -158,11 +159,11 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     acc1batch.getRef(0, distinctRandom(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(10d)
     acc1batch.get(
       0,
-      min(divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)))
+      min(div(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)))
     ) shouldEqual 2d
     acc1batch.isNull(
       0,
-      divFrac(plus(max(metric(TestTableFields.TEST_FIELD)), min(metric(TestTableFields.TEST_FIELD))), const(2d))
+      div(plus(max(metric(TestTableFields.TEST_FIELD)), min(metric(TestTableFields.TEST_FIELD))), const(2d))
     ) shouldBe true
 
     When("incoming dataset contains several rows")
@@ -203,11 +204,11 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     acc2batch.getRef(0, distinctRandom(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(2d, 12d, 10d)
     acc2batch.get(
       0,
-      min(divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)))
+      min(div(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)))
     ) shouldEqual 2d / 3d
     acc2batch.isNull(
       0,
-      divFrac(plus(max(metric(TestTableFields.TEST_FIELD)), min(metric(TestTableFields.TEST_FIELD))), const(2d))
+      div(plus(max(metric(TestTableFields.TEST_FIELD)), min(metric(TestTableFields.TEST_FIELD))), const(2d))
     ) shouldBe true
 
     When("incoming already aggregated datasets")
@@ -227,7 +228,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     acc3batch.setRef(0, distinctRandom(metric(TestTableFields.TEST_FIELD)), Set(1d, 2d, 3d))
     acc3batch.set(
       0,
-      min(divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2))),
+      min(div(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2))),
       2d / 3d
     )
     val hll = HyperLogLogAggregator.withErrorGeneric[Long](0.01d)
@@ -246,7 +247,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     batch3.setRef(0, distinctRandom(metric(TestTableFields.TEST_FIELD)), Set(1d, 2d, 4d))
     batch3.set(
       0,
-      min(divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2))),
+      min(div(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2))),
       1d / 3d
     )
     batch3.setRef(0, hllCount(metric(TestTableFields.TEST_LONG_FIELD), 0.01), hll.prepare(11))
@@ -262,11 +263,11 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     acc3batch.getRef(0, distinctRandom(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(1d, 2d, 3d, 4d)
     acc3batch.get(
       0,
-      min(divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)))
+      min(div(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)))
     ) shouldEqual 1d / 3d
     acc3batch.isNull(
       0,
-      divFrac(plus(max(metric(TestTableFields.TEST_FIELD)), min(metric(TestTableFields.TEST_FIELD))), const(2d))
+      div(plus(max(metric(TestTableFields.TEST_FIELD)), min(metric(TestTableFields.TEST_FIELD))), const(2d))
     ) shouldBe true
 
     And("and values on post combine stage map shall be calculated")
@@ -288,11 +289,11 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
 
     batch4.get(
       0,
-      min(divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)))
+      min(div(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)))
     ) shouldEqual 1d / 3d
     batch4.isNull(
       0,
-      divFrac(plus(max(metric(TestTableFields.TEST_FIELD)), min(metric(TestTableFields.TEST_FIELD))), const(2d))
+      div(plus(max(metric(TestTableFields.TEST_FIELD)), min(metric(TestTableFields.TEST_FIELD))), const(2d))
     ) shouldBe true
 
     And("and values for post aggregate expressions shall be calculated")
@@ -301,7 +302,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
 
     batch4.get(
       0,
-      divFrac(plus(max(metric(TestTableFields.TEST_FIELD)), min(metric(TestTableFields.TEST_FIELD))), const(2d))
+      div(plus(max(metric(TestTableFields.TEST_FIELD)), min(metric(TestTableFields.TEST_FIELD))), const(2d))
     ) shouldEqual 3.5d
   }
 
@@ -318,7 +319,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
         tokens(dimension(TestDims.DIM_A)) as "tokens",
         upper(dimension(TestDims.DIM_A)) as "up",
         lower(dimension(TestDims.DIM_A)) as "down",
-        ConcatExpr(dimension(TestDims.DIM_A), const("!!!")) as "yeah"
+        plus(dimension(TestDims.DIM_A), const("!!!")) as "yeah"
       )
     )
 
@@ -344,7 +345,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     )
     batch.get(0, upper(dimension(TestDims.DIM_A))) shouldEqual "ВКУСНАЯ ВОДИЧКА №7"
     batch.get(0, lower(dimension(TestDims.DIM_A))) shouldEqual "вкусная водичка №7"
-    batch.get(0, ConcatExpr(dimension(TestDims.DIM_A), const("!!!"))) shouldEqual "Вкусная водичка №7!!!"
+    batch.get(0, plus(dimension(TestDims.DIM_A), const("!!!"))) shouldEqual "Вкусная водичка №7!!!"
   }
 
   it should "evaluate array functions" in {
@@ -572,7 +573,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
   it should "handle nulls properly" in {
     val now = OffsetDateTime.now()
 
-    val exp = divFrac(plus(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)), const(2d))
+    val exp = div(plus(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)), const(2d))
     val cond = equ(exp, const(0d))
 
     val query = Query(
@@ -627,7 +628,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
 
     val x = condition(
       neq(metric(TestTableFields.TEST_LONG_FIELD), const(0L)),
-      divInt(dimension(TestDims.DIM_Y), metric(TestTableFields.TEST_LONG_FIELD)),
+      div(dimension(TestDims.DIM_Y), metric(TestTableFields.TEST_LONG_FIELD)),
       const(-1L)
     )
 
@@ -656,7 +657,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
 
     val x = condition(
       neq(sum(metric(TestTableFields.TEST_LONG_FIELD)), const(0L)),
-      divInt(sum(dimension(TestDims.DIM_Y)), sum(metric(TestTableFields.TEST_LONG_FIELD))),
+      div(sum(dimension(TestDims.DIM_Y)), sum(metric(TestTableFields.TEST_LONG_FIELD))),
       const(-1L)
     )
 
@@ -700,7 +701,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
 
     val y = plus(metric(TestTableFields.TEST_LONG_FIELD), short2Long(dimension(TestDims.DIM_B)))
     val z =
-      divFrac(double2bigDecimal(metric(TestTableFields.TEST_FIELD)), metric(TestTableFields.TEST_BIGDECIMAL_FIELD))
+      div(double2bigDecimal(metric(TestTableFields.TEST_FIELD)), metric(TestTableFields.TEST_BIGDECIMAL_FIELD))
 
     val query = Query(
       TestSchema.testTable,
@@ -766,7 +767,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     val a = sum(
       condition(
         gt(dimension(TestDims.DIM_B), const(3.toShort)),
-        divFrac(short2BigDecimal(dimension(TestDims.DIM_B)), metric(TestTableFields.TEST_BIGDECIMAL_FIELD)),
+        div(short2BigDecimal(dimension(TestDims.DIM_B)), metric(TestTableFields.TEST_BIGDECIMAL_FIELD)),
         NullExpr[BigDecimal](DataType[BigDecimal])
       )
     )

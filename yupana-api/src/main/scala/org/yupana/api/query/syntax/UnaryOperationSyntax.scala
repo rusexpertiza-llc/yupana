@@ -18,6 +18,7 @@ package org.yupana.api.query.syntax
 
 import org.yupana.api.Time
 import org.yupana.api.query._
+import org.yupana.api.types.Num
 
 trait UnaryOperationSyntax {
   def truncYear(e: Expression[Time]) = TruncYearExpr(e)
@@ -48,8 +49,8 @@ trait UnaryOperationSyntax {
 
   def not(e: Expression[Boolean]) = NotExpr(e)
 
-  def abs[T](e: Expression[T])(implicit n: Numeric[T]) = AbsExpr(e)
-  def minus[T](e: Expression[T])(implicit n: Numeric[T]) = UnaryMinusExpr(e)
+  def abs[T](e: Expression[T])(implicit n: Num[T]) = AbsExpr(e)
+  def minus[T](e: Expression[T])(implicit n: Num[T]) = UnaryMinusExpr(e)
 
   def isNull[T](e: Expression[T]) = IsNullExpr(e)
   def isNotNull[T](e: Expression[T]) = IsNotNullExpr(e)

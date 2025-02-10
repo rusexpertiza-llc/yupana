@@ -16,8 +16,9 @@
 
 package org.yupana.api.types
 
-import java.{ lang => jl }
+import org.yupana.api.Currency
 
+import java.{ lang => jl }
 import scala.reflect.ClassTag
 
 trait BoxingTag[T] extends Serializable {
@@ -35,6 +36,8 @@ object BoxingTag {
     override def cast(t: T): T = t
   }
 
+  implicit val currencyBoxing: BoxingTag[Currency] = valBoxing[Currency, jl.Long](_.value)
+
   implicit val byteBoxing: BoxingTag[Byte] = primitive[Byte, jl.Byte]
   implicit val shortBoxing: BoxingTag[Short] = primitive[Short, jl.Short]
   implicit val intBoxing: BoxingTag[Int] = primitive[Int, jl.Integer]
@@ -43,9 +46,12 @@ object BoxingTag {
   implicit val booleanBoxing: BoxingTag[Boolean] = primitive[Boolean, jl.Boolean]
 
   private def primitive[T <: AnyVal, B <: AnyRef](implicit ev: T => B, bTag: ClassTag[B]): BoxingTag[T] =
+    valBoxing[T, B](ev)
+
+  private def valBoxing[T <: AnyVal, B <: AnyRef](f: T => B)(implicit bTag: ClassTag[B]): BoxingTag[T] =
     new BoxingTag[T] {
       override type R = B
       override def clazz: Class[B] = bTag.runtimeClass.asInstanceOf[Class[B]]
-      override def cast(t: T): B = ev(t)
+      override def cast(t: T): B = f(t)
     }
 }

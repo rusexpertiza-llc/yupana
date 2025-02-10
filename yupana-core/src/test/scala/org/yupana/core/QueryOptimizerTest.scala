@@ -5,6 +5,7 @@ import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
 import org.yupana.api.query.{ AndExpr, FalseExpr, OrExpr }
 import org.yupana.api.schema.{ DictionaryDimension, RawDimension }
+import org.yupana.testutils.{ TestDims, TestTableFields }
 import org.yupana.utils.RussianTokenizer
 
 class QueryOptimizerTest extends AnyFlatSpec with Matchers {

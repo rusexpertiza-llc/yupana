@@ -16,7 +16,7 @@
 
 package org.yupana.core
 
-import org.yupana.api.Time
+import org.yupana.api.Currency
 import org.yupana.api.query._
 import org.yupana.api.utils.Tokenizer
 import org.yupana.core.jit.ExpressionCalculator
@@ -70,13 +70,10 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
       case ExtractMinuteExpr(e) => evaluateUnary(e)(_.toLocalDateTime.getMinute)
       case ExtractSecondExpr(e) => evaluateUnary(e)(_.toLocalDateTime.getSecond)
 
-      case p @ PlusExpr(a, b)    => evaluateBinary(a, b)(p.numeric.plus)
-      case m @ MinusExpr(a, b)   => evaluateBinary(a, b)(m.numeric.minus)
-      case t @ TimesExpr(a, b)   => evaluateBinary(a, b)(t.numeric.times)
-      case d @ DivIntExpr(a, b)  => evaluateBinary(a, b)(d.integral.quot)
-      case d @ DivFracExpr(a, b) => evaluateBinary(a, b)(d.fractional.div)
-
-      case ConcatExpr(a, b) => evaluateBinary(a, b)(_ ++ _)
+      case p @ PlusExpr(a, b)  => evaluateBinary(a, b)(p.guard.plus)
+      case m @ MinusExpr(a, b) => evaluateBinary(a, b)(m.guard.minus)
+      case t @ TimesExpr(a, b) => evaluateBinary(a, b)(t.guard.times)
+      case d @ DivExpr(a, b)   => evaluateBinary(a, b)(d.dg.div)
 
       case EqExpr(a, b)     => evaluateBinary(a, b)(_ == _)
       case NeqExpr(a, b)    => evaluateBinary(a, b)(_ != _)
@@ -88,23 +85,29 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
       case IsNullExpr(e)    => evaluateConstant(e) == null
       case IsNotNullExpr(e) => evaluateConstant(e) != null
 
-      case Double2BigDecimalExpr(e) => evaluateUnary(e)(BigDecimal.valueOf)
-      case BigDecimal2DoubleExpr(e) => evaluateUnary(e)(_.toDouble)
-      case Long2BigDecimalExpr(e)   => evaluateUnary(e)(BigDecimal.valueOf)
-      case Long2DoubleExpr(e)       => evaluateUnary(e)(_.toDouble)
-      case Int2LongExpr(e)          => evaluateUnary(e)(_.toLong)
-      case Int2BigDecimalExpr(e)    => evaluateUnary(e)(BigDecimal.valueOf(_))
-      case Int2DoubleExpr(e)        => evaluateUnary(e)(_.toDouble)
-      case Short2IntExpr(e)         => evaluateUnary(e)(_.toInt)
-      case Short2LongExpr(e)        => evaluateUnary(e)(_.toLong)
-      case Short2BigDecimalExpr(e)  => evaluateUnary(e)(BigDecimal.valueOf(_))
-      case Short2DoubleExpr(e)      => evaluateUnary(e)(_.toDouble)
-      case Byte2ShortExpr(e)        => evaluateUnary(e)(_.toShort)
-      case Byte2IntExpr(e)          => evaluateUnary(e)(_.toInt)
-      case Byte2LongExpr(e)         => evaluateUnary(e)(_.toLong)
-      case Byte2BigDecimalExpr(e)   => evaluateUnary(e)(BigDecimal.valueOf(_))
-      case Byte2DoubleExpr(e)       => evaluateUnary(e)(_.toDouble)
-      case ToStringExpr(e)          => evaluateUnary(e)(_.toString)
+      case Double2BigDecimalExpr(e)   => evaluateUnary(e)(BigDecimal.valueOf)
+      case BigDecimal2DoubleExpr(e)   => evaluateUnary(e)(_.toDouble)
+      case BigDecimal2CurrencyExpr(e) => evaluateUnary(e)(Currency.of)
+      case Currency2BigDecimalExpr(e) => evaluateUnary(e)(_.toBigDecimal)
+      case Long2CurrencyExpr(e)       => evaluateUnary(e)(Currency.ofLong)
+      case Double2CurrencyExpr(e)     => evaluateUnary(e)(Currency.ofDouble)
+      case Currency2LongExpr(e)       => evaluateUnary(e)(_.value / Currency.SUB)
+      case Currency2DoubleExpr(e)     => evaluateUnary(e)(_.value.toDouble / Currency.SUB)
+      case Long2BigDecimalExpr(e)     => evaluateUnary(e)(BigDecimal.valueOf)
+      case Long2DoubleExpr(e)         => evaluateUnary(e)(_.toDouble)
+      case Int2LongExpr(e)            => evaluateUnary(e)(_.toLong)
+      case Int2BigDecimalExpr(e)      => evaluateUnary(e)(BigDecimal.valueOf(_))
+      case Int2DoubleExpr(e)          => evaluateUnary(e)(_.toDouble)
+      case Short2IntExpr(e)           => evaluateUnary(e)(_.toInt)
+      case Short2LongExpr(e)          => evaluateUnary(e)(_.toLong)
+      case Short2BigDecimalExpr(e)    => evaluateUnary(e)(BigDecimal.valueOf(_))
+      case Short2DoubleExpr(e)        => evaluateUnary(e)(_.toDouble)
+      case Byte2ShortExpr(e)          => evaluateUnary(e)(_.toShort)
+      case Byte2IntExpr(e)            => evaluateUnary(e)(_.toInt)
+      case Byte2LongExpr(e)           => evaluateUnary(e)(_.toLong)
+      case Byte2BigDecimalExpr(e)     => evaluateUnary(e)(BigDecimal.valueOf(_))
+      case Byte2DoubleExpr(e)         => evaluateUnary(e)(_.toDouble)
+      case ToStringExpr(e)            => evaluateUnary(e)(_.toString)
 
       case InExpr(e, vs) => vs.map(evaluateConstant) contains evaluateConstant(e)
 
@@ -134,13 +137,6 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
       case u @ UnaryMinusExpr(e) => evaluateUnary(e)(u.num.negate)
 
       case NotExpr(e) => evaluateUnary(e)(x => !x)
-
-      case TimeMinusExpr(a, b) => evaluateBinary(a, b)((x, y) => math.abs(x.millis - y.millis))
-      case TimeMinusPeriodExpr(a, b) =>
-        evaluateBinary(a, b)((t, p) => Time(t.toDateTime.minus(p).toInstant.toEpochMilli))
-      case TimePlusPeriodExpr(a, b) =>
-        evaluateBinary(a, b)((t, p) => Time(t.toDateTime.plus(p).toInstant.toEpochMilli))
-      case PeriodPlusPeriodExpr(a, b) => evaluateBinary(a, b)((x, y) => x plus y)
 
       case ArrayTokensExpr(e) =>
         evaluateUnary(e)(a => a.flatMap(s => tokenizer.transliteratedTokens(s)))

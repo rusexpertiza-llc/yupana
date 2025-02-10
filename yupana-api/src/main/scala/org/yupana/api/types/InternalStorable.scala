@@ -17,7 +17,7 @@
 package org.yupana.api.types
 
 import org.threeten.extra.PeriodDuration
-import org.yupana.api.{ Blob, Time }
+import org.yupana.api.{ Blob, Currency, Time }
 
 import scala.annotation.implicitNotFound
 import scala.reflect.ClassTag
@@ -26,7 +26,7 @@ import scala.reflect.ClassTag
   * Serialization/deserialization type class
   * @tparam T type to be serialized/deserialized
   */
-@implicitNotFound("No member of type class Storable for class ${T} is found")
+@implicitNotFound("No member of type class InternalStorable for class ${T} is found")
 trait InternalStorable[T] extends Serializable {
 
   def size[V[_], S](v: V[T])(implicit rw: InternalReaderWriter[_, V, S, _]): S
@@ -128,6 +128,26 @@ object InternalStorable {
         implicit rw: InternalReaderWriter[B, V, S, O]
     ): S =
       rw.writeBigDecimalSizeSpecified(b, offset, v)
+  }
+
+  implicit val currencyStorable: InternalStorable[Currency] = new InternalStorable[Currency] {
+    override def size[V[_], S](v: V[Currency])(implicit rw: InternalReaderWriter[_, V, S, _]): S = rw.sizeOfCurrency
+
+    override val fixedSize: Option[Int] = Some(8)
+    override val isRefType: Boolean = false
+    override def read[B, V[_], S, O](b: B, size: S)(implicit rw: InternalReaderWriter[B, V, S, O]): V[Currency] =
+      rw.readCurrency(b)
+
+    override def read[B, V[_], S, O](b: B, offset: O, size: S)(
+        implicit rw: InternalReaderWriter[B, V, S, O]
+    ): V[Currency] = rw.readCurrency(b, offset)
+
+    override def write[B, V[_], S, O](b: B, v: V[Currency])(implicit rw: InternalReaderWriter[B, V, S, O]): S =
+      rw.writeCurrency(b, v)
+
+    override def write[B, V[_], S, O](b: B, offset: O, v: V[Currency])(
+        implicit rw: InternalReaderWriter[B, V, S, O]
+    ): S = rw.writeCurrency(b, offset, v)
   }
 
   implicit val byteStorable: InternalStorable[Byte] = new InternalStorable[Byte] {

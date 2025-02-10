@@ -16,6 +16,7 @@
 
 package org.yupana.core.sql
 
+import org.yupana.api.Currency
 import org.yupana.api.query._
 import org.yupana.api.types.{ DataType, TupleDataType }
 import org.yupana.core.ConstantCalculator
@@ -121,6 +122,10 @@ object DataTypeUtils {
     }
   }
 
+  def alignConst[T, U](c: ConstExpr[T], t: DataType.Aux[U], calc: ConstantCalculator): Either[String, Expression[U]] = {
+    constCast(c, t, calc).map(wrapConstant(_, t))
+  }
+
   def alignTypes[T, U](ca: Expression[T], cb: Expression[U], calc: ConstantCalculator): Either[String, ExprPair] = {
     if (ca.dataType == cb.dataType) {
       Right(DataTypeUtils.pair[T](ca, cb.asInstanceOf[Expression[T]]))
@@ -130,12 +135,8 @@ object DataTypeUtils {
 
         case (UntypedPlaceholderExpr(id), _) => Right(pair(PlaceholderExpr(id, cb.dataType.aux), cb))
         case (_, UntypedPlaceholderExpr(id)) => Right(pair(ca, PlaceholderExpr(id, ca.dataType.aux)))
-
-        case (c: ConstExpr[_], _) =>
-          constCast(c, cb.dataType, calc).map(cc => DataTypeUtils.pair(wrapConstant(cc, cb.dataType), cb))
-
-        case (_, c: ConstExpr[_]) =>
-          constCast(c, ca.dataType, calc).map(cc => DataTypeUtils.pair(ca, wrapConstant(cc, ca.dataType)))
+        case (c: ConstExpr[_], _)            => alignConst(c, cb.dataType, calc).map(cc => DataTypeUtils.pair(cc, cb))
+        case (_, c: ConstExpr[_])            => alignConst(c, ca.dataType, calc).map(cc => DataTypeUtils.pair(ca, cc))
 
         case (_, _) => convertRegular(ca, cb)
       }
@@ -186,7 +187,14 @@ object DataTypeUtils {
     entry[Byte, Double](Byte2DoubleExpr)
   )
 
-  private val manualConverters: Map[(String, String), ToTypeConverter[_, _]] = Map()
+  private val manualConverters: Map[(String, String), ToTypeConverter[_, _]] = Map(
+    entry[BigDecimal, Currency](BigDecimal2CurrencyExpr),
+    entry[Long, Currency](Long2CurrencyExpr),
+    entry[Double, Currency](Double2CurrencyExpr),
+    entry[Currency, BigDecimal](Currency2BigDecimalExpr),
+    entry[Currency, Long](Currency2LongExpr),
+    entry[Currency, Double](Currency2DoubleExpr)
+  )
 
   private def entry[T, U](ttc: ToTypeConverter[T, U])(
       implicit dtt: DataType.Aux[T],
@@ -213,6 +221,10 @@ object DataTypeUtils {
     pEntry[BigDecimal, Long](x => Option.when(x.isValidLong)(x.toLong)),
     pEntry[BigDecimal, Int](x => Option.when(x.isValidInt)(x.toInt)),
     pEntry[BigDecimal, Short](x => Option.when(x.isValidShort)(x.toShort)),
-    pEntry[BigDecimal, Byte](x => Option.when(x.isValidByte)(x.toByte))
+    pEntry[BigDecimal, Byte](x => Option.when(x.isValidByte)(x.toByte)),
+    pEntry[BigDecimal, Currency] { x =>
+      val bc = x * Currency.SUB
+      Option.when(bc.isValidLong)(Currency(bc.toLong))
+    }
   )
 }

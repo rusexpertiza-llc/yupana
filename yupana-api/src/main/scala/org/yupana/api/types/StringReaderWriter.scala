@@ -17,7 +17,7 @@
 package org.yupana.api.types
 
 import org.threeten.extra.PeriodDuration
-import org.yupana.api.{ Blob, Time }
+import org.yupana.api.{ Blob, Currency, Time }
 
 trait StringReaderWriter {
   def readBoolean(s: String): Boolean
@@ -46,6 +46,9 @@ trait StringReaderWriter {
 
   def readTime(s: String): Time
   def writeTime(v: Time): String
+
+  def readCurrency(s: String): Currency
+  def writeCurrency(v: Currency): String
 
   def readPeriodDuration(s: String): PeriodDuration
   def writePeriodDuration(v: PeriodDuration): String

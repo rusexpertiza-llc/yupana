@@ -1,11 +1,11 @@
 package org.yupana.core.sql
 
 import org.scalatest.{ EitherValues, Inside, OptionValues }
-import org.yupana.api.Time
+import org.yupana.api.{ Currency, Time }
 import org.yupana.api.query._
 import org.yupana.api.schema.MetricValue
-import org.yupana.core._
 import org.yupana.core.sql.parser.SqlParser
+import org.yupana.testutils.{ TestDims, TestLinks, TestSchema, TestTable2Fields, TestTableFields }
 import org.yupana.api.utils.ConditionMatchers.{ GeMatcher, LtMatcher }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -784,7 +784,7 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
         sum(
           condition(
             gt(metric(TestTableFields.TEST_FIELD), const(0d)),
-            divFrac(long2Double(metric(TestTableFields.TEST_LONG_FIELD)), metric(TestTableFields.TEST_FIELD)),
+            div(metric(TestTableFields.TEST_LONG_FIELD), metric(TestTableFields.TEST_FIELD)),
             NullExpr(DataType[Double])
           )
         ) as "d"
@@ -902,7 +902,7 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
           Seq(
             GeExpr(
               TimeExpr,
-              TruncDayExpr(TimeMinusPeriodExpr(NowExpr, ConstantExpr(PeriodDuration.of(Period.ofMonths(3)))))
+              TruncDayExpr(minus(NowExpr, ConstantExpr(PeriodDuration.of(Period.ofMonths(3)))))
             ),
             LtExpr(TimeExpr, TruncDayExpr(NowExpr))
           )
@@ -915,6 +915,78 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       q.groupBy should contain theSameElementsAs Seq(
         truncDay(time),
         dimension(DIM_A)
+      )
+    }
+  }
+
+  it should "handle Currency" in {
+    testQuery("""
+        |SELECT
+        |  day(time) as d,
+        |  sum(testCurrencyField) as sum,
+        |  sum(CASE WHEN testCurrencyField > 100 THEN 1 ELSE 0) as big_count
+        |FROM test_table
+        |WHERE time >= TIMESTAMP '2024-10-08' AND time < TIMESTAMP '2024-11-01'
+        |GROUP BY d
+        |""".stripMargin) { q =>
+      q.table.value.name shouldEqual "test_table"
+      q.fields should contain theSameElementsInOrderAs List(
+        truncDay(time) as "d",
+        sum(metric(TestTableFields.TEST_CURRENCY_FIELD)) as "sum",
+        sum(
+          condition(
+            gt(metric(TestTableFields.TEST_CURRENCY_FIELD), const(Currency.of(100))),
+            const(BigDecimal(1)),
+            const(BigDecimal(0))
+          )
+        ) as "big_count"
+      )
+    }
+  }
+
+  it should "handle Currency math" in {
+    testQuery("""
+        |SELECT
+        |  testCurrencyField / 2 as half,
+        |  testCurrencyField / cast(2 as Currency) as rate,
+        |  testCurrencyField + cast(100 as Currency) as plus100,
+        |  testCurrencyField * 2 as twice
+        |FROM test_table
+        |WHERE time >= TIMESTAMP '2025-1-30' AND time < TIMESTAMP '2025-1-31'
+        |""".stripMargin) { q =>
+      q.table.value.name shouldEqual "test_table"
+      q.fields should contain theSameElementsInOrderAs List(
+        div(metric(TestTableFields.TEST_CURRENCY_FIELD), const(2L)) as "half",
+        div(metric(TestTableFields.TEST_CURRENCY_FIELD), const(Currency.of(2))) as "rate",
+        plus(metric(TestTableFields.TEST_CURRENCY_FIELD), const(Currency.of(100))) as "plus100",
+        times(metric(TestTableFields.TEST_CURRENCY_FIELD), const(2L)) as "twice"
+      )
+    }
+  }
+
+  it should "be possible convert to / from currency" in {
+    testQuery("""
+        | SELECT
+        |   testCurrencyField + 100 as plus100,
+        |   cast(testLongField as currency) as l2c,
+        |   cast(testField as currency) as d2c,
+        |   cast(testBigDecimalField as currency) as dec2c,
+        |   cast(testCurrencyField as bigint) as c2l,
+        |   cast(testCurrencyField as double) as c2d,
+        |   cast(testCurrencyField as decimal) as c2dec
+        | FROM test_table
+        | WHERE time >= timestamp '2025-1-31' and time < timestamp '2025-2-1'
+        |""".stripMargin) { q =>
+      q.table.value shouldEqual TestSchema.testTable
+
+      q.fields should contain theSameElementsInOrderAs List(
+        plus(metric(TestTableFields.TEST_CURRENCY_FIELD), const(Currency.of(100))) as "plus100",
+        Long2CurrencyExpr(metric(TestTableFields.TEST_LONG_FIELD)) as "l2c",
+        Double2CurrencyExpr(metric(TestTableFields.TEST_FIELD)) as "d2c",
+        BigDecimal2CurrencyExpr(metric(TestTableFields.TEST_BIGDECIMAL_FIELD)) as "dec2c",
+        Currency2LongExpr(metric(TestTableFields.TEST_CURRENCY_FIELD)) as "c2l",
+        Currency2DoubleExpr(metric(TestTableFields.TEST_CURRENCY_FIELD)) as "c2d",
+        Currency2BigDecimalExpr(metric(TestTableFields.TEST_CURRENCY_FIELD)) as "c2dec"
       )
     }
   }
@@ -1054,7 +1126,7 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       )
       val sub = minus(
         metric(TestTable2Fields.TEST_FIELD),
-        double2bigDecimal(mult)
+        mult
       )
       q.fields should contain theSameElementsAs Seq(
         max(sub) as "strange_result",
@@ -1119,7 +1191,7 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
         "AND time <= TIMESTAMP '2018-10-16 17:44:51' AND b = 22322"
     ) { q =>
       q.fields should contain theSameElementsAs Seq(
-        plus(metric(TestTableFields.TEST_FIELD), long2Double(metric(TestTableFields.TEST_LONG_FIELD))) as "plus2"
+        plus(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_LONG_FIELD)) as "plus2"
       )
     }
   }
@@ -1163,7 +1235,7 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
         |""".stripMargin) { q =>
       q.table.value shouldEqual TestSchema.testTable2
       q.fields should contain theSameElementsInOrderAs Seq(
-        divFrac(int2Double(metric(TestTable2Fields.TEST_FIELD4)), metric(TestTable2Fields.TEST_FIELD2)) as "div"
+        div(metric(TestTable2Fields.TEST_FIELD4), metric(TestTable2Fields.TEST_FIELD2)) as "div"
       )
     }
   }
@@ -1301,11 +1373,11 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
     testQuery("SELECT 10 / 2 as five, 5 + 2 as seven WHERE five <= seven") { q =>
       q.table shouldBe empty
       q.fields should contain theSameElementsInOrderAs Seq(
-        divFrac(const(BigDecimal(10)), const(BigDecimal(2))) as "five",
+        div(const(BigDecimal(10)), const(BigDecimal(2))) as "five",
         plus(const(BigDecimal(5)), const(BigDecimal(2))) as "seven"
       )
       q.filter.value shouldEqual le(
-        divFrac(const(BigDecimal(10)), const(BigDecimal(2))),
+        div(const(BigDecimal(10)), const(BigDecimal(2))),
         plus(const(BigDecimal(5)), const(BigDecimal(2)))
       )
 

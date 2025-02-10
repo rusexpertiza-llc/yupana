@@ -17,7 +17,7 @@
 package org.yupana.benchmarks
 
 import org.openjdk.jmh.annotations.{ Benchmark, Scope, State }
-import org.yupana.api.Time
+import org.yupana.api.{ Currency, Time }
 import org.yupana.api.query._
 import org.yupana.api.query.syntax.All._
 import org.yupana.core.IteratorMapReducible
@@ -64,13 +64,13 @@ class TsdbBaseBenchmarkState extends TsdbBaseBenchmarkStateBase {
       time as "time",
       truncDay(time) as "day",
       dimension(Dimensions.ITEM) as "item",
-      divInt(dimension(Dimensions.KKM_ID), const(2)) as "half_of_kkm",
+      div(dimension(Dimensions.KKM_ID), const(2)) as "half_of_kkm",
       metric(ItemTableMetrics.quantityField) as "quantity",
       metric(ItemTableMetrics.sumField) as "sum",
       plus(metric(ItemTableMetrics.quantityField), const(1.11)) as "tt",
-      plus(metric(ItemTableMetrics.sumField), const(BigDecimal(1))) as "sum"
+      plus(metric(ItemTableMetrics.sumField), const(Currency(1))) as "sum"
     ),
-    filter = Some(gt(divInt(dimension(Dimensions.KKM_ID), const(2)), const(100))),
+    filter = Some(gt(div(dimension(Dimensions.KKM_ID), const(2)), const(100))),
     groupBy = Seq.empty
   )
 

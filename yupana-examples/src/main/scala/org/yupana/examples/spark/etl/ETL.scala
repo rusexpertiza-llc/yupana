@@ -18,7 +18,7 @@ package org.yupana.examples.spark.etl
 
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.spark.{ SparkConf, SparkContext }
-import org.yupana.api.Blob
+import org.yupana.api.{ Blob, Currency }
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema.{ Dimension, MetricValue }
 import org.yupana.core.auth.TsdbRole.ReadWrite
@@ -65,8 +65,8 @@ object ETL extends StrictLogging {
 
     val commonMetrics = Seq(
       Some(MetricValue(ItemTableMetrics.documentNumberField, receipt.receiptNumber.toLong)),
-      Some(MetricValue(ItemTableMetrics.totalReceiptSumField, receipt.totalSum)),
-      receipt.totalCardSum.map(v => MetricValue(ItemTableMetrics.totalReceiptCardSumField, v)),
+      Some(MetricValue(ItemTableMetrics.totalReceiptSumField, Currency.of(receipt.totalSum))),
+      receipt.totalCardSum.map(v => MetricValue(ItemTableMetrics.totalReceiptCardSumField, Currency.of(v))),
       Some(MetricValue(ItemTableMetrics.shiftField, receipt.shiftNumber))
     ).flatten
 
@@ -76,16 +76,16 @@ object ETL extends StrictLogging {
           commonDims ++ Map(Dimensions.ITEM -> item.name, Dimensions.POSITION -> idx.toShort)
 
         val itemMetrics = Seq(
-          Some(MetricValue(ItemTableMetrics.sumField, item.sum)),
+          Some(MetricValue(ItemTableMetrics.sumField, Currency.of(item.sum))),
           Some(MetricValue(ItemTableMetrics.quantityField, item.quantity)),
-          item.taxes.get(Tax.tax00000).map(v => MetricValue(ItemTableMetrics.tax00000Field, v)),
-          item.taxes.get(Tax.tax09091).map(v => MetricValue(ItemTableMetrics.tax09091Field, v)),
-          item.taxes.get(Tax.tax10000).map(v => MetricValue(ItemTableMetrics.tax10000Field, v)),
-          item.taxes.get(Tax.tax15255).map(v => MetricValue(ItemTableMetrics.tax15255Field, v)),
-          item.taxes.get(Tax.tax16667).map(v => MetricValue(ItemTableMetrics.tax16667Field, v)),
-          item.taxes.get(Tax.tax18000).map(v => MetricValue(ItemTableMetrics.tax18000Field, v)),
-          item.taxes.get(Tax.tax20000).map(v => MetricValue(ItemTableMetrics.tax20000Field, v)),
-          item.taxes.get(Tax.taxNo).map(v => MetricValue(ItemTableMetrics.taxNoField, v)),
+          item.taxes.get(Tax.tax00000).map(v => MetricValue(ItemTableMetrics.tax00000Field, Currency.of(v))),
+          item.taxes.get(Tax.tax09091).map(v => MetricValue(ItemTableMetrics.tax09091Field, Currency.of(v))),
+          item.taxes.get(Tax.tax10000).map(v => MetricValue(ItemTableMetrics.tax10000Field, Currency.of(v))),
+          item.taxes.get(Tax.tax15255).map(v => MetricValue(ItemTableMetrics.tax15255Field, Currency.of(v))),
+          item.taxes.get(Tax.tax16667).map(v => MetricValue(ItemTableMetrics.tax16667Field, Currency.of(v))),
+          item.taxes.get(Tax.tax18000).map(v => MetricValue(ItemTableMetrics.tax18000Field, Currency.of(v))),
+          item.taxes.get(Tax.tax20000).map(v => MetricValue(ItemTableMetrics.tax20000Field, Currency.of(v))),
+          item.taxes.get(Tax.taxNo).map(v => MetricValue(ItemTableMetrics.taxNoField, Currency.of(v))),
           item.calcTypeSign.map(v => MetricValue(ItemTableMetrics.calculationTypeSignField, v)),
           item.calcSubjSing.map(v => MetricValue(ItemTableMetrics.calculationSubjectSignField, v)),
           item.measure.map(v => MetricValue(ItemTableMetrics.measureField, v)),
@@ -116,23 +116,23 @@ object ETL extends StrictLogging {
     )
 
     val metrics = Seq(
-      Some(MetricValue(ReceiptTableMetrics.totalSumField, receipt.totalSum)),
+      Some(MetricValue(ReceiptTableMetrics.totalSumField, Currency.of(receipt.totalSum))),
       Some(MetricValue(ReceiptTableMetrics.operator, receipt.operator)),
-      receipt.totalCashSum.map(v => MetricValue(ReceiptTableMetrics.cashSumField, v)),
-      receipt.totalCardSum.map(v => MetricValue(ReceiptTableMetrics.cardSumField, v)),
-      receipt.prePayment.map(v => MetricValue(ReceiptTableMetrics.prepaymentSumField, v)),
-      receipt.postPayment.map(v => MetricValue(ReceiptTableMetrics.postpaymentSumField, v)),
-      receipt.counterSubmission.map(v => MetricValue(ReceiptTableMetrics.counterSubmissionSumField, v)),
+      receipt.totalCashSum.map(v => MetricValue(ReceiptTableMetrics.cashSumField, Currency.of(v))),
+      receipt.totalCardSum.map(v => MetricValue(ReceiptTableMetrics.cardSumField, Currency.of(v))),
+      receipt.prePayment.map(v => MetricValue(ReceiptTableMetrics.prepaymentSumField, Currency.of(v))),
+      receipt.postPayment.map(v => MetricValue(ReceiptTableMetrics.postpaymentSumField, Currency.of(v))),
+      receipt.counterSubmission.map(v => MetricValue(ReceiptTableMetrics.counterSubmissionSumField, Currency.of(v))),
       Some(MetricValue(ReceiptTableMetrics.positionsCountField, receipt.items.size)),
-      totalTax(receipt.taxes).map(v => MetricValue(ReceiptTableMetrics.totalTaxField, v)),
-      receipt.taxes.get(Tax.tax00000).map(v => MetricValue(ReceiptTableMetrics.tax00000Field, v)),
-      receipt.taxes.get(Tax.tax09091).map(v => MetricValue(ReceiptTableMetrics.tax09091Field, v)),
-      receipt.taxes.get(Tax.tax10000).map(v => MetricValue(ReceiptTableMetrics.tax10000Field, v)),
-      receipt.taxes.get(Tax.tax15255).map(v => MetricValue(ReceiptTableMetrics.tax15255Field, v)),
-      receipt.taxes.get(Tax.tax16667).map(v => MetricValue(ReceiptTableMetrics.tax16667Field, v)),
-      receipt.taxes.get(Tax.tax18000).map(v => MetricValue(ReceiptTableMetrics.tax18000Field, v)),
-      receipt.taxes.get(Tax.tax20000).map(v => MetricValue(ReceiptTableMetrics.tax20000Field, v)),
-      receipt.taxes.get(Tax.taxNo).map(v => MetricValue(ReceiptTableMetrics.taxNoField, v)),
+      totalTax(receipt.taxes).map(v => MetricValue(ReceiptTableMetrics.totalTaxField, Currency.of(v))),
+      receipt.taxes.get(Tax.tax00000).map(v => MetricValue(ReceiptTableMetrics.tax00000Field, Currency.of(v))),
+      receipt.taxes.get(Tax.tax09091).map(v => MetricValue(ReceiptTableMetrics.tax09091Field, Currency.of(v))),
+      receipt.taxes.get(Tax.tax10000).map(v => MetricValue(ReceiptTableMetrics.tax10000Field, Currency.of(v))),
+      receipt.taxes.get(Tax.tax15255).map(v => MetricValue(ReceiptTableMetrics.tax15255Field, Currency.of(v))),
+      receipt.taxes.get(Tax.tax16667).map(v => MetricValue(ReceiptTableMetrics.tax16667Field, Currency.of(v))),
+      receipt.taxes.get(Tax.tax18000).map(v => MetricValue(ReceiptTableMetrics.tax18000Field, Currency.of(v))),
+      receipt.taxes.get(Tax.tax20000).map(v => MetricValue(ReceiptTableMetrics.tax20000Field, Currency.of(v))),
+      receipt.taxes.get(Tax.taxNo).map(v => MetricValue(ReceiptTableMetrics.taxNoField, Currency.of(v))),
       Some(MetricValue(ReceiptTableMetrics.itemsCountField, receipt.items.distinct.size))
     ).flatten
 

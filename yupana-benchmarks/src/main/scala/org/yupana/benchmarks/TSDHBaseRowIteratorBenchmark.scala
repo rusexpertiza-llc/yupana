@@ -24,7 +24,9 @@ import org.yupana.core._
 import org.yupana.core.jit.JIT
 import org.yupana.core.model.InternalQuery
 import org.yupana.core.utils.metric.NoMetricCollector
-import org.yupana.hbase.{ HBaseTestUtils, InternalQueryContext, TSDHBaseRowIterator }
+import org.yupana.hbase.{ InternalQueryContext, TSDHBaseRowIterator }
+import org.yupana.hbasetestutils.HBaseTestUtils
+import org.yupana.testutils.{ TestDims, TestSchema, TestTableFields }
 import org.yupana.utils.RussianTokenizer
 
 import java.time.{ LocalDateTime, ZoneOffset }

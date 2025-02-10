@@ -3,13 +3,13 @@ package org.yupana.hbase
 import org.apache.hadoop.hbase.client.ConnectionFactory
 import org.scalatest.GivenWhenThen
 import org.yupana.api.query.Query
-import org.yupana.core.{ TestDims, TestSchema }
 import org.yupana.core.dao.QueryMetricsFilter
 import org.yupana.core.model.MetricData
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.yupana.core.utils.metric.InternalMetricData
 import org.yupana.metrics.QueryStates
+import org.yupana.testutils.{ TestDims, TestSchema }
 
 import java.time.temporal.ChronoUnit
 import java.time.{ OffsetDateTime, ZoneOffset }

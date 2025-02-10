@@ -18,7 +18,7 @@ package org.yupana.serialization
 
 import org.threeten.extra.PeriodDuration
 import org.yupana.api.types.{ ByteReaderWriter, ID }
-import org.yupana.api.{ Blob, Time }
+import org.yupana.api.{ Blob, Currency, Time }
 
 import java.math.BigInteger
 import java.nio.ByteBuffer
@@ -603,4 +603,17 @@ object ByteBufferEvalReaderWriter extends ByteReaderWriter[ByteBuffer] with Seri
     writeString(b, offset, v.toString)
   }
 
+  override def sizeOfCurrency: Int = 8
+
+  override def readCurrency(b: ByteBuffer): ID[Currency] = Currency(readLong(b))
+  override def readCurrency(b: ByteBuffer, offset: Int): ID[Currency] = Currency(readLong(b, offset))
+
+  override def writeCurrency(b: ByteBuffer, v: ID[Currency]): Int = writeLong(b, v.value)
+  override def writeCurrency(b: ByteBuffer, offset: Int, v: ID[Currency]): Int = writeLong(b, offset, v.value)
+
+  override def readVCurrency(b: ByteBuffer): ID[Currency] = Currency(readVLong(b))
+  override def readVCurrency(b: ByteBuffer, offset: Int): ID[Currency] = Currency(readVLong(b, offset))
+
+  override def writeVCurrency(b: ByteBuffer, v: ID[Currency]): Int = writeVLong(b, v.value)
+  override def writeVCurrency(b: ByteBuffer, offset: Int, v: ID[Currency]): Int = writeVLong(b, offset, v.value)
 }
