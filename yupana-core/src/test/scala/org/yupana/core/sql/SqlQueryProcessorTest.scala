@@ -1385,8 +1385,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
   }
 
   it should "transform upsert into data points" in {
-    createUpsert("""UPSERT INTO test_table(time, b, a, testField, testStringField)
-        |  VALUES(TIMESTAMP '2020-01-02 23:25:40', 21, 'bar', 55, 'baz')""".stripMargin) match {
+    createUpsert("""UPSERT INTO test_table(time, b, a, testField, testStringField, testCurrencyField)
+        |  VALUES(TIMESTAMP '2020-01-02 23:25:40', 21, 'bar', 55, 'baz', 66)""".stripMargin) match {
       case Right(dps) =>
         dps should have size 1
         val dp = dps.head
@@ -1395,7 +1395,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
         dp.dimensions shouldEqual Map[Dimension, Any](TestDims.DIM_B -> 21.toShort, TestDims.DIM_A -> "bar")
         dp.metrics should contain theSameElementsAs Seq(
           MetricValue(TestTableFields.TEST_FIELD, 55d),
-          MetricValue(TestTableFields.TEST_STRING_FIELD, "baz")
+          MetricValue(TestTableFields.TEST_STRING_FIELD, "baz"),
+          MetricValue(TestTableFields.TEST_CURRENCY_FIELD, Currency.of(66))
         )
 
       case Left(e) => fail(e)
@@ -1421,19 +1422,21 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
     val t1 = OffsetDateTime.now().minusDays(1)
     val t2 = t1.plusMinutes(15)
     createUpsert(
-      "UPSERT INTO test_table (a, b, time, testField) VALUES (?, ?, ?, ?)",
+      "UPSERT INTO test_table (a, b, time, testField, testCurrencyField) VALUES (?, ?, ?, ?, ?)",
       Seq(
         Map(
           1 -> TypedParameter("aaa"),
           2 -> TypedParameter(BigDecimal(12)),
           3 -> TypedParameter(Time(t1)),
-          4 -> TypedParameter(BigDecimal(1.1))
+          4 -> TypedParameter(BigDecimal(1.1)),
+          5 -> TypedParameter(BigDecimal(125.02001001001))
         ),
         Map(
           1 -> TypedParameter("ccc"),
           2 -> TypedParameter(BigDecimal(34)),
           3 -> TypedParameter(Time(t2)),
-          4 -> TypedParameter(BigDecimal(2.2))
+          4 -> TypedParameter(BigDecimal(2.2)),
+          5 -> TypedParameter(BigDecimal(42))
         )
       )
     ) match {
@@ -1443,13 +1446,19 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
         dp1.table shouldEqual TestSchema.testTable
         dp1.time shouldEqual t1.toInstant.toEpochMilli
         dp1.dimensions shouldEqual Map[Dimension, Any](TestDims.DIM_B -> 12, TestDims.DIM_A -> "aaa")
-        dp1.metrics shouldEqual Seq(MetricValue(TestTableFields.TEST_FIELD, 1.1d))
+        dp1.metrics shouldEqual Seq(
+          MetricValue(TestTableFields.TEST_FIELD, 1.1d),
+          MetricValue(TestTableFields.TEST_CURRENCY_FIELD, Currency.of(125.02))
+        )
 
         val dp2 = dps(1)
         dp2.table shouldEqual TestSchema.testTable
         dp2.time shouldEqual t2.toInstant.toEpochMilli
         dp2.dimensions shouldEqual Map[Dimension, Any](TestDims.DIM_B -> 34, TestDims.DIM_A -> "ccc")
-        dp2.metrics shouldEqual Seq(MetricValue(TestTableFields.TEST_FIELD, 2.2d))
+        dp2.metrics shouldEqual Seq(
+          MetricValue(TestTableFields.TEST_FIELD, 2.2d),
+          MetricValue(TestTableFields.TEST_CURRENCY_FIELD, Currency.of(42))
+        )
 
       case Left(e) => fail(e)
     }

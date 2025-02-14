@@ -46,6 +46,7 @@ class YupanaDriverTest extends AnyFlatSpec with Matchers {
     c.password shouldEqual Some("12345")
 
     conn.close()
+    server.close()
   }
 
 }
