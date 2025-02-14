@@ -223,7 +223,7 @@ object DataTypeUtils {
     pEntry[BigDecimal, Short](x => Option.when(x.isValidShort)(x.toShort)),
     pEntry[BigDecimal, Byte](x => Option.when(x.isValidByte)(x.toByte)),
     pEntry[BigDecimal, Currency] { x =>
-      val bc = x * Currency.SUB
+      val bc = x.setScale(Currency.SCALE, BigDecimal.RoundingMode.HALF_UP) * Currency.SUB
       Option.when(bc.isValidLong)(Currency(bc.toLong))
     }
   )
