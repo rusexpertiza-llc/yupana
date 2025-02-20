@@ -54,18 +54,26 @@ class QueryHandler(serverContext: ServerContext, user: YupanaUser) extends Frame
   private def handleQuery(ctx: ChannelHandlerContext, pq: SqlQuery): Unit = {
     logger.debug(s"""Processing SQL query (id: ${pq.id}): "${pq.query}"; parameters: ${pq.params}""")
     val params = pq.params.map { case (index, p) => index -> convertParameter(p) }
-    serverContext.queryEngineRouter.query(user, pq.query, params) match {
-      case Right(result) => addStream(ctx, pq.id, result)
-      case Left(msg)     => writeResponse(ctx, ErrorMessage(msg, Some(pq.id)))
+    try {
+      serverContext.queryEngineRouter.query(user, pq.query, params) match {
+        case Right(result) => addStream(ctx, pq.id, result)
+        case Left(msg)     => writeResponse(ctx, ErrorMessage(msg, Some(pq.id)))
+      }
+    } catch {
+      case t: Throwable => failStream(ctx, pq.id, t.getMessage)
     }
   }
 
   private def handleBatchQuery(ctx: ChannelHandlerContext, bq: BatchQuery): Unit = {
     logger.debug(s"""Processing batch SQL query (id: ${bq.id}): "${bq.query}"; parameters: ${bq.params}""")
     val params = bq.params.map(_.map { case (index, p) => index -> convertParameter(p) })
-    serverContext.queryEngineRouter.batchQuery(user, bq.query, params) match {
-      case Right(result) => addStream(ctx, bq.id, result)
-      case Left(msg)     => writeResponse(ctx, ErrorMessage(msg, Some(bq.id)))
+    try {
+      serverContext.queryEngineRouter.batchQuery(user, bq.query, params) match {
+        case Right(result) => addStream(ctx, bq.id, result)
+        case Left(msg)     => writeResponse(ctx, ErrorMessage(msg, Some(bq.id)))
+      }
+    } catch {
+      case t: Throwable => failStream(ctx, bq.id, t.getMessage)
     }
   }
 
@@ -84,13 +92,25 @@ class QueryHandler(serverContext: ServerContext, user: YupanaUser) extends Frame
     logger.debug(s"Next acquired $next")
     streams.get(next.id) match {
       case Some(stream) =>
-        writeResponses(ctx, stream.next(next.batchSize))
-        if (!stream.hasNext) {
-          streams.synchronized {
-            streams -= next.id
+        try {
+          val batch = stream.next(next.batchSize)
+          writeResponses(ctx, batch)
+          if (!stream.hasNext) {
+            streams.synchronized {
+              streams -= next.id
+            }
           }
+        } catch {
+          case e: Throwable => failStream(ctx, next.id, e.getMessage)
         }
       case None => writeResponse(ctx, ErrorMessage(s"Unknown stream id ${next.id}", Some(next.id)))
+    }
+  }
+
+  private def failStream(ctx: ChannelHandlerContext, id: Int, msg: String): Unit = {
+    writeResponse(ctx, ErrorMessage(s"Query process failed, $msg", Some(id)))
+    streams.synchronized {
+      streams -= id
     }
   }
 
