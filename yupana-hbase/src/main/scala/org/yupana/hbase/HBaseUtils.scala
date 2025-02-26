@@ -93,13 +93,18 @@ object HBaseUtils extends StrictLogging {
       username: String,
       dataPointsBatch: Seq[DataPoint]
   ): Seq[UpdateInterval] = {
-    dataPointsBatch
+    val t1 = System.currentTimeMillis()
+    logger.info("doPutBatch: " + dataPointsBatch.size)
+    val r = dataPointsBatch
       .groupBy(_.table)
       .flatMap {
         case (table: Table, dps) =>
           doPutBatch(connection, dictionaryProvider, namespace, username, dps, table)
       }
       .toSeq
+    logger.info("number of UpdateIntervals: " + r.size)
+    logger.info("doPutBatch time: " + (System.currentTimeMillis() - t1))
+    r
   }
 
   def doPutBatch(
@@ -112,7 +117,7 @@ object HBaseUtils extends StrictLogging {
   ): Seq[UpdateInterval] = {
     Using.resource(connection.getTable(tableName(namespace, table))) { hbaseTable =>
       val t1 = System.currentTimeMillis()
-      logger.info("doPutBatch: " + dataPoints.size)
+      logger.info(s"doPutBatch for table ${table.name}: " + dataPoints.size)
       val (puts, updateIntervals) =
         createPuts(dictionaryProvider, username, dataPoints, table)
       val t2 = System.currentTimeMillis()
