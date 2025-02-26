@@ -96,6 +96,7 @@ object HBaseUtils extends StrictLogging {
       .groupBy(_.table)
       .map {
         case (table, points) =>
+
           loadDimIds(dictionaryProvider, table, points)
           val keySize = tableKeySize(table)
           val grouped = points.groupBy(rowKeyBuffer(_, table, keySize, dictionaryProvider))
@@ -140,22 +141,53 @@ object HBaseUtils extends StrictLogging {
       dictionaryProvider: DictionaryProvider,
       namespace: String,
       username: String,
-      putsBatchSize: Int,
       dataPointsBatch: Seq[DataPoint]
   ): Seq[UpdateInterval] = {
-    logger.trace(s"Put ${dataPointsBatch.size} dataPoints to tsdb")
-    logger.trace(s" -- DETAIL DATAPOINTS: \r\n ${dataPointsBatch.mkString("\r\n")}")
+    dataPointsBatch
+      .groupBy(_.table)
+      .flatMap {
+        case (table: Table, dps) =>
+          doPutBatch(connection, dictionaryProvider, namespace, username, dps, table)
+      }
+      .toSeq
+  }
 
-    val putsWithIntervalsByTable = createPuts(dataPointsBatch, dictionaryProvider, username)
-    putsWithIntervalsByTable.flatMap {
-      case (table, puts, updateIntervals) =>
-        Using.resource(connection.getTable(tableName(namespace, table))) { hbaseTable =>
-          puts
-            .sliding(putsBatchSize, putsBatchSize)
-            .foreach(putsBatch => hbaseTable.put(putsBatch.asJava))
-          logger.trace(s" -- DETAIL ROWS IN TABLE ${table.name}: ${puts.length}")
-          updateIntervals
+  def doPutBatch(
+      connection: Connection,
+      dictionaryProvider: DictionaryProvider,
+      namespace: String,
+      username: String,
+      dataPoints: Seq[DataPoint],
+      table: Table
+  ): Seq[UpdateInterval] = {
+    Using.resource(connection.getTable(tableName(namespace, table))) { hbaseTable =>
+
+      val keySize = tableKeySize(table)
+      val now = OffsetDateTime.now()
+
+      val puts = mutable.Map.empty[MemoryBuffer, Put]
+      val updateIntervals = mutable.Map.empty[Long, UpdateInterval]
+
+      dataPoints.foreach { dp =>
+        val time = dp.time
+        val rowKey = rowKeyBuffer(dp, table, keySize, dictionaryProvider)
+        table.metricGroups.foreach { group =>
+
+          val cellBytes = fieldsToBytes(table, dp.dimensions, dp.metrics.filter(_.metric.group == group))
+
+          val put = puts.getOrElseUpdate(rowKey, new Put(rowKey.bytes()))
+          val restTime = HBaseUtils.restTime(time, table)
+          val restTimeBytes = Bytes.toBytes(restTime)
+
+          put.addColumn(family(group), restTimeBytes, cellBytes)
         }
+
+        val baseTime = HBaseUtils.baseTime(time, table)
+        updateIntervals.getOrElseUpdate(baseTime, UpdateInterval(table, baseTime, now, username))
+      }
+
+      hbaseTable.put(puts.values.toList.asJava)
+      updateIntervals.values.toSeq
     }
   }
 

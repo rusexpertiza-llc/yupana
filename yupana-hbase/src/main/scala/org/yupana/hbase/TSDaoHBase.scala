@@ -65,7 +65,7 @@ class TSDaoHBase(
       username: String
   ): Iterator[UpdateInterval] = {
     mr.batchFlatMap(dataPoints, putsBatchSize) { dataPointsBatch =>
-      doPutBatch(connection, dictionaryProvider, namespace, username, putsBatchSize, dataPointsBatch)
+      doPutBatch(connection, dictionaryProvider, namespace, username, dataPointsBatch)
     }
   }
 

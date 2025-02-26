@@ -91,4 +91,5 @@ object CollectionUtils {
 
   def mergeMaps[K, V](a: Map[K, V], b: Map[K, V], reduce: (V, V) => V): Map[K, V] =
     mergeMaps[K, V, V](a, b, identity, reduce)
+
 }
