@@ -113,7 +113,7 @@ object HBaseUtils extends StrictLogging {
     Using.resource(connection.getTable(tableName(namespace, table))) { hbaseTable =>
       val (puts, updateIntervals) =
         createPuts(dictionaryProvider, username, dataPoints, table)
-      hbaseTable.put(puts.asJava)
+//      hbaseTable.put(puts.asJava)
       updateIntervals
     }
   }
