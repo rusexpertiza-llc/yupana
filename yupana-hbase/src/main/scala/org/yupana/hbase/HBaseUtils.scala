@@ -111,9 +111,15 @@ object HBaseUtils extends StrictLogging {
       table: Table
   ): Seq[UpdateInterval] = {
     Using.resource(connection.getTable(tableName(namespace, table))) { hbaseTable =>
+      val t1 = System.currentTimeMillis()
+      logger.info("doPutBatch: " + dataPoints.size)
       val (puts, updateIntervals) =
         createPuts(dictionaryProvider, username, dataPoints, table)
-//      hbaseTable.put(puts.asJava)
+      val t2 = System.currentTimeMillis()
+      logger.info("createPuts time: " + (t2 - t1))
+      hbaseTable.put(puts.asJava)
+      val t3 = System.currentTimeMillis()
+      logger.info("put time: " + (t3 - t2))
       updateIntervals
     }
   }
