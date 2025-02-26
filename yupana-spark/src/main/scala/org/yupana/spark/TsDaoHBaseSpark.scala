@@ -82,7 +82,7 @@ class TsDaoHBaseSpark(
       username: String
   ): RDD[UpdateInterval] = {
     mr.batchFlatMap(dataPoints, putsBatchSize) { dataPointsBatch =>
-      doPutBatch(connection, dictionaryProvider, config.hbaseNamespace, username, putsBatchSize, dataPointsBatch)
+      doPutBatch(connection, dictionaryProvider, config.hbaseNamespace, username, dataPointsBatch)
     }
 
   }
