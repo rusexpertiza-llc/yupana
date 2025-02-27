@@ -136,7 +136,11 @@ object HBaseUtils extends StrictLogging {
       table: Table
   ): (Seq[Put], Seq[UpdateInterval]) = {
 
+    val t1 = System.currentTimeMillis()
+
     loadDimIds(dictionaryProvider, table, dataPoints)
+
+    logger.info("createPuts load dimensions time: " + (System.currentTimeMillis() - t1))
 
     val keySize = tableKeySize(table)
     val now = OffsetDateTime.now()
@@ -144,23 +148,45 @@ object HBaseUtils extends StrictLogging {
     val puts = mutable.Map.empty[MemoryBuffer, Put]
     val updateIntervals = mutable.Map.empty[Long, UpdateInterval]
 
+    var rowKeyTime = 0L
+    var fieldsTime = 0L
+    var createPutTime = 0L
+    var updateIntervalsTime = 0L
+
     dataPoints.foreach { dp =>
+      val t1 = System.nanoTime()
+
       val time = dp.time
       val rowKey = rowKeyBuffer(dp, table, keySize, dictionaryProvider)
+      rowKeyTime += System.nanoTime() - t1
+
       table.metricGroups.foreach { group =>
 
+        val t2 = System.nanoTime()
         val cellBytes = fieldsToBytes(table, dp.dimensions, dp.metrics, group)
+        fieldsTime += System.nanoTime() - t2
 
+        val t3 = System.nanoTime()
         val put = puts.getOrElseUpdate(rowKey, new Put(rowKey.bytes()))
         val restTime = HBaseUtils.restTime(time, table)
         val restTimeBytes = Bytes.toBytes(restTime)
 
         put.addColumn(family(group), restTimeBytes, cellBytes)
+        createPutTime += System.nanoTime() - t3
       }
+
+      val t4 = System.nanoTime()
 
       val baseTime = HBaseUtils.baseTime(time, table)
       updateIntervals.getOrElseUpdate(baseTime, UpdateInterval(table, baseTime, now, username))
+      updateIntervalsTime += System.nanoTime() - t4
     }
+
+    logger.info("createPuts rowKey time: " + rowKeyTime / 1000000)
+    logger.info("createPuts fields time: " + fieldsTime / 1000000)
+    logger.info("createPuts createPut time: " + createPutTime / 1000000)
+    logger.info("createPuts updateIntervals time: " + updateIntervalsTime / 1000000)
+
     (puts.values.toSeq, updateIntervals.values.toSeq)
   }
 
