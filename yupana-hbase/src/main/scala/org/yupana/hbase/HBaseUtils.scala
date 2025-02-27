@@ -723,7 +723,6 @@ object HBaseUtils extends StrictLogging {
       case _ =>
     }
 
-
   }
 
   private def writeFields(
