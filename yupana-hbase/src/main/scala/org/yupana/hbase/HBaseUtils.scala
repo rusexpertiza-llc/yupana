@@ -93,8 +93,6 @@ object HBaseUtils extends StrictLogging {
       username: String,
       dataPointsBatch: Seq[DataPoint]
   ): Seq[UpdateInterval] = {
-    val t1 = System.currentTimeMillis()
-    logger.info("doPutBatch: " + dataPointsBatch.size)
     val r = dataPointsBatch
       .groupBy(_.table)
       .flatMap {
@@ -102,8 +100,6 @@ object HBaseUtils extends StrictLogging {
           doPutBatch(connection, dictionaryProvider, namespace, username, dps, table)
       }
       .toSeq
-    logger.info("number of UpdateIntervals: " + r.size)
-    logger.info("doPutBatch time: " + (System.currentTimeMillis() - t1))
     r
   }
 
@@ -116,15 +112,9 @@ object HBaseUtils extends StrictLogging {
       table: Table
   ): Seq[UpdateInterval] = {
     Using.resource(connection.getTable(tableName(namespace, table))) { hbaseTable =>
-      val t1 = System.currentTimeMillis()
-      logger.info(s"doPutBatch for table ${table.name}: " + dataPoints.size)
       val (puts, updateIntervals) =
         createPuts(dictionaryProvider, username, dataPoints, table)
-      val t2 = System.currentTimeMillis()
-      logger.info("createPuts time: " + (t2 - t1))
       hbaseTable.put(puts.asJava)
-      val t3 = System.currentTimeMillis()
-      logger.info("put time: " + (t3 - t2))
       updateIntervals
     }
   }
@@ -136,11 +126,7 @@ object HBaseUtils extends StrictLogging {
       table: Table
   ): (Seq[Put], Seq[UpdateInterval]) = {
 
-    val t1 = System.currentTimeMillis()
-
     loadDimIds(dictionaryProvider, table, dataPoints)
-
-    logger.info("createPuts load dimensions time: " + (System.currentTimeMillis() - t1))
 
     val keySize = tableKeySize(table)
     val now = OffsetDateTime.now()
@@ -148,51 +134,30 @@ object HBaseUtils extends StrictLogging {
     val puts = mutable.Map.empty[MemoryBuffer, Put]
     val updateIntervals = mutable.Map.empty[Long, UpdateInterval]
 
-    var rowKeyTime = 0L
-    var fieldsTime = 0L
-    var createPutTime = 0L
-    var updateIntervalsTime = 0L
-
     val buffer = MemoryBuffer.allocateHeap(MAX_ROW_SIZE)
 
     dataPoints.foreach { dp =>
-      val t1 = System.nanoTime()
 
       val time = dp.time
       val rowKey = rowKeyBuffer(dp, table, keySize, dictionaryProvider)
-      rowKeyTime += System.nanoTime() - t1
 
       table.metricGroups.foreach { group =>
 
-        val t2 = System.nanoTime()
         buffer.position(0)
         writeFields(table, dp.dimensions, dp.metrics, group, buffer)
         val cellBytes = Array.ofDim[Byte](buffer.position())
         buffer.get(0, cellBytes)
 
-        fieldsTime += System.nanoTime() - t2
-
-        val t3 = System.nanoTime()
         val put = puts.getOrElseUpdate(rowKey, new Put(rowKey.bytes()))
         val restTime = HBaseUtils.restTime(time, table)
         val restTimeBytes = Bytes.toBytes(restTime)
 
         put.addColumn(family(group), restTimeBytes, cellBytes)
-        createPutTime += System.nanoTime() - t3
       }
-
-      val t4 = System.nanoTime()
 
       val baseTime = HBaseUtils.baseTime(time, table)
       updateIntervals.getOrElseUpdate(baseTime, UpdateInterval(table, baseTime, now, username))
-      updateIntervalsTime += System.nanoTime() - t4
     }
-
-    logger.info("createPuts rowKey time: " + rowKeyTime / 1000000)
-    logger.info("createPuts fields time: " + fieldsTime / 1000000)
-    logger.info("createPuts createPut time: " + createPutTime / 1000000)
-    logger.info("createPuts updateIntervals time: " + updateIntervalsTime / 1000000)
-
     (puts.values.toSeq, updateIntervals.values.toSeq)
   }
 
