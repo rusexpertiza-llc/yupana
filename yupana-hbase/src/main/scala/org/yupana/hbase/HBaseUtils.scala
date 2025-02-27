@@ -93,14 +93,13 @@ object HBaseUtils extends StrictLogging {
       username: String,
       dataPointsBatch: Seq[DataPoint]
   ): Seq[UpdateInterval] = {
-    val r = dataPointsBatch
+    dataPointsBatch
       .groupBy(_.table)
       .flatMap {
         case (table: Table, dps) =>
           doPutBatch(connection, dictionaryProvider, namespace, username, dps, table)
       }
       .toSeq
-    r
   }
 
   def doPutBatch(
@@ -340,7 +339,6 @@ object HBaseUtils extends StrictLogging {
     } else {
       None
     }
-
   }
 
   private def rowRanges(table: Table, from: Long, to: Long, dimIds: Map[Dimension, Seq[_]]): Seq[RowRange] = {
@@ -590,8 +588,7 @@ object HBaseUtils extends StrictLogging {
     val bt = HBaseUtils.baseTime(dataPoint.time, table)
     val baseTimeBytes = Bytes.toBytes(bt)
 
-    val array = Array.ofDim[Byte](keySize)
-    val buffer = MemoryBuffer.ofBytes(array)
+    val buffer = MemoryBuffer.allocateHeap(keySize)
 
     buffer.put(baseTimeBytes)
 
