@@ -33,7 +33,7 @@ case class SimpleTsdbConfig(
     collectMetrics: Boolean = false,
     metricsUpdateInterval: Int = 30000,
     extractBatchSize: Int = 10000,
-    putBatchSize: Int = 1000,
+    putBatchSize: Int = 10000,
     putEnabled: Boolean = false,
     maxRegions: Int = 50,
     reduceLimit: Int = Int.MaxValue,

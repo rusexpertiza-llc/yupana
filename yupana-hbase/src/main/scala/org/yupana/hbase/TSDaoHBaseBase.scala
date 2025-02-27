@@ -39,7 +39,7 @@ object TSDaoHBaseBase {
   val CROSS_JOIN_LIMIT = 500000
   val RANGE_FILTERS_LIMIT = 100000
   val EXTRACT_BATCH_SIZE = 100000
-  val PUTS_BATCH_SIZE = 1000
+  val PUTS_BATCH_SIZE = 10000
 }
 
 trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictLogging {
