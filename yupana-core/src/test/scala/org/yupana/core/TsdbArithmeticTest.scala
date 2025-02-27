@@ -742,7 +742,8 @@ class TsdbArithmeticTest
           |avg(testField) avgDouble,
           |avg(testLongField) avgLong,
           |avg(testBigDecimalField) avgBigDecimal,
-          |avg(testByteField) avgByte """.stripMargin +
+          |avg(testByteField) avgByte,
+          |avg(testCurrencyField) avgCurrency """.stripMargin +
           "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
 
       val query = createQuery(sql)
@@ -758,6 +759,7 @@ class TsdbArithmeticTest
               metric(TestTableFields.TEST_LONG_FIELD),
               metric(TestTableFields.TEST_BIGDECIMAL_FIELD),
               metric(TestTableFields.TEST_BYTE_FIELD),
+              metric(TestTableFields.TEST_CURRENCY_FIELD),
               time
             ),
             and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
@@ -775,36 +777,42 @@ class TsdbArithmeticTest
           batch.setNull(0, metric(TestTableFields.TEST_LONG_FIELD))
           batch.setNull(0, metric(TestTableFields.TEST_BIGDECIMAL_FIELD))
           batch.setNull(0, metric(TestTableFields.TEST_BYTE_FIELD))
+          batch.setNull(0, metric(TestTableFields.TEST_CURRENCY_FIELD))
 
           batch.set(1, time, Time(pointTime))
           batch.set(1, metric(TestTableFields.TEST_FIELD), 0d)
           batch.set(1, metric(TestTableFields.TEST_LONG_FIELD), 1L)
           batch.set(1, metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(10))
           batch.set(1, metric(TestTableFields.TEST_BYTE_FIELD), 10.toByte)
+          batch.set(1, metric(TestTableFields.TEST_CURRENCY_FIELD), Currency.of(10))
 
           batch.set(2, time, Time(pointTime))
           batch.set(2, metric(TestTableFields.TEST_FIELD), 10d)
           batch.set(2, metric(TestTableFields.TEST_LONG_FIELD), 11L)
           batch.set(2, metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(101))
           batch.set(2, metric(TestTableFields.TEST_BYTE_FIELD), 101.toByte)
+          batch.set(2, metric(TestTableFields.TEST_CURRENCY_FIELD), Currency.of(101))
 
           batch.set(3, time, Time(pointTime))
           batch.setNull(3, metric(TestTableFields.TEST_FIELD))
           batch.set(3, metric(TestTableFields.TEST_LONG_FIELD), 2L)
           batch.set(3, metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(20))
           batch.set(3, metric(TestTableFields.TEST_BYTE_FIELD), 20.toByte)
+          batch.set(3, metric(TestTableFields.TEST_CURRENCY_FIELD), Currency.of(20))
 
           batch.set(4, time, Time(pointTime))
           batch.set(4, metric(TestTableFields.TEST_FIELD), 6d)
           batch.set(4, metric(TestTableFields.TEST_LONG_FIELD), 5L)
           batch.setNull(4, metric(TestTableFields.TEST_BIGDECIMAL_FIELD))
           batch.setNull(4, metric(TestTableFields.TEST_BYTE_FIELD))
+          batch.setNull(4, metric(TestTableFields.TEST_CURRENCY_FIELD))
 
           batch.set(5, time, Time(pointTime))
           batch.set(5, metric(TestTableFields.TEST_FIELD), 5d)
           batch.setNull(5, metric(TestTableFields.TEST_LONG_FIELD))
           batch.set(5, metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(7))
           batch.set(5, metric(TestTableFields.TEST_BYTE_FIELD), 7.toByte)
+          batch.set(5, metric(TestTableFields.TEST_CURRENCY_FIELD), Currency.of(7))
 
           Iterator(batch)
         }
@@ -817,6 +825,7 @@ class TsdbArithmeticTest
       res.get[BigDecimal]("avgLong") shouldBe 4.75d
       res.get[BigDecimal]("avgBigDecimal") shouldBe 34.5d
       res.get[BigDecimal]("avgByte") shouldBe 34.5d
+      res.get[BigDecimal]("avgCurrency") shouldBe 34.5
 
       res.next() shouldBe false
   }
