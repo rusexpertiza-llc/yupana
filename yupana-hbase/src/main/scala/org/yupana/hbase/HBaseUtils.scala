@@ -153,6 +153,8 @@ object HBaseUtils extends StrictLogging {
     var createPutTime = 0L
     var updateIntervalsTime = 0L
 
+    val buffer = MemoryBuffer.allocateHeap(MAX_ROW_SIZE)
+
     dataPoints.foreach { dp =>
       val t1 = System.nanoTime()
 
@@ -163,7 +165,11 @@ object HBaseUtils extends StrictLogging {
       table.metricGroups.foreach { group =>
 
         val t2 = System.nanoTime()
-        val cellBytes = fieldsToBytes(table, dp.dimensions, dp.metrics, group)
+        buffer.position(0)
+        writeFields(table, dp.dimensions, dp.metrics, group, buffer)
+        val cellBytes = Array.ofDim[Byte](buffer.position())
+        buffer.get(0, cellBytes)
+
         fieldsTime += System.nanoTime() - t2
 
         val t3 = System.nanoTime()
@@ -686,13 +692,13 @@ object HBaseUtils extends StrictLogging {
 
   def family(group: Int): Array[Byte] = s"d$group".getBytes
 
-  private def fieldsToBytes(
+  private def writeFields(
       table: Table,
       dimensions: Map[Dimension, Any],
       metricValues: Seq[MetricValue],
-      group: Int
-  ): Array[Byte] = {
-    val bf = MemoryBuffer.allocateHeap(MAX_ROW_SIZE)
+      group: Int,
+      buffer: MemoryBuffer
+  ): Unit = {
 
     metricValues.foreach { f =>
       if (f.metric.group == group) {
@@ -700,28 +706,24 @@ object HBaseUtils extends StrictLogging {
           table.metricTagsSet.contains(f.metric.tag),
           s"Bad metric value $f: such metric is not defined for table ${table.name}"
         )
-        readerWriter.writeByte(bf, f.metric.tag)
-        f.metric.dataType.storable.write(bf, f.value: ID[f.metric.T])
+        readerWriter.writeByte(buffer, f.metric.tag)
+        f.metric.dataType.storable.write(buffer, f.value: ID[f.metric.T])
       }
     }
     dimensions.foreach {
       case (d: DictionaryDimension, value) if table.dimensionTagExists(d) =>
         val tag = table.dimensionTag(d)
-        readerWriter.writeByte(bf, tag)
-        d.dataType.storable.write(bf, value.asInstanceOf[d.T]: ID[d.T])
+        readerWriter.writeByte(buffer, tag)
+        d.dataType.storable.write(buffer, value.asInstanceOf[d.T]: ID[d.T])
 
       case (d: HashDimension[_, _], value) if table.dimensionTagExists(d) =>
         val tag = table.dimensionTag(d)
-        readerWriter.writeByte(bf, tag)
-        d.tStorable.write(bf, value.asInstanceOf[d.T]: ID[d.T])
+        readerWriter.writeByte(buffer, tag)
+        d.tStorable.write(buffer, value.asInstanceOf[d.T]: ID[d.T])
       case _ =>
     }
 
-    val size = bf.position()
-    bf.rewind()
-    val res = Array.ofDim[Byte](size)
-    bf.get(res)
-    res
+
   }
 
   private def writeFields(
