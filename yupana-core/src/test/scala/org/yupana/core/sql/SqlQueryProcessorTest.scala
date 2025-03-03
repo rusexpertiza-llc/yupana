@@ -432,6 +432,18 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
     }
   }
 
+  it should "support == for tuples" in {
+    testQuery("""
+        |SELECT avg(testField) atf, hour(time) h
+        |  FROM test_table
+        |  WHERE time >= TIMESTAMP '2022-05-01' and time < TIMESTAMP '2022-05-05'
+        |    AND (testStringField, testField) = ('foo', 1.0)
+        |  GROUP BY h
+        |""".stripMargin) { q =>
+      q.table.value.name shouldEqual "test_table"
+    }
+  }
+
   it should "substitute passed placeholders values" in {
     val statement =
       """SELECT SUM(TestField), month(time) as m, b FROM test_table

@@ -458,14 +458,14 @@ object FunctionRegistry {
       (c, a, b) =>
         (a, b) match {
           case (_: ConstExpr[_], _: ConstExpr[_]) => guardedExpr(fn, guard, create, a, b)
-          case (_, bc: ConstExpr[_]) =>
+          case (_, bc: ValueExpr[_]) =>
             DataTypeUtils
-              .alignConst(bc, a.dataType.aux, c)
+              .valueCast(bc, a.dataType.aux, c)
               .flatMap(e => guardedExpr(fn, guard, create, a, e))
               .orElse(guardedExpr(fn, guard, create, a, b))
-          case (ac: ConstExpr[_], _) =>
+          case (ac: ValueExpr[_], _) =>
             DataTypeUtils
-              .alignConst(ac, b.dataType.aux, c)
+              .valueCast(ac, b.dataType.aux, c)
               .flatMap(e => guardedExpr(fn, guard, create, e, b))
               .orElse(guardedExpr(fn, guard, create, a, b))
           case (_, _) => guardedExpr(fn, guard, create, a, b)
@@ -486,17 +486,17 @@ object FunctionRegistry {
       (c, a, b) =>
         (a, b) match {
           case (_: ConstExpr[_], _: ConstExpr[_]) => guardedExpr(fn, pureGuard, create, a, b)
-          case (_, bc: ConstExpr[_]) =>
+          case (_, bc: ValueExpr[_]) =>
             guard(a.dataType).foldLeft(Left(s"No function $fn found"): Either[String, Expression[_]]) {
               case (Right(e), _) => Right(e)
               case (Left(_), (bt, g)) =>
-                DataTypeUtils.alignConst(bc, bt.aux, c).flatMap(e => guardedExpr(fn, pureGuard, create, a, e))
+                DataTypeUtils.valueCast(bc, bt.aux, c).flatMap(e => guardedExpr(fn, pureGuard, create, a, e))
             }
-          case (ac: ConstExpr[_], _) =>
+          case (ac: ValueExpr[_], _) =>
             guard(b.dataType).foldLeft(Left(s"No function $fn found"): Either[String, Expression[_]]) {
               case (Right(e), _) => Right(e)
               case (Left(_), (at, g)) =>
-                DataTypeUtils.alignConst(ac, at.aux, c).flatMap(e => guardedExpr(fn, pureGuard, create, e, b))
+                DataTypeUtils.valueCast(ac, at.aux, c).flatMap(e => guardedExpr(fn, pureGuard, create, e, b))
             }
           case (_, _) => guardedExpr(fn, pureGuard, create, a, b)
         }
