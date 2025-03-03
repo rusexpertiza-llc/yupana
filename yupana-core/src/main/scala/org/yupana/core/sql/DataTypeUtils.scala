@@ -122,10 +122,6 @@ object DataTypeUtils {
     }
   }
 
-  def alignConst[T, U](c: ConstExpr[T], t: DataType.Aux[U], calc: ConstantCalculator): Either[String, Expression[U]] = {
-    constCast(c, t, calc).map(wrapConstant(_, t))
-  }
-
   def alignTypes[T, U](ca: Expression[T], cb: Expression[U], calc: ConstantCalculator): Either[String, ExprPair] = {
     if (ca.dataType == cb.dataType) {
       Right(DataTypeUtils.pair[T](ca, cb.asInstanceOf[Expression[T]]))
@@ -135,16 +131,12 @@ object DataTypeUtils {
 
         case (UntypedPlaceholderExpr(id), _) => Right(pair(PlaceholderExpr(id, cb.dataType.aux), cb))
         case (_, UntypedPlaceholderExpr(id)) => Right(pair(ca, PlaceholderExpr(id, ca.dataType.aux)))
-        case (c: ConstExpr[_], _)            => alignConst(c, cb.dataType, calc).map(cc => DataTypeUtils.pair(cc, cb))
-        case (_, c: ConstExpr[_])            => alignConst(c, ca.dataType, calc).map(cc => DataTypeUtils.pair(ca, cc))
+        case (c: ValueExpr[_], _)            => valueCast(c, cb.dataType, calc).map(cc => DataTypeUtils.pair(cc, cb))
+        case (_, c: ValueExpr[_])            => valueCast(c, ca.dataType, calc).map(cc => DataTypeUtils.pair(ca, cc))
 
         case (_, _) => convertRegular(ca, cb)
       }
     }
-  }
-
-  private def wrapConstant[T](v: T, dt: DataType.Aux[T]): ConstExpr[T] = {
-    if (v != null) ConstantExpr(v)(dt) else NullExpr(dt)
   }
 
   private def convertRegular[T, U](ca: Expression[T], cb: Expression[U]): Either[String, ExprPair] = {
