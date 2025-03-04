@@ -2,7 +2,7 @@ package org.yupana.spark
 
 import java.sql.Timestamp
 import org.apache.spark.sql.types._
-import org.yupana.api.Time
+import org.yupana.api.{ Currency, Time }
 import org.yupana.api.query.Query
 import org.yupana.api.types.DataTypeMeta
 import org.yupana.core.QueryContext
@@ -42,6 +42,11 @@ trait DataRowRDDTest extends AnyFlatSpecLike with Matchers with SharedSparkSessi
       batch.set(0, Time(theTime))
       batch.set(0, dimension(Dimensions.ITEM), "болт М6")
       batch.set(0, metric(ItemTableMetrics.quantityField), 42d)
+
+      batch.set(1, Time(theTime))
+      batch.set(1, dimension(Dimensions.ITEM), "болт М12")
+      batch.set(1, metric(ItemTableMetrics.quantityField), 33d)
+      batch.set(1, metric(ItemTableMetrics.sumField), Currency.of(100))
       Seq(batch)
 
     }
@@ -58,12 +63,17 @@ trait DataRowRDDTest extends AnyFlatSpecLike with Matchers with SharedSparkSessi
       )
     )
 
-    df.count() shouldEqual 1
-    val row = df.head()
-    row.getTimestamp(0) shouldEqual new Timestamp(theTime.toInstant(ZoneOffset.UTC).toEpochMilli)
-    row.getString(1) shouldEqual "болт М6"
-    row.getDouble(2) shouldEqual 42d
-    row.getDecimal(3) shouldEqual null
+    df.count() shouldEqual 2
+    val rows = df.head(2)
+    rows(0).getTimestamp(0) shouldEqual new Timestamp(theTime.toInstant(ZoneOffset.UTC).toEpochMilli)
+    rows(0).getString(1) shouldEqual "болт М6"
+    rows(0).getDouble(2) shouldEqual 42d
+    rows(0).getDecimal(3) shouldEqual null
+
+    rows(1).getTimestamp(0) shouldEqual new Timestamp(theTime.toInstant(ZoneOffset.UTC).toEpochMilli)
+    rows(1).getString(1) shouldEqual "болт М12"
+    rows(1).getDouble(2) shouldEqual 33d
+    rows(1).getDecimal(3) shouldEqual java.math.BigDecimal.valueOf(10000, 2)
   }
 
 }
