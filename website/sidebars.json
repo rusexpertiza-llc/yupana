@@ -10,6 +10,7 @@
     ],
     "Язык запросов": [
        "yupanaql",
+       "datatypes",
        "functions",
        "select",
        "upsert",

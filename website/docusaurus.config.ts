@@ -2,6 +2,8 @@ import { themes as prismThemes } from 'prism-react-renderer';
 import type { Config } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 import smartyPants from 'remark-smartypants';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 
 const config: Config = {
   title: 'Yupana', // Title for your website.
@@ -30,20 +32,30 @@ const config: Config = {
 
   presets: [
     [
-      'classic',
-      ({
+      '@docusaurus/preset-classic',
+      {
         docs: {
           path: '../website/target/docs',
           /* editUrl: 'https://github.com/rusexpertiza-llc/yupana/edit/master/docs/', */
           sidebarPath: require.resolve('./sidebars.json'),
-          remarkPlugins: [smartyPants]
+          remarkPlugins: [remarkMath],
+          rehypePlugins: [rehypeKatex]
         },
         blog: false,
         theme: {
           customCss: require.resolve('./src/css/customTheme.css')
         }
-      })
+      }
     ]
+  ],
+
+  stylesheets: [
+    {
+      href: 'https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css',
+      type: 'text/css',
+      integrity: 'sha384-zh0CIslj+VczCZtlzBcjt5ppRcsAmDnRem7ESsYwWwg3m/OaJ2l4x7YBZl9Kxxib',
+      crossorigin: 'anonymous',
+    }
   ],
 
   organizationName: 'rusexpertiza-llc',
