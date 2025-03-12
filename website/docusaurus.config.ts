@@ -38,7 +38,7 @@ const config: Config = {
           path: '../website/target/docs',
           /* editUrl: 'https://github.com/rusexpertiza-llc/yupana/edit/master/docs/', */
           sidebarPath: require.resolve('./sidebars.json'),
-          remarkPlugins: [remarkMath],
+          remarkPlugins: [remarkMath, smartyPants],
           rehypePlugins: [rehypeKatex]
         },
         blog: false,
