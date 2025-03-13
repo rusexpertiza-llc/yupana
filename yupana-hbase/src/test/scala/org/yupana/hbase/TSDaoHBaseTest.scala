@@ -1541,6 +1541,8 @@ class TSDaoHBaseTest
         dataset: Iterator[BatchDataset],
         username: String
     ): Iterator[UpdateInterval] = ???
+
+    override def putBatch(table: Table, batch: BatchDataset, username: String): Seq[UpdateInterval] = ???
   }
 
   def withMock(body: (TestDao, DictionaryDao, QueryRunner) => Unit): Unit = {
