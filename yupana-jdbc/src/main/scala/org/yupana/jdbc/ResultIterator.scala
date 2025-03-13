@@ -20,7 +20,7 @@ import org.yupana.protocol.{ ResultHeader, ResultRow }
 
 import scala.collection.mutable
 
-class ResultIterator(val header: ResultHeader, tcpClient: YupanaTcpClient) extends Iterator[ResultRow] {
+class ResultIterator(val header: ResultHeader, acquireNext: () => Unit) extends Iterator[ResultRow] {
 
   private val buffer: mutable.Queue[ResultRow] = mutable.Queue.empty
   private var done = false
@@ -36,7 +36,7 @@ class ResultIterator(val header: ResultHeader, tcpClient: YupanaTcpClient) exten
   override def hasNext: Boolean = {
     error.foreach(t => throw t)
     if (!done && buffer.isEmpty) {
-      tcpClient.acquireNext(header.id)
+      acquireNext()
     }
 
     buffer.nonEmpty
