@@ -401,6 +401,16 @@ trait TsdbBase extends StrictLogging {
     putDataset(Seq(table), dataset, user)
   }
 
+  def putBatch(table: Table, batch: BatchDataset, user: YupanaUser): Unit = {
+    if (permissionService.hasPermission(user, auth.Object.Table(Some(table.name)), Write)) {
+      externalLinkServices.foreach(s => s.put(batch))
+      val updatedIntervals = dao.putBatch(table, batch, user.name)
+      updateIntervals(updatedIntervals)
+    } else {
+      throw new IllegalAccessException(s"Put to table: $table is prohibited")
+    }
+  }
+
   private def updateIntervals(updateIntervals: Collection[UpdateInterval]): Unit = {
     val mr = mapReduceEngine(NoMetricCollector)
     val updateIntervalsByWhatUpdated = mr.map(updateIntervals)(i => i.whatUpdated -> i)
@@ -409,6 +419,16 @@ trait TsdbBase extends StrictLogging {
     val mostRecentUpdateIntervals = mr.map(mostRecentUpdateIntervalsByWhatUpdated)(_._2)
     val materializedIntervals = mr.materialize(mostRecentUpdateIntervals).distinct
     changelogDao.putUpdatesIntervals(materializedIntervals)
+  }
+
+  private def updateIntervals(updateIntervals: Seq[UpdateInterval]): Unit = {
+    val updateIntervalsByWhatUpdated = updateIntervals.map(i => i.whatUpdated -> i)
+    val mostRecentUpdateIntervalsByWhatUpdated =
+      updateIntervalsByWhatUpdated.groupMapReduce(_._1)(_._2)((i1, i2) =>
+        if (i1.updatedAt.isAfter(i2.updatedAt)) i1 else i2
+      )
+    val mostRecentUpdateIntervals = mostRecentUpdateIntervalsByWhatUpdated.values.toSeq.distinct
+    changelogDao.putUpdatesIntervals(mostRecentUpdateIntervals)
   }
 
 }

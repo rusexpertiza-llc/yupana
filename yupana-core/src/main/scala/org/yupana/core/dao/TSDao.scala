@@ -35,4 +35,6 @@ trait TSDao[Collection[_], IdType] extends TSReadingDao[Collection, IdType] {
       dataset: Collection[BatchDataset],
       username: String
   ): Collection[UpdateInterval]
+
+  def putBatch(table: Table, batch: BatchDataset, username: String): Seq[UpdateInterval]
 }

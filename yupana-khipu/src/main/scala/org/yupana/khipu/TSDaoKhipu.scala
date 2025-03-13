@@ -94,6 +94,8 @@ class TSDaoKhipu(schema: Schema, settings: Settings) extends TSDao[Iterator, Lon
       username: String
   ): Iterator[UpdateInterval] = ???
 
+  override def putBatch(table: Table, batch: BatchDataset, username: String): Seq[UpdateInterval] = ???
+
   override def query(
       query: InternalQuery,
       queryContext: QueryContext,
