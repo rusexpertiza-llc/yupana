@@ -11,6 +11,7 @@ import org.yupana.serialization.ByteBufferEvalReaderWriter
 
 import java.io.IOException
 import java.nio.ByteBuffer
+import java.sql.SQLException
 import java.util.Properties
 import scala.concurrent.duration._
 import scala.concurrent.{ Await, ExecutionContext, Future }
@@ -350,7 +351,7 @@ class YupanaConnectionImplTest extends AnyFlatSpec with Matchers with OptionValu
       _ <- server.readAndSendResponses[NextBatch](id, NextBatch.readFrame[ByteBuffer], onNext)
     } yield ()
 
-  } { client =>
+  } { connection =>
 
     val sql =
       """
@@ -358,8 +359,8 @@ class YupanaConnectionImplTest extends AnyFlatSpec with Matchers with OptionValu
         |  WHERE time >= ? AND time < ? AND sum < ? AND item = ?
         |  """.stripMargin
 
-    the[IOException] thrownBy {
-      val res = client
+    the[SQLException] thrownBy {
+      val res = connection
         .runQuery(
           sql,
           Map(
@@ -371,7 +372,7 @@ class YupanaConnectionImplTest extends AnyFlatSpec with Matchers with OptionValu
         )
         .result
       res.next()
-    } should have message "Unexpected end of response"
+    } should have message "Connection problem, closing"
   }
 
   it should "operate normally after streaming error" in withServerConnected { (server, id) =>

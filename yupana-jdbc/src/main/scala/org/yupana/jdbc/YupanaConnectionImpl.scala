@@ -20,7 +20,6 @@ import org.yupana.api.query.SimpleResult
 import org.yupana.api.types.{ ByteReaderWriter, DataType }
 import org.yupana.api.utils.CollectionUtils
 import org.yupana.jdbc.YupanaConnection.QueryResult
-import org.yupana.jdbc.YupanaConnectionImpl.Handler
 import org.yupana.jdbc.build.BuildInfo
 import org.yupana.protocol._
 import org.yupana.serialization.ByteBufferEvalReaderWriter
@@ -37,6 +36,7 @@ import java.util.{ Properties, Timer, TimerTask }
 import scala.collection.mutable
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ Await, ExecutionContext, Future, Promise }
+import scala.util.{ Failure, Success }
 
 class YupanaConnectionImpl(override val url: String, properties: Properties, executionContext: ExecutionContext)
     extends YupanaConnection {
@@ -67,47 +67,54 @@ class YupanaConnectionImpl(override val url: String, properties: Properties, exe
   connect(System.currentTimeMillis())
 
   override def runQuery(query: String, params: Map[Int, ParameterValue]): QueryResult = {
-    try {
-      val id = nextId.incrementAndGet()
-      Await.result(execRequestQuery(id, SqlQuery(id, query, params)), Duration.Inf)
-    } catch {
-      case io: IOException =>
-        println("GOT IO EXCEPTION")
-        channel.close()
-        closed = true
-        cancelHeartbeats()
-        throw new SQLException("Connection problem, closing", io)
-
-      case e: SQLException =>
-        println("GOT SQL EXCEPTION, rethrow")
-        throw e
-
-      case x: Throwable => throw new SQLException(x)
-    }
+    val id = nextId.incrementAndGet()
+    wrapError(execRequestQuery(id, SqlQuery(id, query, params)))
   }
 
   override def runBatchQuery(query: String, params: Seq[Map[Int, ParameterValue]]): QueryResult = {
-    try {
-      val id = nextId.incrementAndGet()
-      Await.result(execRequestQuery(id, BatchQuery(id, query, params)), Duration.Inf)
-    } catch {
-      case e: SQLException => throw e
-      case x: Throwable =>
-        println("RUN BATCH!")
-        throw new SQLException(x)
-    }
+    val id = nextId.incrementAndGet()
+    wrapError(execRequestQuery(id, BatchQuery(id, query, params)))
   }
 
   override def cancelStream(streamId: Int): Unit = {
-    cancel(streamId)
+    if (iterators.contains(streamId)) {
+      val f = runCommand(
+        Cancel(streamId),
+        (p: Promise[Unit]) =>
+          waitFor(Cancelled).onComplete { cancelled =>
+            cancelled.map { c =>
+              assert(c.id == streamId)
+              iterators.synchronized {
+                iterators -= streamId
+              }
+            }
+            p.complete(cancelled.map(_ => ()))
+          }
+      )
+
+      wrapError(f)
+    }
   }
 
   @throws[SQLException]
   override def isClosed: Boolean = closed
 
-  private def ensureNotClosed(): Unit = {
-    println(s"ENC : ${channel.isOpen},  ${channel.getRemoteAddress}")
+  private def wrapError[T](r: => Future[T]): T = {
+    try {
+      Await.result(r, Duration.Inf)
+    } catch {
+      case io: IOException =>
+        channel.close()
+        closed = true
+        cancelHeartbeats()
+        throw new SQLException("Connection problem, closing", io)
 
+      case e: SQLException => throw e
+      case x: Throwable    => throw new SQLException(x)
+    }
+  }
+
+  private def ensureNotClosed(): Unit = {
     closed &= !channel.isOpen
     if (closed) {
       cancelHeartbeats()
@@ -140,7 +147,6 @@ class YupanaConnectionImpl(override val url: String, properties: Properties, exe
       channel.connect(new InetSocketAddress(host, port)).get()
 
       chanelReader = new FramingChannelReader(channel, Frame.MAX_FRAME_SIZE + FramingChannelReader.PAYLOAD_OFFSET)
-      closed = false
     }
 
     val cf = for {
@@ -149,7 +155,9 @@ class YupanaConnectionImpl(override val url: String, properties: Properties, exe
       cr <- waitFor(CredentialsRequest)
       _ <- sendCredentials(cr)
       _ <- waitFor(Authorized)
-    } yield ()
+    } yield {
+      closed = false
+    }
 
     Await.result(cf, Duration.Inf)
     startHeartbeats(reqTime)
@@ -182,12 +190,9 @@ class YupanaConnectionImpl(override val url: String, properties: Properties, exe
   }
 
   private def sendHeartbeat(startTime: Long): Unit = {
-    println("WANNA SEND HB")
-
     val time = (System.currentTimeMillis() - startTime) / 1000
     if (channel.isOpen) {
       Await.result(write(Heartbeat(time.toInt)), Duration.Inf)
-      println("WANNA SENT HB !")
     } else {
       cancelHeartbeats()
     }
@@ -201,7 +206,6 @@ class YupanaConnectionImpl(override val url: String, properties: Properties, exe
     handler match {
       case Some(handler) =>
         for {
-          _ <- write(handler.cmd)
           _ <- handler.execute()
           _ <- runNext()
         } yield ()
@@ -248,7 +252,6 @@ class YupanaConnectionImpl(override val url: String, properties: Properties, exe
               logger.info(s"Got error message $em")
               failIterator(sId, ex)
               if (sId == id) {
-                println("FUTURE FAILED!")
                 Future.failed(ex)
               } else {
                 logger.severe(s"Unexpected error message '${em.message}'")
@@ -285,27 +288,7 @@ class YupanaConnectionImpl(override val url: String, properties: Properties, exe
       NextBatch(id, batchSize),
       (p: Promise[Unit]) => readBatch(id, 0).onComplete(x => p.complete(x.map(_ => ())))
     )
-    Await.result(f, Duration.Inf)
-  }
-
-  private def cancel(id: Int): Unit = {
-    if (iterators.contains(id)) {
-      val f = runCommand(
-        Cancel(id),
-        (p: Promise[Unit]) =>
-          waitFor(Cancelled).onComplete { cancelled =>
-            cancelled.map { c =>
-              assert(c.id == id)
-              iterators.synchronized {
-                iterators -= id
-              }
-            }
-            p.complete(cancelled.map(_ => ()))
-          }
-      )
-
-      Await.result(f, Duration.Inf)
-    }
+    wrapError(f)
   }
 
   private def waitFor[T <: Message[T]](helper: MessageHelper[T])(
@@ -357,16 +340,8 @@ class YupanaConnectionImpl(override val url: String, properties: Properties, exe
 
     JdbcUtils.wrapHandler[Unit](
       new CompletionHandler[Integer, Promise[Unit]] {
-        override def completed(result: Integer, p: Promise[Unit]): Unit = {
-          println(s"SUCCESS $request")
-          p.success(())
-        }
-
-        override def failed(exc: Throwable, p: Promise[Unit]): Unit = {
-          println("FAIL!")
-          exc.printStackTrace()
-          p.failure(exc)
-        }
+        override def completed(result: Integer, p: Promise[Unit]): Unit = p.success(())
+        override def failed(exc: Throwable, p: Promise[Unit]): Unit = p.failure(exc)
       },
       (p, h) => channel.write(bb, 10, TimeUnit.SECONDS, p, h)
     )
@@ -407,12 +382,14 @@ class YupanaConnectionImpl(override val url: String, properties: Properties, exe
 
     QueryResult(id, SimpleResult(header.tableName, names, dataTypes, values))
   }
-}
 
-object YupanaConnectionImpl {
   private case class Handler[R](cmd: Command[_], promise: Promise[R], f: Promise[R] => Unit) {
     def execute(): Future[R] = {
-      f(promise)
+      write(cmd) onComplete {
+        case Success(_)         => f(promise)
+        case Failure(exception) => promise.failure(exception)
+      }
+
       promise.future
     }
   }
