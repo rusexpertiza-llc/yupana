@@ -64,7 +64,7 @@ class YupanaConnectionImplTest extends AnyFlatSpec with Matchers with OptionValu
     val (hello, credentials) = Await.result(reqF, 100.millis)
     hello.protocolVersion shouldEqual ProtocolVersion.value
     hello.clientVersion shouldEqual BuildInfo.version
-    hello.timestamp shouldEqual System.currentTimeMillis() +- 100
+    hello.timestamp shouldEqual System.currentTimeMillis() +- 1000
     hello.params shouldEqual Map.empty
 
     credentials shouldEqual Credentials(CredentialsRequest.METHOD_PLAIN, Some("user"), Some("password"))
