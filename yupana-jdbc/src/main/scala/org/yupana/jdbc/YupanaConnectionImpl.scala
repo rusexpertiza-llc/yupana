@@ -79,15 +79,14 @@ class YupanaConnectionImpl(override val url: String, properties: Properties, exe
     if (iterators.contains(streamId)) {
       val f = runCommand(
         Cancel(streamId),
-        () =>
-          waitFor(Cancelled).transform { cancelled =>
-            cancelled.map { c =>
-              assert(c.id == streamId)
-              iterators.synchronized {
-                iterators -= streamId
-              }
+        waitFor(Cancelled).transform { cancelled =>
+          cancelled.map { c =>
+            assert(c.id == streamId)
+            iterators.synchronized {
+              iterators -= streamId
             }
           }
+        }
       )
 
       wrapError(f)
@@ -211,10 +210,10 @@ class YupanaConnectionImpl(override val url: String, properties: Properties, exe
     }
   }
 
-  private def runCommand[T](cmd: Command[_], f: () => Future[T]): Future[T] = {
+  private def runCommand[T](cmd: Command[_], f: => Future[T]): Future[T] = {
     val p = Promise[T]()
     commandQueue.synchronized {
-      commandQueue.enqueue(Handler(cmd, p, f))
+      commandQueue.enqueue(new Handler(cmd, p, f))
     }
     runNext()
 
@@ -282,11 +281,7 @@ class YupanaConnectionImpl(override val url: String, properties: Properties, exe
   private def acquireNext(id: Int): Unit = {
     logger.fine(s"Acquire next $id")
     assert(iterators.contains(id))
-    val f = runCommand(
-      NextBatch(id, batchSize),
-      () => readBatch(id, 0)
-    )
-    wrapError(f)
+    wrapError(runCommand(NextBatch(id, batchSize), readBatch(id, 0)))
   }
 
   private def waitFor[T <: Message[T]](helper: MessageHelper[T])(
@@ -313,14 +308,13 @@ class YupanaConnectionImpl(override val url: String, properties: Properties, exe
     ensureNotClosed()
     runCommand(
       command,
-      () =>
-        waitFor(ResultHeader).map { header =>
-          iterators.synchronized {
-            val r = new ResultIterator(header, () => acquireNext(id))
-            iterators += id -> r
-            r
-          }
+      waitFor(ResultHeader).map { header =>
+        iterators.synchronized {
+          val r = new ResultIterator(header, () => acquireNext(id))
+          iterators += id -> r
+          r
         }
+      }
     ).map(it => extractProtoResult(id, it))
   }
 
@@ -379,9 +373,9 @@ class YupanaConnectionImpl(override val url: String, properties: Properties, exe
     QueryResult(id, SimpleResult(header.tableName, names, dataTypes, values))
   }
 
-  private case class Handler[R](cmd: Command[_], promise: Promise[R], f: () => Future[R]) {
+  private class Handler[R](cmd: Command[_], promise: Promise[R], f: => Future[R]) {
     def execute(): Future[R] = {
-      promise.completeWith(write(cmd).flatMap(_ => f())).future
+      promise.completeWith(write(cmd).flatMap(_ => f)).future
     }
   }
 }
