@@ -501,7 +501,7 @@ lazy val versions = new {
   val hbase = "2.5.7"
   val hadoop = "3.3.6"
 
-  val netty = "4.1.97.Final"
+  val netty = "4.1.118.Final"
 
   val lucene = "6.6.0"
   val ignite = "2.8.1"

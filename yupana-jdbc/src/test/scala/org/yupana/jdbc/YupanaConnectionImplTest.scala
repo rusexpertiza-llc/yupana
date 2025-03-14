@@ -11,17 +11,35 @@ import org.yupana.serialization.ByteBufferEvalReaderWriter
 
 import java.io.IOException
 import java.nio.ByteBuffer
+import java.sql.SQLException
+import java.util.Properties
 import scala.concurrent.duration._
-import scala.concurrent.{ Await, Future }
+import scala.concurrent.{ Await, ExecutionContext, Future }
 
-class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues with Inside {
+class YupanaConnectionImplTest extends AnyFlatSpec with Matchers with OptionValues with Inside {
   import scala.concurrent.ExecutionContext.Implicits.global
 
   implicit val rw: ByteReaderWriter[ByteBuffer] = ByteBufferEvalReaderWriter
 
+  private def makeConnection(
+      port: Int,
+      batchSize: Int,
+      user: Option[String],
+      password: Option[String]
+  ): YupanaConnectionImpl = {
+    val p = new Properties()
+    p.setProperty("yupana.host", "127.0.0.1")
+    p.setProperty("yupana.port", port.toString)
+    p.setProperty("yupana.batchSize", batchSize.toString)
+    user.foreach(p.setProperty("user", _))
+    password.foreach(p.setProperty("password", _))
+    val url = s"jdbc:yupana://127.0.0.1:$port"
+
+    new YupanaConnectionImpl(url, p, ExecutionContext.global)
+  }
+
   "TCP client" should "connect to the server" in {
     val server = new ServerMock
-    val client = new YupanaTcpClient("127.0.0.1", server.port, 100, Some("user"), Some("password"))
     val reqF = for {
       id <- server.connect
       hello <- server
@@ -40,16 +58,14 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
       _ = server.close()
     } yield (hello, credentials)
 
-    client.connect(12345678L)
-    client.close()
+    val connection = makeConnection(server.port, 100, Some("user"), Some("password"))
+    connection.close()
 
     val (hello, credentials) = Await.result(reqF, 100.millis)
-    hello shouldEqual Hello(
-      ProtocolVersion.value,
-      BuildInfo.version,
-      12345678L,
-      Map.empty
-    )
+    hello.protocolVersion shouldEqual ProtocolVersion.value
+    hello.clientVersion shouldEqual BuildInfo.version
+    hello.timestamp shouldEqual System.currentTimeMillis() +- 1000
+    hello.params shouldEqual Map.empty
 
     credentials shouldEqual Credentials(CredentialsRequest.METHOD_PLAIN, Some("user"), Some("password"))
 
@@ -58,7 +74,6 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
   it should "fail if protocol version does not match" in {
     val server = new ServerMock
-    val client = new YupanaTcpClient("127.0.0.1", server.port, 10, Some("user"), Some("password"))
     server.connect.flatMap(id =>
       server.readAndSendResponses[Hello](
         id,
@@ -66,46 +81,53 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
         _ => Seq(HelloResponse(ProtocolVersion.value + 1, 12345678))
       )
     )
-    the[YupanaException] thrownBy client.connect(
-      12345678
+    the[YupanaException] thrownBy makeConnection(
+      server.port,
+      10,
+      Some("user"),
+      Some("password")
     ) should have message "Incompatible protocol versions: 4 on server and 3 in this driver"
   }
 
   it should "handle if response is too small" in {
     val server = new ServerMock
-    val client = new YupanaTcpClient("127.0.0.1", server.port, 100, Some("user"), Some("password"))
     for {
       id <- server.connect
       _ <- server.readAnySendRaw[Hello](id, Hello.readFrame[ByteBuffer], _ => Seq(Array(1.toByte)))
       _ = server.close(id)
     } yield ()
-    the[IOException] thrownBy client.connect(12345) should have message "Unexpected end of response"
+    the[IOException] thrownBy makeConnection(
+      server.port,
+      100,
+      Some("user"),
+      Some("password")
+    ) should have message "Unexpected end of response"
   }
 
   it should "handle if there are no response" in {
     val server = new ServerMock
-    val client = new YupanaTcpClient("127.0.0.1", server.port, 5, Some("user"), Some("password"))
     server.connect.foreach(server.close)
-    an[IOException] should be thrownBy client.connect(12345)
+    an[IOException] should be thrownBy makeConnection(server.port, 5, Some("user"), Some("password"))
   }
 
   it should "handle error response on hello" in {
     val server = new ServerMock
-    val client = new YupanaTcpClient("127.0.0.1", server.port, 10, Some("user"), Some("password"))
     server.connect.flatMap(id =>
       server.readAndSendResponses[Hello](id, Hello.readFrame[ByteBuffer], _ => Seq(ErrorMessage("Internal error")))
     )
-    val e = the[YupanaException] thrownBy client.connect(23456789)
+    val e = the[YupanaException] thrownBy makeConnection(server.port, 10, Some("user"), Some("password"))
     e.getMessage should include("Internal error")
   }
 
   it should "fail on unexpected response on hello" in {
     val server = new ServerMock
-    val client = new YupanaTcpClient("127.0.0.1", server.port, 10, Some("user"), Some("password"))
     val err = ResultHeader(1, "table", Seq(ResultField("A", "VARCHAR")))
     server.connect.flatMap(id => server.readAndSendResponses[Hello](id, Hello.readFrame[ByteBuffer], _ => Seq(err)))
-    the[YupanaException] thrownBy client.connect(
-      23456789
+    the[YupanaException] thrownBy makeConnection(
+      server.port,
+      10,
+      Some("user"),
+      Some("password")
     ) should have message "Unexpected response 'R' while waiting for 'H'"
   }
 
@@ -164,7 +186,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
         }
       }
     } { client =>
-      val result = client.prepareQuery(sql, bind).result
+      val result = client.runQuery(sql, bind).result
 
       result.name shouldEqual "items_kkm"
 
@@ -198,7 +220,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
         n2 <- server.readAndSendResponses(id, NextBatch.readFrame[ByteBuffer], onNext2)
       } yield (r, n1, n2)
     } { client =>
-      val result = client.prepareQuery(sql, Map.empty).result
+      val result = client.runQuery(sql, Map.empty).result
       result.name shouldEqual "table"
 
       var r = Seq.empty[Int]
@@ -256,7 +278,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
       }
     } { client =>
       val result = client
-        .batchQuery(
+        .runBatchQuery(
           sql,
           Seq(
             Map(
@@ -290,7 +312,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
   it should "handle global error response on query" in withServerConnected { (server, id) =>
     server.readAndSendResponses[SqlQuery](id, SqlQuery.readFrame[ByteBuffer], _ => Seq(ErrorMessage("Internal error")))
   } { client =>
-    val e = the[YupanaException] thrownBy client.prepareQuery("SHOW TABLES", Map.empty)
+    val e = the[YupanaException] thrownBy client.runQuery("SHOW TABLES", Map.empty)
     e.getMessage should include("Internal error")
   }
 
@@ -301,7 +323,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
       q => Seq(ErrorMessage("Internal error", Some(q.id)))
     )
   } { client =>
-    val e = the[YupanaException] thrownBy client.prepareQuery("SHOW TABLES", Map.empty)
+    val e = the[YupanaException] thrownBy client.runQuery("SHOW TABLES", Map.empty)
     e.getMessage should include("Internal error")
   }
 
@@ -329,7 +351,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
       _ <- server.readAndSendResponses[NextBatch](id, NextBatch.readFrame[ByteBuffer], onNext)
     } yield ()
 
-  } { client =>
+  } { connection =>
 
     val sql =
       """
@@ -337,9 +359,9 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
         |  WHERE time >= ? AND time < ? AND sum < ? AND item = ?
         |  """.stripMargin
 
-    the[IOException] thrownBy {
-      val res = client
-        .prepareQuery(
+    the[SQLException] thrownBy {
+      val res = connection
+        .runQuery(
           sql,
           Map(
             1 -> TimestampValue(12345L),
@@ -350,16 +372,14 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
         )
         .result
       res.next()
-    } should have message "Unexpected end of response"
+    } should have message "Connection problem, closing"
   }
 
   it should "operate normally after streaming error" in withServerConnected { (server, id) =>
     val onQuery1 = (q: SqlQuery) => {
-      println(s"Q1 = $q")
       Seq(ErrorMessage("Invalid statement SELEKT", Some(q.id)))
     }
     val onQuery2 = (q: SqlQuery) => {
-      println(s"Q2 = $q")
       Seq(ResultHeader(q.id, "result", Seq(ResultField("1", "INTEGER"))))
     }
 
@@ -369,18 +389,44 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
     } yield Seq(e, r)
 
   } { client =>
-    val e = the[YupanaException] thrownBy client.prepareQuery("SELEKT 1", Map.empty)
+    val e = the[YupanaException] thrownBy client.runQuery("SELEKT 1", Map.empty)
     e.getMessage should include("Invalid statement SELEKT")
 
-    val r = client.prepareQuery("SELECT 1", Map.empty).result
+    val r = client.runQuery("SELECT 1", Map.empty).result
     r.name shouldBe "result"
   }
 
+//  it should "handle connection loss" in {
+//    val server = new ServerMock
+//
+//    val f = for {
+//      id <- server.connect
+//      _ <- server
+//        .readAndSendResponses[Hello](
+//          id,
+//          Hello.readFrame[ByteBuffer],
+//          h =>
+//            Seq(
+//              HelloResponse(ProtocolVersion.value, h.timestamp),
+//              CredentialsRequest(Seq(CredentialsRequest.METHOD_PLAIN))
+//            )
+//        )
+//      _ <- server
+//        .readAndSendResponses[Credentials](id, Credentials.readFrame[ByteBuffer], _ => Seq(Authorized()))
+//    } yield id
+//
+//    val connection = makeConnection(server.port, 10, Some("user"), Some("password"))
+//    val id = Await.result(f, 1.second)
+//    println(s"GOT ID $id")
+//    server.close(id)
+//
+//    the[YupanaException] thrownBy connection.runQuery("SELECT 1", Map.empty) should have message "фуфуфу"
+//  }
+
   private def withServerConnected[T](
       serverBody: (ServerMock, Int) => Future[T]
-  )(clientBody: YupanaTcpClient => Unit): T = {
+  )(clientBody: YupanaConnectionImpl => Unit): T = {
     val server = new ServerMock
-    val client = new YupanaTcpClient("127.0.0.1", server.port, 10, Some("user"), Some("password"))
     val f = for {
       id <- server.connect
       _ <- server
@@ -398,7 +444,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
       r <- serverBody(server, id)
       _ = server.close(id)
     } yield r
-    client.connect(12345678L)
+    val client = makeConnection(server.port, 10, Some("user"), Some("password"))
     clientBody(client)
     val result = Await.result(f, 100.millis)
     client.close()

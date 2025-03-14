@@ -16,6 +16,8 @@
 
 package org.yupana.jdbc;
 
+import scala.concurrent.ExecutionContext;
+
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.sql.*;
@@ -44,7 +46,7 @@ public class YupanaDriver implements Driver {
         p.putAll(urlProps);
         p.putAll(properties);
         try {
-            return new YupanaConnectionImpl(url, p);
+            return new YupanaConnectionImpl(url, p, ExecutionContext.global());
         } catch (Throwable t) {
             throw new SQLException("Yupana connection failed", t);
         }
