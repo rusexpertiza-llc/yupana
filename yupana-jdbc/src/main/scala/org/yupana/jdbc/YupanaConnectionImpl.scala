@@ -315,7 +315,9 @@ class YupanaConnectionImpl(override val url: String, properties: Properties, exe
           r
         }
       }
-    ).map(it => extractProtoResult(id, it))
+    ).flatMap { it =>
+      runCommand(NextBatch(id, batchSize), readBatch(id, 0)).map(_ => it)
+    }.map(it => extractProtoResult(id, it))
   }
 
   private def write(request: Command[_]): Future[Unit] = {
