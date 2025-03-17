@@ -383,9 +383,14 @@ class YupanaConnectionImplTest extends AnyFlatSpec with Matchers with OptionValu
       Seq(ResultHeader(q.id, "result", Seq(ResultField("1", "INTEGER"))))
     }
 
+    val onNext = (b: NextBatch) => {
+      Seq(ResultFooter(b.id, 1, 0))
+    }
+
     for {
       e <- server.readAndSendResponses(id, SqlQuery.readFrame[ByteBuffer], onQuery1)
       r <- server.readAndSendResponses(id, SqlQuery.readFrame[ByteBuffer], onQuery2)
+      _ <- server.readAndSendResponses(id, NextBatch.readFrame[ByteBuffer], onNext)
     } yield Seq(e, r)
 
   } { client =>
@@ -394,34 +399,38 @@ class YupanaConnectionImplTest extends AnyFlatSpec with Matchers with OptionValu
 
     val r = client.runQuery("SELECT 1", Map.empty).result
     r.name shouldBe "result"
+    r.next() shouldBe false
   }
 
-//  it should "handle connection loss" in {
-//    val server = new ServerMock
-//
-//    val f = for {
-//      id <- server.connect
-//      _ <- server
-//        .readAndSendResponses[Hello](
-//          id,
-//          Hello.readFrame[ByteBuffer],
-//          h =>
-//            Seq(
-//              HelloResponse(ProtocolVersion.value, h.timestamp),
-//              CredentialsRequest(Seq(CredentialsRequest.METHOD_PLAIN))
-//            )
-//        )
-//      _ <- server
-//        .readAndSendResponses[Credentials](id, Credentials.readFrame[ByteBuffer], _ => Seq(Authorized()))
-//    } yield id
-//
-//    val connection = makeConnection(server.port, 10, Some("user"), Some("password"))
-//    val id = Await.result(f, 1.second)
-//    println(s"GOT ID $id")
-//    server.close(id)
-//
-//    the[YupanaException] thrownBy connection.runQuery("SELECT 1", Map.empty) should have message "фуфуфу"
-//  }
+  it should "handle connection loss" in {
+    val server = new ServerMock
+
+    val f = for {
+      id <- server.connect
+      _ <- server
+        .readAndSendResponses[Hello](
+          id,
+          Hello.readFrame[ByteBuffer],
+          h =>
+            Seq(
+              HelloResponse(ProtocolVersion.value, h.timestamp),
+              CredentialsRequest(Seq(CredentialsRequest.METHOD_PLAIN))
+            )
+        )
+      _ <- server
+        .readAndSendResponses[Credentials](id, Credentials.readFrame[ByteBuffer], _ => Seq(Authorized()))
+    } yield id
+
+    val connection = makeConnection(server.port, 10, Some("user"), Some("password"))
+    val id = Await.result(f, 1.second)
+    println(s"GOT ID $id")
+    server.close(id)
+
+    the[SQLException] thrownBy connection.runQuery(
+      "SELECT 1",
+      Map.empty
+    ) should have message "Connection problem, closing"
+  }
 
   private def withServerConnected[T](
       serverBody: (ServerMock, Int) => Future[T]
