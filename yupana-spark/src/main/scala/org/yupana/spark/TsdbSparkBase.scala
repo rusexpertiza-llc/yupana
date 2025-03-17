@@ -33,6 +33,8 @@ import org.yupana.core.{ QueryContext, TsdbBase }
 import org.yupana.hbase.{ HBaseUtils, HdfsFileUtils, TsdbQueryMetricsDaoHBase }
 import org.yupana.spark.TsdbSparkBase.createDefaultMetricCollector
 
+import scala.reflect.ClassTag
+
 object TsdbSparkBase extends StrictLogging {
 
   @transient var metricsDao: Option[TsdbQueryMetricsDao] = None
@@ -85,6 +87,8 @@ abstract class TsdbSparkBase(
 
   override type Collection[X] = RDD[X]
   override type Result = ResultRDD
+
+  override def collectionFromSeq[T: ClassTag](seq: Seq[T]): RDD[T] = sparkContext.parallelize(seq)
 
   override val extractBatchSize: Int = conf.extractBatchSize
   override val putBatchSize: Int = conf.putBatchSize

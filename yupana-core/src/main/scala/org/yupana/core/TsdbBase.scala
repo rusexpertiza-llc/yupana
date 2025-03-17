@@ -30,6 +30,8 @@ import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
 import org.yupana.core.utils.{ ConditionUtils, FlatAndCondition }
 import org.yupana.metrics.Failed
 
+import scala.reflect.ClassTag
+
 /**
   * Core of time series database processing pipeline.
   */
@@ -51,6 +53,8 @@ trait TsdbBase extends StrictLogging {
 
   def mapReduceEngine(metricCollector: MetricQueryCollector): MapReducible[Collection] =
     dao.mapReduceEngine(metricCollector)
+
+  def collectionFromSeq[T: ClassTag](seq: Seq[T]): Collection[T]
 
   def schema: Schema
 
@@ -405,7 +409,7 @@ trait TsdbBase extends StrictLogging {
     if (permissionService.hasPermission(user, auth.Object.Table(Some(table.name)), Write)) {
       externalLinkServices.foreach(s => s.put(batch))
       val updatedIntervals = dao.putBatch(table, batch, user.name)
-      updateIntervals(updatedIntervals)
+      updateIntervals(collectionFromSeq(updatedIntervals))
     } else {
       throw new IllegalAccessException(s"Put to table: $table is prohibited")
     }
@@ -419,16 +423,6 @@ trait TsdbBase extends StrictLogging {
     val mostRecentUpdateIntervals = mr.map(mostRecentUpdateIntervalsByWhatUpdated)(_._2)
     val materializedIntervals = mr.materialize(mostRecentUpdateIntervals).distinct
     changelogDao.putUpdatesIntervals(materializedIntervals)
-  }
-
-  private def updateIntervals(updateIntervals: Seq[UpdateInterval]): Unit = {
-    val updateIntervalsByWhatUpdated = updateIntervals.map(i => i.whatUpdated -> i)
-    val mostRecentUpdateIntervalsByWhatUpdated =
-      updateIntervalsByWhatUpdated.groupMapReduce(_._1)(_._2)((i1, i2) =>
-        if (i1.updatedAt.isAfter(i2.updatedAt)) i1 else i2
-      )
-    val mostRecentUpdateIntervals = mostRecentUpdateIntervalsByWhatUpdated.values.toSeq.distinct
-    changelogDao.putUpdatesIntervals(mostRecentUpdateIntervals)
   }
 
 }
