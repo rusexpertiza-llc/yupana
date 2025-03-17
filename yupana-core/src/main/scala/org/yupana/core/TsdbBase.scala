@@ -401,6 +401,16 @@ trait TsdbBase extends StrictLogging {
     putDataset(Seq(table), dataset, user)
   }
 
+  def putBatch(table: Table, batch: BatchDataset, user: YupanaUser): Unit = {
+    if (permissionService.hasPermission(user, auth.Object.Table(Some(table.name)), Write)) {
+      externalLinkServices.foreach(s => s.put(batch))
+      val updatedIntervals = dao.putBatch(table, batch, user.name)
+      updateIntervals(mapReduceEngine(NoMetricCollector).fromSeq(updatedIntervals))
+    } else {
+      throw new IllegalAccessException(s"Put to table: $table is prohibited")
+    }
+  }
+
   private def updateIntervals(updateIntervals: Collection[UpdateInterval]): Unit = {
     val mr = mapReduceEngine(NoMetricCollector)
     val updateIntervalsByWhatUpdated = mr.map(updateIntervals)(i => i.whatUpdated -> i)

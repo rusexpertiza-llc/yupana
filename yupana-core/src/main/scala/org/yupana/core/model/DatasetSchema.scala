@@ -22,7 +22,7 @@ import org.yupana.api.schema.{ Dimension, Table }
 final class DatasetSchema(
     valueExprIndex: Map[Expression[_], Int],
     refExprIndex: Map[Expression[_], Int],
-    nameMapping: Map[String, Int],
+    val nameMapping: Map[String, Int],
     table: Option[Table]
 ) extends Serializable {
 

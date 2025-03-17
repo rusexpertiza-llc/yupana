@@ -79,4 +79,8 @@ class TSDaoHBase(
       tables.flatMap(table => doPutBatchDataset(connection, dictionaryProvider, namespace, username, batch, table))
     }
   }
+
+  override def putBatch(table: Table, batch: BatchDataset, username: String): Seq[UpdateInterval] = {
+    doPutBatchDataset(connection, dictionaryProvider, namespace, username, batch, table)
+  }
 }

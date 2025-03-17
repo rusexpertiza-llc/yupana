@@ -24,7 +24,9 @@ import scala.reflect.ClassTag
 class IteratorMapReducible(reduceLimit: Int = Int.MaxValue) extends MapReducible[Iterator] {
 
   override def empty[A: ClassTag]: Iterator[A] = Iterator.empty
+  override def fromSeq[A: ClassTag](seq: Seq[A]): Iterator[A] = seq.iterator
   override def singleton[A: ClassTag](a: A): Iterator[A] = Iterator(a)
+
   override def filter[A: ClassTag](it: Iterator[A])(f: A => Boolean): Iterator[A] = it.filter(f)
 
   override def map[A: ClassTag, B: ClassTag](it: Iterator[A])(f: A => B): Iterator[B] = it.map(f)

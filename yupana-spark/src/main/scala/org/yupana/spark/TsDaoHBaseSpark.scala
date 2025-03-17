@@ -100,6 +100,10 @@ class TsDaoHBaseSpark(
     }
   }
 
+  override def putBatch(table: Table, batch: BatchDataset, username: String): Seq[UpdateInterval] = {
+    doPutBatchDataset(connection, dictionaryProvider, config.hbaseNamespace, username, batch, table)
+  }
+
   @transient lazy val connection: Connection = {
     TsDaoHBaseSpark.executorHBaseConnection match {
       case None =>
