@@ -30,8 +30,6 @@ import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
 import org.yupana.core.utils.{ ConditionUtils, FlatAndCondition }
 import org.yupana.metrics.Failed
 
-import scala.reflect.ClassTag
-
 /**
   * Core of time series database processing pipeline.
   */
@@ -53,8 +51,6 @@ trait TsdbBase extends StrictLogging {
 
   def mapReduceEngine(metricCollector: MetricQueryCollector): MapReducible[Collection] =
     dao.mapReduceEngine(metricCollector)
-
-  def collectionFromSeq[T: ClassTag](seq: Seq[T]): Collection[T]
 
   def schema: Schema
 
@@ -409,7 +405,7 @@ trait TsdbBase extends StrictLogging {
     if (permissionService.hasPermission(user, auth.Object.Table(Some(table.name)), Write)) {
       externalLinkServices.foreach(s => s.put(batch))
       val updatedIntervals = dao.putBatch(table, batch, user.name)
-      updateIntervals(collectionFromSeq(updatedIntervals))
+      updateIntervals(mapReduceEngine(NoMetricCollector).fromSeq(updatedIntervals))
     } else {
       throw new IllegalAccessException(s"Put to table: $table is prohibited")
     }

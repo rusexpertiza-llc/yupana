@@ -31,7 +31,7 @@ class RddMapReducible(@transient val sparkContext: SparkContext, metricCollector
     with Serializable {
 
   override def empty[A: ClassTag]: RDD[A] = sparkContext.emptyRDD[A]
-
+  override def fromSeq[A: ClassTag](seq: Seq[A]): RDD[A] = sparkContext.parallelize(seq)
   override def singleton[A: ClassTag](a: A): RDD[A] = sparkContext.parallelize(Seq(a))
 
   override def filter[A: ClassTag](rdd: RDD[A])(f: A => Boolean): RDD[A] = {

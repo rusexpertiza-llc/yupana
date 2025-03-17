@@ -28,7 +28,6 @@ import org.yupana.core.model.BatchDataset
 import org.yupana.core.utils.metric._
 
 import scala.collection.mutable
-import scala.reflect.ClassTag
 
 class TSDB(
     override val schema: Schema,
@@ -42,8 +41,6 @@ class TSDB(
 
   override type Collection[X] = Iterator[X]
   override type Result = TsdbServerResult
-
-  override def collectionFromSeq[T: ClassTag](seq: Seq[T]): Iterator[T] = seq.iterator
 
   override lazy val extractBatchSize: Int = config.extractBatchSize
   override lazy val putBatchSize: Int = config.putBatchSize
