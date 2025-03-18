@@ -24,8 +24,8 @@ CREATE USER 'John'
 
 ```sql
 ALTER USER 'John'
-  SET PASSWORD '54321'
-  SET ROLE 'read_write'
+  SET PASSWORD='54321'
+  SET ROLE='read_write'
 ```
 
 Также можно менять только пароль или только роль.

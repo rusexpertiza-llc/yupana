@@ -355,13 +355,13 @@ object SqlParser {
   def dropUser[$: P]: P[DropUser] = P(dropWord ~ userWord ~/ username).map(DropUser)
 
   def setPassword[$: P](au: AlterUser): P[AlterUser] = {
-    P(passwordWord ~ "=" ~/ password ~ (setWord ~ roleWord ~ "=" ~/ username).?).map {
+    P(passwordWord ~/ "=" ~ password ~/ (setWord ~ roleWord ~/ "=" ~ username).?).map {
       case (p, mr) => au.copy(password = Some(p), role = mr)
     }
   }
 
   def setRole[$: P](au: AlterUser): P[AlterUser] = {
-    P(roleWord ~ "=" ~/ username ~ (setWord ~ passwordWord ~ "=" ~/ password).?).map {
+    P(roleWord ~/ "=" ~ username ~/ (setWord ~ passwordWord ~/ "=" ~ password).?).map {
       case (r, mp) => au.copy(role = Some(r), password = mp)
     }
   }
