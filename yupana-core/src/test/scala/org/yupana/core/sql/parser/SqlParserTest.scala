@@ -1431,6 +1431,24 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
     }
   }
 
+  it should "support change role and password at the same time" in {
+    parsed("ALTER USER 'John' SET ROLE='admin' SET PASSWORD='12345'") {
+      case AlterUser(u, p, r) =>
+        u shouldEqual "John"
+        p shouldEqual Some("12345")
+        r shouldEqual Some("admin")
+    }
+  }
+
+  it should "support change password and role at the same time" in {
+    parsed("ALTER USER 'John' SET PASSWORD='12345' SET ROLE='admin'") {
+      case AlterUser(u, p, r) =>
+        u shouldEqual "John"
+        p shouldEqual Some("12345")
+        r shouldEqual Some("admin")
+    }
+  }
+
   it should "support drop user" in {
     parsed("DROP USER 'test'") {
       case DropUser(u) =>
