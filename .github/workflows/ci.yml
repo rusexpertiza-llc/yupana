@@ -24,7 +24,7 @@ jobs:
       uses: sbt/setup-sbt@v1
 
     - name: Cache sbt
-      uses: actions/cache@v4.2.2
+      uses: actions/cache@v4.2.3
       with:
         path: |
           ~/.sbt
@@ -63,7 +63,7 @@ jobs:
 
 
     - name: Cache sbt
-      uses: actions/cache@v4.2.2
+      uses: actions/cache@v4.2.3
       with:
         path: |
           ~/.sbt
