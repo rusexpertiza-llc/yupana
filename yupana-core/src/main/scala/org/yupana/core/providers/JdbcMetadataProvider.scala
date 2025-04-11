@@ -23,7 +23,12 @@ import org.yupana.core.sql.FunctionRegistry
 
 import java.sql.DatabaseMetaData
 
-class JdbcMetadataProvider(schema: Schema) {
+class JdbcMetadataProvider(
+    schema: Schema,
+    versionMajor: Int,
+    versionMinor: Int,
+    versionFull: String
+) {
 
   private[providers] val columnFieldNames = List(
     "TABLE_CAT",
@@ -60,6 +65,19 @@ class JdbcMetadataProvider(schema: Schema) {
       Array[Any](null, null, name, if (desc.isEmpty) "TABLE" else "ROLLUP", desc.orNull)
     }.iterator
     SimpleResult("TABLES", tableFieldNames, tableFieldNames.map(_ => DataType[String]), data)
+  }
+
+  def listTablesMeta: (Seq[String], Seq[DataType]) = {
+    (tableFieldNames, tableFieldNames.map(_ => DataType[String]))
+  }
+
+  def version: Result = {
+    SimpleResult(
+      "VERSION",
+      List("MAJOR", "MINOR", "VERSION"),
+      List(DataType[Int], DataType[Int], DataType[String]),
+      Iterator.single(Array[Any](versionMajor, versionMinor, versionFull))
+    )
   }
 
   def describeTable(tableName: String): Either[String, Result] =

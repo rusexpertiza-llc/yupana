@@ -30,10 +30,14 @@ case class Select(
 case class Upsert(
     tableName: String,
     fieldNames: Seq[String],
-    values: Seq[Seq[SqlExpr]]
+    values: Seq[Seq[Value]]
 ) extends Statement
 
 case object ShowTables extends Statement
+
+case object ShowVersion extends Statement
+
+case object ShowUsers extends Statement
 
 case class ShowColumns(table: String) extends Statement
 
@@ -48,3 +52,9 @@ case class DeleteQueryMetrics(filter: MetricsFilter) extends Statement
 case class ShowFunctions(dataType: String) extends Statement
 
 case class ShowUpdatesIntervals(condition: Option[SqlExpr]) extends Statement
+
+case class CreateUser(name: String, password: Option[String], role: Option[String]) extends Statement
+case class AlterUser(name: String, password: Option[String], role: Option[String]) extends Statement
+case class DropUser(name: String) extends Statement
+
+case class SetValue(key: String, value: Value) extends Statement

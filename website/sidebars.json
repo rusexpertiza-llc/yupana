@@ -10,12 +10,20 @@
     ],
     "Язык запросов": [
        "yupanaql",
+       "datatypes",
        "functions",
        "select",
        "upsert",
        "show",
        "kill",
-       "delete"
+       "delete",
+       "user-management"
+    ],
+    "Описание протокола": [
+      "protocol/protocol",
+      "protocol/connect",
+      "protocol/query",
+      "protocol/batch"
     ]
   }
 }

@@ -20,11 +20,14 @@ import org.yupana.api.query.Query
 import org.yupana.metrics.{ Metric, MetricCollector }
 
 trait MetricQueryCollector extends MetricCollector {
+
   def query: Query
   override def id: String = query.id
   override def meta: String = query.toString
   def isSparkQuery: Boolean
+  def user: String
 
+  def initQueryContext: Metric
   def createDimensionFilters: Metric
   def createScans: Metric
   def scan: Metric
@@ -32,6 +35,9 @@ trait MetricQueryCollector extends MetricCollector {
   def readExternalLinks: Metric
   def extractDataComputation: Metric
   def filterRows: Metric
+  def filter: Metric
+  def evaluateExpressions: Metric
+  def extractKeyData: Metric
   def windowFunctions: Metric
   def reduceOperation: Metric
   def postFilter: Metric

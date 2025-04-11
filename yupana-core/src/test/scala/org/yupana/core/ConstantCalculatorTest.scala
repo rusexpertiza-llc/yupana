@@ -19,7 +19,7 @@ class ConstantCalculatorTest extends AnyFlatSpec with Matchers with OptionValues
     import org.yupana.api.query.syntax.All
 
     calculator.evaluateConstant(plus(const(2), times(const(2), const(2)))) shouldEqual 6
-    calculator.evaluateConstant(divInt(All.length(const("9 letters")), const(3))) shouldEqual 3
+    calculator.evaluateConstant(div(All.length(const("9 letters")), const(3))) shouldEqual 3
     calculator.evaluateConstant(All.not(contains(const(Seq(1L, 2L, 3L)), const(5L)))) shouldEqual true
   }
 

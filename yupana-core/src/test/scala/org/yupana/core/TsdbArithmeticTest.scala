@@ -4,17 +4,18 @@ import org.scalatest._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.yupana.api.Time
+import org.yupana.api.{ Currency, Time }
 import org.yupana.api.query.{ Expression, LinkExpr }
 import org.yupana.api.schema.LinkField
 import org.yupana.cache.CacheFactory
-import org.yupana.core.model.InternalQuery
+import org.yupana.core.model.{ BatchDataset, InternalQuery }
 import org.yupana.core.utils.SparseTable
 import org.yupana.settings.Settings
+import org.yupana.testutils.{ TestDims, TestLinks, TestSchema, TestTableFields }
 import org.yupana.utils.RussianTokenizer
 
 import java.time.format.DateTimeFormatter
-import java.time.{ OffsetDateTime, ZoneOffset }
+import java.time.{ LocalDateTime, OffsetDateTime, ZoneOffset }
 import java.util.Properties
 
 class TsdbArithmeticTest
@@ -51,6 +52,7 @@ class TsdbArithmeticTest
   "TSDB" should "execute query with arithmetic (no aggregations)" in withTsdbMock { (tsdb, tsdbDaoMock) =>
     val sql = "SELECT testField + testField2 as some_sum FROM test_table WHERE A = 'taga'" + timeBounds()
     val query = createQuery(sql)
+    val now = Time(LocalDateTime.now())
 
     (tsdbDaoMock.query _)
       .expects(
@@ -61,31 +63,33 @@ class TsdbArithmeticTest
             equ(lower(dimension(TestDims.DIM_A)), const("taga")),
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
-          )
+          ),
+          IndexedSeq.empty
         ),
+        *,
         *,
         *
       )
-      .onCall((_, b, _) =>
-        Iterator(
-          b.set(metric(TestTableFields.TEST_FIELD), 1d)
-            .set(metric(TestTableFields.TEST_FIELD2), 2d)
-            .buildAndReset(),
-          b.set(metric(TestTableFields.TEST_FIELD), 3d)
-            .set(metric(TestTableFields.TEST_FIELD2), 4d)
-            .buildAndReset()
-        )
-      )
+      .onCall { (_, _, dsSchema, _) =>
+        val batch = new BatchDataset(dsSchema)
+        batch.set(0, metric(TestTableFields.TEST_FIELD), 1d)
+        batch.set(0, metric(TestTableFields.TEST_FIELD2), 2d)
 
-    val rows = tsdb.query(query)
+        batch.set(1, metric(TestTableFields.TEST_FIELD), 3d)
+        batch.set(1, metric(TestTableFields.TEST_FIELD2), 4d)
 
-    val r1 = rows.next()
-    r1.get[Double]("some_sum") shouldBe 3d
+        Iterator(batch)
+      }
 
-    val r2 = rows.next()
-    r2.get[Double]("some_sum") shouldBe 7d
+    val res = tsdb.query(query, now)
 
-    rows.hasNext shouldBe false
+    res.next() shouldBe true
+    res.get[Double]("some_sum") shouldBe 3d
+
+    res.next() shouldBe true
+    res.get[Double]("some_sum") shouldBe 7d
+
+    res.next() shouldBe false
   }
 
   it should "execute query with arithmetic on aggregated values" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -93,7 +97,7 @@ class TsdbArithmeticTest
       " sum(testField) * max(testField2) / 2 as mult FROM test_table WHERE A = 'taga'" +
       timeBounds() + " GROUP BY A"
     val query = createQuery(sql)
-
+    val now = Time(LocalDateTime.now())
     (tsdbDaoMock.query _)
       .expects(
         InternalQuery(
@@ -108,31 +112,136 @@ class TsdbArithmeticTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             equ(lower(dimension(TestDims.DIM_A)), const("taga"))
-          )
+          ),
+          IndexedSeq.empty
         ),
+        *,
         *,
         *
       )
-      .onCall((_, b, _) =>
-        Iterator(
-          b.set(dimension(TestDims.DIM_A), "taga")
-            .set(metric(TestTableFields.TEST_FIELD), 1d)
-            .set(metric(TestTableFields.TEST_FIELD2), 2d)
-            .buildAndReset(),
-          b.set(dimension(TestDims.DIM_A), "taga")
-            .set(metric(TestTableFields.TEST_FIELD), 3d)
-            .set(metric(TestTableFields.TEST_FIELD2), 4d)
-            .buildAndReset()
-        )
+      .onCall { (_, _, dsSchema, _) =>
+        val batch = new BatchDataset(dsSchema)
+
+        batch.set(0, dimension(TestDims.DIM_A), "taga")
+        batch.set(0, metric(TestTableFields.TEST_FIELD), 1d)
+        batch.set(0, metric(TestTableFields.TEST_FIELD2), 2d)
+
+        batch.set(1, dimension(TestDims.DIM_A), "taga")
+        batch.set(1, metric(TestTableFields.TEST_FIELD), 3d)
+        batch.set(1, metric(TestTableFields.TEST_FIELD2), 4d)
+
+        Iterator(batch)
+      }
+
+    val res = tsdb.query(query, now)
+
+    res.next() shouldBe true
+    res.get[Double]("stf") shouldBe 4d
+    res.get[Double]("mult") shouldBe 8d
+
+    res.next() shouldBe false
+  }
+
+  it should "handle currency constants in arithmetic" in withTsdbMock { (tsdb, tsdbDaoMock) =>
+    val sql =
+      s"""SELECT
+        |    day(time) as d,
+        |    sum(CASE WHEN testCurrencyField > 100 THEN 1 else 0) AS big_count,
+        |    sum(CASE WHEN testCurrencyField > 100 THEN testCurrencyField ELSE 0) AS big_sum
+        |  FROM test_table
+        |  WHERE testCurrencyField < 10000 ${timeBounds()}
+        |  GROUP BY d
+        |""".stripMargin
+
+    val query = createQuery(sql)
+    val now = Time(LocalDateTime.now())
+
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set[Expression[_]](
+            time,
+            metric(TestTableFields.TEST_CURRENCY_FIELD)
+          ),
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            lt(metric(TestTableFields.TEST_CURRENCY_FIELD), const(Currency.of(10000)))
+          ),
+          IndexedSeq.empty
+        ),
+        *,
+        *,
+        *
       )
+      .onCall { (_, _, dsSchema, _) =>
+        val batch = new BatchDataset(dsSchema)
 
-    val rows = tsdb.query(query)
+        batch.set(0, Time(from.plusMinutes(5)))
+        batch.set(0, metric(TestTableFields.TEST_CURRENCY_FIELD), Currency.of(123))
 
-    val r1 = rows.next()
-    r1.get[Double]("stf") shouldBe 4d
-    r1.get[Double]("mult") shouldBe 8d
+        batch.set(1, Time(from.plusMinutes(7)))
+        batch.set(1, metric(TestTableFields.TEST_CURRENCY_FIELD), Currency.of(1))
 
-    rows.hasNext shouldBe false
+        batch.set(2, Time(from.plusMinutes(10)))
+        batch.set(2, metric(TestTableFields.TEST_CURRENCY_FIELD), Currency.of(432))
+
+        Iterator(batch)
+      }
+
+    val res = tsdb.query(query, now)
+
+    res.next() shouldBe true
+    res.get[Double]("big_sum") shouldBe Currency.of(555)
+    res.get[BigDecimal]("big_count") shouldBe BigDecimal(2)
+  }
+
+  it should "handle currency casts" in withTsdbMock { (tsdb, tsdbDaoMock) =>
+    val sql = s"""
+      | SELECT
+      |   testCurrencyField / cast(testField as currency) as cdc,
+      |   cast(testCurrencyField as double) / testField  as ddd
+      | FROM test_table
+      | WHERE testCurrencyField >= 100 ${timeBounds()}
+      """.stripMargin
+
+    val q = createQuery(sql)
+    val now = Time(LocalDateTime.now())
+
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set[Expression[_]](
+            time,
+            metric(TestTableFields.TEST_CURRENCY_FIELD),
+            metric(TestTableFields.TEST_FIELD)
+          ),
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            ge(metric(TestTableFields.TEST_CURRENCY_FIELD), const(Currency.of(100)))
+          )
+        ),
+        *,
+        *,
+        *
+      )
+      .onCall { (_, _, dsSchema, _) =>
+        val batch = new BatchDataset(dsSchema)
+        batch.set(0, Time(from.plusMinutes(15)))
+        batch.set(0, metric(TestTableFields.TEST_FIELD), 5d)
+        batch.set(0, metric(TestTableFields.TEST_CURRENCY_FIELD), Currency.of(125))
+
+        Iterator(batch)
+      }
+
+    val res = tsdb.query(q, now)
+    res.next() shouldBe true
+
+    res.get[Double]("cdc") shouldEqual 25d
+    res.get[Double]("ddd") shouldEqual 25d
   }
 
   it should "execute query with arithmetic inside CASE" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -146,13 +255,13 @@ class TsdbArithmeticTest
       "FROM test_table " +
       "WHERE A in ('0000270761025003') " + timeBounds() + " GROUP BY A, address"
     val query = createQuery(sql)
+    val now = Time(LocalDateTime.now())
 
     (testCatalogServiceMock.setLinkedValues _)
-      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
-      .onCall((qc, datas, _) =>
+      .expects(*, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
+      .onCall((ds, _) =>
         setCatalogValueByTag(
-          qc,
-          datas,
+          ds,
           TestLinks.TEST_LINK,
           SparseTable("0000270761025003" -> Map("testField" -> "some-val"))
         )
@@ -173,32 +282,34 @@ class TsdbArithmeticTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             in(lower(dimension(TestDims.DIM_A)), Set("0000270761025003"))
-          )
+          ),
+          IndexedSeq.empty
         ),
+        *,
         *,
         *
       )
-      .onCall((_, b, _) =>
-        Iterator(
-          b.set(dimension(TestDims.DIM_A), "0000270761025003")
-            .set(metric(TestTableFields.TEST_FIELD), 1d)
-            .set(metric(TestTableFields.TEST_FIELD2), 2d)
-            .set(metric(TestTableFields.TEST_STRING_FIELD), "3")
-            .buildAndReset(),
-          b.set(dimension(TestDims.DIM_A), "0000270761025003")
-            .set(metric(TestTableFields.TEST_FIELD), 3d)
-            .set(metric(TestTableFields.TEST_FIELD2), 4d)
-            .set(metric(TestTableFields.TEST_STRING_FIELD), "3")
-            .buildAndReset()
-        )
-      )
+      .onCall { (_, _, dsSchema, _) =>
+        val batch = new BatchDataset(dsSchema)
 
-    val rows = tsdb.query(query)
+        batch.set(0, dimension(TestDims.DIM_A), "0000270761025003")
+        batch.set(0, metric(TestTableFields.TEST_FIELD), 1d)
+        batch.set(0, metric(TestTableFields.TEST_FIELD2), 2d)
+        batch.set(0, metric(TestTableFields.TEST_STRING_FIELD), "3")
 
-    val r1 = rows.next()
-    r1.get[Double]("totalSum") shouldBe -6d
+        batch.set(1, dimension(TestDims.DIM_A), "0000270761025003")
+        batch.set(1, metric(TestTableFields.TEST_FIELD), 3d)
+        batch.set(1, metric(TestTableFields.TEST_FIELD2), 4d)
+        batch.set(1, metric(TestTableFields.TEST_STRING_FIELD), "3")
+        Iterator(batch)
+      }
 
-    rows.hasNext shouldBe false
+    val res = tsdb.query(query, now)
+
+    res.next() shouldBe true
+    res.get[Double]("totalSum") shouldBe -6d
+
+    res.next() shouldBe false
   }
 
   it should "execute query like this (do not calculate arithmetic on aggregated fields when evaluating each data row)" in withTsdbMock {
@@ -207,7 +318,7 @@ class TsdbArithmeticTest
         "(distinct_count(testField) + distinct_count(testField2)) as plus5 " +
         "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
       val query = createQuery(sql)
-
+      val now = Time(LocalDateTime.now())
       val pointTime = from.toInstant.toEpochMilli + 10
 
       (tsdbDaoMock.query _)
@@ -215,125 +326,188 @@ class TsdbArithmeticTest
           InternalQuery(
             TestSchema.testTable,
             Set[Expression[_]](metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2), time),
-            and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+            and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+            IndexedSeq.empty
           ),
+          *,
           *,
           *
         )
-        .onCall((_, b, _) =>
-          Iterator(
-            b.set(time, Time(pointTime))
-              .set(metric(TestTableFields.TEST_FIELD), 1d)
-              .set(metric(TestTableFields.TEST_FIELD2), 2d)
-              .buildAndReset(),
-            b.set(time, Time(pointTime))
-              .set(metric(TestTableFields.TEST_FIELD), 1d)
-              .set(metric(TestTableFields.TEST_FIELD2), 4d)
-              .buildAndReset()
-          )
-        )
+        .onCall { (_, _, dsSchema, _) =>
+          val batch = new BatchDataset(dsSchema)
 
-      val rows = tsdb.query(query)
+          batch.set(0, time, Time(pointTime))
+          batch.set(0, metric(TestTableFields.TEST_FIELD), 1d)
+          batch.set(0, metric(TestTableFields.TEST_FIELD2), 2d)
 
-      val r1 = rows.next()
-      r1.get[Long]("plus4") shouldBe 4
-      r1.get[Long]("plus5") shouldBe 3
+          batch.set(1, time, Time(pointTime))
+          batch.set(1, metric(TestTableFields.TEST_FIELD), 1d)
+          batch.set(1, metric(TestTableFields.TEST_FIELD2), 4d)
+          Iterator(batch)
+        }
 
-      rows.hasNext shouldBe false
+      val res = tsdb.query(query, now)
+
+      res.next() shouldBe true
+      res.get[Long]("plus4") shouldBe 4
+      res.get[Long]("plus5") shouldBe 3
+
+      res.next() shouldBe false
+  }
+
+  it should "calculate math with currency fields" in withTsdbMock { (tsdb, tsDaoMock) =>
+    val sql = """SELECT testCurrencyField + testCurrencyField2 as plus,
+                 |      testCurrencyField - testCurrencyField2 as minus,
+                 |      testCurrencyField * 2 as twice,
+                 |      testCurrencyField / 2 as half,
+                 |      testCurrencyField / testCurrencyField2 as ratio
+                 |  FROM test_table
+                 |""".stripMargin + timeBounds(and = false)
+
+    val q = createQuery(sql)
+    val now = Time(LocalDateTime.now())
+    val pointTime = Time(from.plusMinutes(10))
+
+    (tsDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set[Expression[_]](
+            metric(TestTableFields.TEST_CURRENCY_FIELD),
+            metric(TestTableFields.TEST_CURRENCY_FIELD2),
+            time
+          ),
+          and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+          IndexedSeq.empty
+        ),
+        *,
+        *,
+        *
+      )
+      .onCall { (_, _, schema, _) =>
+        val batch = new BatchDataset(schema)
+
+        batch.set(0, pointTime)
+        batch.set(0, metric(TestTableFields.TEST_CURRENCY_FIELD), Currency.of(100))
+        batch.set(0, metric(TestTableFields.TEST_CURRENCY_FIELD2), Currency.of(50))
+        Iterator(batch)
+      }
+
+    val res = tsdb.query(q, now)
+    res.next() shouldBe true
+
+    res.get[Currency]("plus") shouldEqual Currency.of(150)
+    res.get[Currency]("minus") shouldEqual Currency.of(50)
+    res.get[Currency]("twice") shouldEqual Currency.of(200)
+    res.get[Currency]("half") shouldEqual Currency.of(50)
+    res.get[Long]("ratio") shouldEqual 2L
   }
 
   it should "calculate count and distinct_count for metric fields when evaluating each data row including null values" in withTsdbMock {
     (tsdb, tsdbDaoMock) =>
       val sql =
-        """SELECT 
-          |count(testField) c1, 
+        """SELECT
+          |count(testField) c1,
           |count(testField2) c2,
           |count(testStringField) c3,
           |count(testLongField) c4,
-          |count(testBigDecimalField) c5, 
-          |distinct_count(testField) dc1, 
+          |count(testBigDecimalField) c5,
+          |count(testCurrencyField) c6,
+          |distinct_count(testField) dc1,
           |distinct_count(testField2) dc2,
           |distinct_count(testStringField) dc3,
           |distinct_count(testLongField) dc4,
-          |distinct_count(testBigDecimalField) dc5 
+          |distinct_count(testBigDecimalField) dc5,
+          |distinct_count(testCurrencyField) dc6
           |""".stripMargin +
           "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
       val query = createQuery(sql)
-
+      val now = Time(LocalDateTime.now())
       val pointTime = from.toInstant.toEpochMilli + 10
 
       (tsdbDaoMock.query _)
         .expects(
           InternalQuery(
             TestSchema.testTable,
-            Set(
+            Set[Expression[_]](
               metric(TestTableFields.TEST_FIELD),
               metric(TestTableFields.TEST_FIELD2),
               metric(TestTableFields.TEST_STRING_FIELD),
               metric(TestTableFields.TEST_LONG_FIELD),
               metric(TestTableFields.TEST_BIGDECIMAL_FIELD),
+              metric(TestTableFields.TEST_CURRENCY_FIELD),
               time
             ),
-            and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+            and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+            IndexedSeq.empty
           ),
+          *,
           *,
           *
         )
-        .onCall((_, b, _) =>
-          Iterator(
-            b.set(time, Time(pointTime))
-              .set(metric(TestTableFields.TEST_FIELD), null)
-              .set(metric(TestTableFields.TEST_FIELD2), null)
-              .set(metric(TestTableFields.TEST_STRING_FIELD), "a")
-              .set(metric(TestTableFields.TEST_LONG_FIELD), null)
-              .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(1))
-              .buildAndReset(),
-            b.set(time, Time(pointTime))
-              .set(metric(TestTableFields.TEST_FIELD), 1d)
-              .set(metric(TestTableFields.TEST_FIELD2), null)
-              .set(metric(TestTableFields.TEST_STRING_FIELD), null)
-              .set(metric(TestTableFields.TEST_LONG_FIELD), 1L)
-              .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), null)
-              .buildAndReset(),
-            b.set(time, Time(pointTime))
-              .set(metric(TestTableFields.TEST_FIELD), 2d)
-              .set(metric(TestTableFields.TEST_FIELD2), null)
-              .set(metric(TestTableFields.TEST_STRING_FIELD), "b")
-              .set(metric(TestTableFields.TEST_LONG_FIELD), 1L)
-              .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), null)
-              .buildAndReset(),
-            b.set(time, Time(pointTime))
-              .set(metric(TestTableFields.TEST_FIELD), null)
-              .set(metric(TestTableFields.TEST_FIELD2), null)
-              .set(metric(TestTableFields.TEST_STRING_FIELD), null)
-              .set(metric(TestTableFields.TEST_LONG_FIELD), 2L)
-              .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(2))
-              .buildAndReset(),
-            b.set(time, Time(pointTime))
-              .set(metric(TestTableFields.TEST_FIELD), 1d)
-              .set(metric(TestTableFields.TEST_FIELD2), null)
-              .set(metric(TestTableFields.TEST_STRING_FIELD), "a")
-              .set(metric(TestTableFields.TEST_LONG_FIELD), null)
-              .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(1))
-              .buildAndReset()
-          )
-        )
+        .onCall { (_, _, dsSchema, _) =>
+          val batch = new BatchDataset(dsSchema)
 
-      val rows = tsdb.query(query)
+          batch.set(0, time, Time(pointTime))
+          batch.setNull(0, metric(TestTableFields.TEST_FIELD))
+          batch.setNull(0, metric(TestTableFields.TEST_FIELD2))
+          batch.set(0, metric(TestTableFields.TEST_STRING_FIELD), "a")
+          batch.setNull(0, metric(TestTableFields.TEST_LONG_FIELD))
+          batch.set(0, metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(1))
+          batch.set(0, metric(TestTableFields.TEST_CURRENCY_FIELD), Currency(1))
 
-      val r1 = rows.next()
-      r1.get[Long]("c1") shouldBe 3
-      r1.get[Long]("c2") shouldBe 0
-      r1.get[Long]("c3") shouldBe 3
-      r1.get[Long]("c4") shouldBe 3
-      r1.get[Long]("c5") shouldBe 3
-      r1.get[Long]("dc1") shouldBe 2
-      r1.get[Long]("dc2") shouldBe 0
-      r1.get[Long]("dc3") shouldBe 2
-      r1.get[Long]("dc4") shouldBe 2
-      r1.get[Long]("dc5") shouldBe 2
+          batch.set(1, time, Time(pointTime))
+          batch.set(1, metric(TestTableFields.TEST_FIELD), 1d)
+          batch.setNull(1, metric(TestTableFields.TEST_FIELD2))
+          batch.setNull(1, metric(TestTableFields.TEST_STRING_FIELD))
+          batch.set(1, metric(TestTableFields.TEST_LONG_FIELD), 1L)
+          batch.setNull(1, metric(TestTableFields.TEST_BIGDECIMAL_FIELD))
+          batch.setNull(1, metric(TestTableFields.TEST_CURRENCY_FIELD))
 
-      rows.hasNext shouldBe false
+          batch.set(2, time, Time(pointTime))
+          batch.set(2, metric(TestTableFields.TEST_FIELD), 2d)
+          batch.setNull(2, metric(TestTableFields.TEST_FIELD2))
+          batch.set(2, metric(TestTableFields.TEST_STRING_FIELD), "b")
+          batch.set(2, metric(TestTableFields.TEST_LONG_FIELD), 1L)
+          batch.setNull(2, metric(TestTableFields.TEST_BIGDECIMAL_FIELD))
+          batch.setNull(2, metric(TestTableFields.TEST_CURRENCY_FIELD))
+
+          batch.set(3, time, Time(pointTime))
+          batch.setNull(3, metric(TestTableFields.TEST_FIELD))
+          batch.setNull(3, metric(TestTableFields.TEST_FIELD2))
+          batch.setNull(3, metric(TestTableFields.TEST_STRING_FIELD))
+          batch.set(3, metric(TestTableFields.TEST_LONG_FIELD), 2L)
+          batch.set(3, metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(2))
+          batch.set(3, metric(TestTableFields.TEST_CURRENCY_FIELD), Currency(2))
+
+          batch.set(4, time, Time(pointTime))
+          batch.set(4, metric(TestTableFields.TEST_FIELD), 1d)
+          batch.setNull(4, metric(TestTableFields.TEST_FIELD2))
+          batch.set(4, metric(TestTableFields.TEST_STRING_FIELD), "a")
+          batch.setNull(4, metric(TestTableFields.TEST_LONG_FIELD))
+          batch.set(4, metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(1))
+          batch.set(4, metric(TestTableFields.TEST_CURRENCY_FIELD), Currency(1))
+
+          Iterator(batch)
+        }
+
+      val res = tsdb.query(query, now)
+
+      res.next() shouldBe true
+      res.get[Long]("c1") shouldBe 3
+      res.get[Long]("c2") shouldBe 0
+      res.get[Long]("c3") shouldBe 3
+      res.get[Long]("c4") shouldBe 3
+      res.get[Long]("c5") shouldBe 3
+      res.get[Long]("c6") shouldBe 3
+      res.get[Long]("dc1") shouldBe 2
+      res.get[Long]("dc2") shouldBe 0
+      res.get[Long]("dc3") shouldBe 2
+      res.get[Long]("dc4") shouldBe 2
+      res.get[Long]("dc5") shouldBe 2
+      res.get[Long]("dc6") shouldBe 2
+
+      res.next() shouldBe false
   }
 
   it should "calculate count and distinct_count for dimension fields when evaluating each data rows" in withTsdbMock {
@@ -348,120 +522,127 @@ class TsdbArithmeticTest
           "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
 
       val query = createQuery(sql)
-
+      val now = Time(LocalDateTime.now())
       val pointTime = from.toInstant.toEpochMilli + 10
 
       (tsdbDaoMock.query _)
         .expects(
           InternalQuery(
             TestSchema.testTable,
-            Set(
+            Set[Expression[_]](
               dimension(TestDims.DIM_B),
               dimension(TestDims.DIM_A),
               time
             ),
-            and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+            and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+            IndexedSeq.empty
           ),
+          *,
           *,
           *
         )
-        .onCall((_, b, _) =>
-          Iterator(
-            b.set(time, Time(pointTime))
-              .set(dimension(TestDims.DIM_B), 1: Short)
-              .set(dimension(TestDims.DIM_A), "0000270761025003")
-              .buildAndReset(),
-            b.set(time, Time(pointTime))
-              .set(dimension(TestDims.DIM_B), 2: Short)
-              .set(dimension(TestDims.DIM_A), "0000270761025002")
-              .buildAndReset(),
-            b.set(time, Time(pointTime))
-              .set(dimension(TestDims.DIM_B), 1: Short)
-              .set(dimension(TestDims.DIM_A), "0000270761025001")
-              .buildAndReset(),
-            b.set(time, Time(pointTime))
-              .set(dimension(TestDims.DIM_B), 1: Short)
-              .set(dimension(TestDims.DIM_A), "0000270761025003")
-              .buildAndReset()
-          )
-        )
+        .onCall { (_, _, dsSchema, _) =>
+          val batch = new BatchDataset(dsSchema)
 
-      val rows = tsdb.query(query)
+          batch.set(0, time, Time(pointTime))
+          batch.set(0, dimension(TestDims.DIM_B), 1: Short)
+          batch.set(0, dimension(TestDims.DIM_A), "0000270761025003")
 
-      val r1 = rows.next()
-      r1.get[Long]("cB") shouldBe 4
-      r1.get[Long]("cA") shouldBe 4
-      r1.get[Long]("dcB") shouldBe 2
-      r1.get[Long]("dcA") shouldBe 3
+          batch.set(1, time, Time(pointTime))
+          batch.set(1, dimension(TestDims.DIM_B), 2: Short)
+          batch.set(1, dimension(TestDims.DIM_A), "0000270761025002")
 
-      rows.hasNext shouldBe false
+          batch.set(2, time, Time(pointTime))
+          batch.set(2, dimension(TestDims.DIM_B), 1: Short)
+          batch.set(2, dimension(TestDims.DIM_A), "0000270761025001")
+
+          batch.set(3, time, Time(pointTime))
+          batch.set(3, dimension(TestDims.DIM_B), 1: Short)
+          batch.set(3, dimension(TestDims.DIM_A), "0000270761025003")
+
+          Iterator(batch)
+        }
+
+      val res = tsdb.query(query, now)
+
+      res.next() shouldBe true
+      res.get[Long]("cB") shouldBe 4
+      res.get[Long]("cA") shouldBe 4
+      res.get[Long]("dcB") shouldBe 2
+      res.get[Long]("dcA") shouldBe 3
+
+      res.next() shouldBe false
   }
 
   it should "calculate hll_count for metric fields when evaluating each data row including null field values" in withTsdbMock {
     (tsdb, tsdbDaoMock) =>
       val sql =
-        """SELECT 
-          |hll_count(testStringField, 0.01) as hllString, 
-          |hll_count(testLongField, 0.01) as hllLong, 
+        """SELECT
+          |hll_count(testStringField, 0.01) as hllString,
+          |hll_count(testLongField, 0.01) as hllLong,
           |hll_count(testTimeField, 0.01) as hllTime """.stripMargin +
           "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
       val query = createQuery(sql)
 
+      val now = Time(LocalDateTime.now())
       val pointTime = from.toInstant.toEpochMilli + 10
 
       (tsdbDaoMock.query _)
         .expects(
           InternalQuery(
             TestSchema.testTable,
-            Set(
+            Set[Expression[_]](
               metric(TestTableFields.TEST_STRING_FIELD),
               metric(TestTableFields.TEST_LONG_FIELD),
               metric(TestTableFields.TEST_TIME_FIELD),
               time
             ),
-            and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+            and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+            IndexedSeq.empty
           ),
+          *,
           *,
           *
         )
-        .onCall((_, b, _) =>
-          Iterator(
-            b.set(time, Time(pointTime))
-              .set(metric(TestTableFields.TEST_STRING_FIELD), null)
-              .set(metric(TestTableFields.TEST_LONG_FIELD), null)
-              .set(metric(TestTableFields.TEST_TIME_FIELD), null)
-              .buildAndReset(),
-            b.set(time, Time(pointTime))
-              .set(metric(TestTableFields.TEST_STRING_FIELD), "1d")
-              .set(metric(TestTableFields.TEST_LONG_FIELD), 1L)
-              .set(metric(TestTableFields.TEST_TIME_FIELD), Time(1L))
-              .buildAndReset(),
-            b.set(time, Time(pointTime))
-              .set(metric(TestTableFields.TEST_STRING_FIELD), null)
-              .set(metric(TestTableFields.TEST_LONG_FIELD), 1L)
-              .set(metric(TestTableFields.TEST_TIME_FIELD), null)
-              .buildAndReset(),
-            b.set(time, Time(pointTime))
-              .set(metric(TestTableFields.TEST_STRING_FIELD), "2d")
-              .set(metric(TestTableFields.TEST_LONG_FIELD), 2L)
-              .set(metric(TestTableFields.TEST_TIME_FIELD), Time(2L))
-              .buildAndReset(),
-            b.set(time, Time(pointTime))
-              .set(metric(TestTableFields.TEST_STRING_FIELD), "1d")
-              .set(metric(TestTableFields.TEST_LONG_FIELD), null)
-              .set(metric(TestTableFields.TEST_TIME_FIELD), Time(1L))
-              .buildAndReset()
-          )
-        )
+        .onCall { (_, _, dsSchema, _) =>
+          val batch = new BatchDataset(dsSchema)
 
-      val rows = tsdb.query(query)
+          batch.set(0, time, Time(pointTime))
+          batch.setNull(0, metric(TestTableFields.TEST_STRING_FIELD))
+          batch.setNull(0, metric(TestTableFields.TEST_LONG_FIELD))
+          batch.setNull(0, metric(TestTableFields.TEST_TIME_FIELD))
 
-      val r1 = rows.next()
-      r1.get[Long]("hllString") shouldBe 2
-      r1.get[Long]("hllLong") shouldBe 2
-      r1.get[Long]("hllTime") shouldBe 2
+          batch.set(1, time, Time(pointTime))
+          batch.set(1, metric(TestTableFields.TEST_STRING_FIELD), "1d")
+          batch.set(1, metric(TestTableFields.TEST_LONG_FIELD), 1L)
+          batch.set(1, metric(TestTableFields.TEST_TIME_FIELD), Time(1L))
 
-      rows.hasNext shouldBe false
+          batch.set(2, time, Time(pointTime))
+          batch.setNull(2, metric(TestTableFields.TEST_STRING_FIELD))
+          batch.set(2, metric(TestTableFields.TEST_LONG_FIELD), 1L)
+          batch.setNull(2, metric(TestTableFields.TEST_TIME_FIELD))
+
+          batch.set(3, time, Time(pointTime))
+          batch.set(3, metric(TestTableFields.TEST_STRING_FIELD), "2d")
+          batch.set(3, metric(TestTableFields.TEST_LONG_FIELD), 2L)
+          batch.set(3, metric(TestTableFields.TEST_TIME_FIELD), Time(2L))
+
+          batch.set(4, time, Time(pointTime))
+          batch.set(4, metric(TestTableFields.TEST_STRING_FIELD), "1d")
+          batch.setNull(4, metric(TestTableFields.TEST_LONG_FIELD))
+          batch.set(4, metric(TestTableFields.TEST_TIME_FIELD), Time(1L))
+
+          Iterator(batch)
+        }
+
+      val res = tsdb.query(query, now)
+
+      res.next() shouldBe true
+      res.get[Long]("hllString") shouldBe 2
+      res.get[Long]("hllLong") shouldBe 2
+      res.get[Long]("hllTime") shouldBe 2
+
+      res.next() shouldBe false
   }
 
   it should "calculate count, distinct_count and hll_count for metric fields when evaluating each data row with null values" in withTsdbMock {
@@ -471,40 +652,44 @@ class TsdbArithmeticTest
           "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
       val query = createQuery(sql)
 
+      val now = Time(LocalDateTime.now())
       val pointTime = from.toInstant.toEpochMilli + 10
 
       (tsdbDaoMock.query _)
         .expects(
           InternalQuery(
             TestSchema.testTable,
-            Set(metric(TestTableFields.TEST_LONG_FIELD), time),
-            and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+            Set[Expression[_]](metric(TestTableFields.TEST_LONG_FIELD), time),
+            and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+            IndexedSeq.empty
           ),
+          *,
           *,
           *
         )
-        .onCall((_, b, _) =>
-          Iterator(
-            b.set(time, Time(pointTime))
-              .set(metric(TestTableFields.TEST_LONG_FIELD), null)
-              .buildAndReset(),
-            b.set(time, Time(pointTime))
-              .set(metric(TestTableFields.TEST_LONG_FIELD), null)
-              .buildAndReset(),
-            b.set(time, Time(pointTime))
-              .set(metric(TestTableFields.TEST_LONG_FIELD), null)
-              .buildAndReset()
-          )
-        )
+        .onCall { (_, _, dsSchema, _) =>
+          val batch = new BatchDataset(dsSchema)
 
-      val rows = tsdb.query(query)
+          batch.set(0, time, Time(pointTime))
+          batch.setNull(0, metric(TestTableFields.TEST_LONG_FIELD))
 
-      val r1 = rows.next()
-      r1.get[Long]("c") shouldBe 0
-      r1.get[Long]("cd") shouldBe 0
-      r1.get[Long]("ch") shouldBe 0
+          batch.set(1, time, Time(pointTime))
+          batch.setNull(1, metric(TestTableFields.TEST_LONG_FIELD))
 
-      rows.hasNext shouldBe false
+          batch.set(2, time, Time(pointTime))
+          batch.setNull(2, metric(TestTableFields.TEST_LONG_FIELD))
+
+          Iterator(batch)
+        }
+
+      val res = tsdb.query(query, now)
+
+      res.next() shouldBe true
+      res.get[Long]("c") shouldBe 0
+      res.get[Long]("cd") shouldBe 0
+      res.get[Long]("ch") shouldBe 0
+
+      res.next() shouldBe false
   }
 
   it should "throwing exception on calling hll_count for metric decimal field with wrong type" in withTsdbMock {
@@ -540,7 +725,7 @@ class TsdbArithmeticTest
       ) should have message "std_err must be in range (0.00003, 0.367), but: std_err=0.3671"
   }
 
-  it should "throwing exception on calling hll_count for metric decimal field" in withTsdbMock { (tsdb, tsdbDaoMock) =>
+  it should "throwing exception on calling hll_count for metric decimal field" in withTsdbMock { (_, _) =>
     val sql =
       "SELECT hll_count(testField, 0.01) as ch " +
         "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
@@ -553,84 +738,96 @@ class TsdbArithmeticTest
   it should "calculate average for metric fields when evaluating each data row including null field values" in withTsdbMock {
     (tsdb, tsdbDaoMock) =>
       val sql =
-        """SELECT 
-          |avg(testField) avgDouble, 
-          |avg(testLongField) avgLong, 
+        """SELECT
+          |avg(testField) avgDouble,
+          |avg(testLongField) avgLong,
           |avg(testBigDecimalField) avgBigDecimal,
-          |avg(testByteField) avgByte """.stripMargin +
+          |avg(testByteField) avgByte,
+          |avg(testCurrencyField) avgCurrency """.stripMargin +
           "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
 
       val query = createQuery(sql)
-
+      val now = Time(LocalDateTime.now())
       val pointTime = from.toInstant.toEpochMilli + 10
 
       (tsdbDaoMock.query _)
         .expects(
           InternalQuery(
             TestSchema.testTable,
-            Set(
+            Set[Expression[_]](
               metric(TestTableFields.TEST_FIELD),
               metric(TestTableFields.TEST_LONG_FIELD),
               metric(TestTableFields.TEST_BIGDECIMAL_FIELD),
               metric(TestTableFields.TEST_BYTE_FIELD),
+              metric(TestTableFields.TEST_CURRENCY_FIELD),
               time
             ),
-            and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+            and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+            IndexedSeq.empty
           ),
+          *,
           *,
           *
         )
-        .onCall((_, b, _) =>
-          Iterator(
-            b.set(time, Time(pointTime))
-              .set(metric(TestTableFields.TEST_FIELD), null)
-              .set(metric(TestTableFields.TEST_LONG_FIELD), null)
-              .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), null)
-              .set(metric(TestTableFields.TEST_BYTE_FIELD), null)
-              .buildAndReset(),
-            b.set(time, Time(pointTime))
-              .set(metric(TestTableFields.TEST_FIELD), 0d)
-              .set(metric(TestTableFields.TEST_LONG_FIELD), 1L)
-              .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(10))
-              .set(metric(TestTableFields.TEST_BYTE_FIELD), 10.toByte)
-              .buildAndReset(),
-            b.set(time, Time(pointTime))
-              .set(metric(TestTableFields.TEST_FIELD), 10d)
-              .set(metric(TestTableFields.TEST_LONG_FIELD), 11L)
-              .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(101))
-              .set(metric(TestTableFields.TEST_BYTE_FIELD), 101.toByte)
-              .buildAndReset(),
-            b.set(time, Time(pointTime))
-              .set(metric(TestTableFields.TEST_FIELD), null)
-              .set(metric(TestTableFields.TEST_LONG_FIELD), 2L)
-              .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(20))
-              .set(metric(TestTableFields.TEST_BYTE_FIELD), 20.toByte)
-              .buildAndReset(),
-            b.set(time, Time(pointTime))
-              .set(metric(TestTableFields.TEST_FIELD), 6d)
-              .set(metric(TestTableFields.TEST_LONG_FIELD), 5L)
-              .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), null)
-              .set(metric(TestTableFields.TEST_BYTE_FIELD), null)
-              .buildAndReset(),
-            b.set(time, Time(pointTime))
-              .set(metric(TestTableFields.TEST_FIELD), 5d)
-              .set(metric(TestTableFields.TEST_LONG_FIELD), null)
-              .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(7))
-              .set(metric(TestTableFields.TEST_BYTE_FIELD), 7.toByte)
-              .buildAndReset()
-          )
-        )
+        .onCall { (_, _, dsSchema, _) =>
+          val batch = new BatchDataset(dsSchema)
 
-      val rows = tsdb.query(query)
+          batch.set(0, time, Time(pointTime))
+          batch.setNull(0, metric(TestTableFields.TEST_FIELD))
+          batch.setNull(0, metric(TestTableFields.TEST_LONG_FIELD))
+          batch.setNull(0, metric(TestTableFields.TEST_BIGDECIMAL_FIELD))
+          batch.setNull(0, metric(TestTableFields.TEST_BYTE_FIELD))
+          batch.setNull(0, metric(TestTableFields.TEST_CURRENCY_FIELD))
 
-      val r1 = rows.next()
+          batch.set(1, time, Time(pointTime))
+          batch.set(1, metric(TestTableFields.TEST_FIELD), 0d)
+          batch.set(1, metric(TestTableFields.TEST_LONG_FIELD), 1L)
+          batch.set(1, metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(10))
+          batch.set(1, metric(TestTableFields.TEST_BYTE_FIELD), 10.toByte)
+          batch.set(1, metric(TestTableFields.TEST_CURRENCY_FIELD), Currency.of(10))
 
-      r1.get[BigDecimal]("avgDouble") shouldBe 5.25d
-      r1.get[BigDecimal]("avgLong") shouldBe 4.75d
-      r1.get[BigDecimal]("avgBigDecimal") shouldBe 34.5d
-      r1.get[BigDecimal]("avgByte") shouldBe 34.5d
+          batch.set(2, time, Time(pointTime))
+          batch.set(2, metric(TestTableFields.TEST_FIELD), 10d)
+          batch.set(2, metric(TestTableFields.TEST_LONG_FIELD), 11L)
+          batch.set(2, metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(101))
+          batch.set(2, metric(TestTableFields.TEST_BYTE_FIELD), 101.toByte)
+          batch.set(2, metric(TestTableFields.TEST_CURRENCY_FIELD), Currency.of(101))
 
-      rows.hasNext shouldBe false
+          batch.set(3, time, Time(pointTime))
+          batch.setNull(3, metric(TestTableFields.TEST_FIELD))
+          batch.set(3, metric(TestTableFields.TEST_LONG_FIELD), 2L)
+          batch.set(3, metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(20))
+          batch.set(3, metric(TestTableFields.TEST_BYTE_FIELD), 20.toByte)
+          batch.set(3, metric(TestTableFields.TEST_CURRENCY_FIELD), Currency.of(20))
+
+          batch.set(4, time, Time(pointTime))
+          batch.set(4, metric(TestTableFields.TEST_FIELD), 6d)
+          batch.set(4, metric(TestTableFields.TEST_LONG_FIELD), 5L)
+          batch.setNull(4, metric(TestTableFields.TEST_BIGDECIMAL_FIELD))
+          batch.setNull(4, metric(TestTableFields.TEST_BYTE_FIELD))
+          batch.setNull(4, metric(TestTableFields.TEST_CURRENCY_FIELD))
+
+          batch.set(5, time, Time(pointTime))
+          batch.set(5, metric(TestTableFields.TEST_FIELD), 5d)
+          batch.setNull(5, metric(TestTableFields.TEST_LONG_FIELD))
+          batch.set(5, metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(7))
+          batch.set(5, metric(TestTableFields.TEST_BYTE_FIELD), 7.toByte)
+          batch.set(5, metric(TestTableFields.TEST_CURRENCY_FIELD), Currency.of(7))
+
+          Iterator(batch)
+        }
+
+      val res = tsdb.query(query, now)
+
+      res.next() shouldBe true
+
+      res.get[BigDecimal]("avgDouble") shouldBe 5.25d
+      res.get[BigDecimal]("avgLong") shouldBe 4.75d
+      res.get[BigDecimal]("avgBigDecimal") shouldBe 34.5d
+      res.get[BigDecimal]("avgByte") shouldBe 34.5d
+      res.get[BigDecimal]("avgCurrency") shouldBe 34.5
+
+      res.next() shouldBe false
   }
 
   it should "calculate average for dimension fields when evaluating each data row" in withTsdbMock {
@@ -640,6 +837,7 @@ class TsdbArithmeticTest
           "FROM test_table_4 " + timeBounds(and = false) + " GROUP BY day(time)"
 
       val query = createQuery(sql)
+      val now = Time(LocalDateTime.now())
 
       val pointTime = from.toInstant.toEpochMilli + 10
 
@@ -647,40 +845,43 @@ class TsdbArithmeticTest
         .expects(
           InternalQuery(
             TestSchema.testTable4,
-            Set(dimension(TestDims.DIM_B), dimension(TestDims.DIM_Y), time),
-            and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+            Set[Expression[_]](dimension(TestDims.DIM_B), dimension(TestDims.DIM_Y), time),
+            and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+            IndexedSeq.empty
           ),
+          *,
           *,
           *
         )
-        .onCall((_, b, _) =>
-          Iterator(
-            b.set(time, Time(pointTime))
-              .set(dimension(TestDims.DIM_B), 1: Short)
-              .set(dimension(TestDims.DIM_Y), 1L)
-              .buildAndReset(),
-            b.set(time, Time(pointTime))
-              .set(dimension(TestDims.DIM_B), 2: Short)
-              .set(dimension(TestDims.DIM_Y), 1L)
-              .buildAndReset(),
-            b.set(time, Time(pointTime))
-              .set(dimension(TestDims.DIM_B), 1: Short)
-              .set(dimension(TestDims.DIM_Y), 2L)
-              .buildAndReset(),
-            b.set(time, Time(pointTime))
-              .set(dimension(TestDims.DIM_B), 1: Short)
-              .set(dimension(TestDims.DIM_Y), 1L)
-              .buildAndReset()
-          )
-        )
+        .onCall { (_, _, dsSchema, _) =>
+          val batch = new BatchDataset(dsSchema)
 
-      val rows = tsdb.query(query)
+          batch.set(0, time, Time(pointTime))
+          batch.set(0, dimension(TestDims.DIM_B), 1: Short)
+          batch.set(0, dimension(TestDims.DIM_Y), 1L)
 
-      val r1 = rows.next()
-      r1.get[BigDecimal]("avgB") shouldBe 1.25
-      r1.get[BigDecimal]("avgY") shouldBe 1.25
+          batch.set(1, time, Time(pointTime))
+          batch.set(1, dimension(TestDims.DIM_B), 2: Short)
+          batch.set(1, dimension(TestDims.DIM_Y), 1L)
 
-      rows.hasNext shouldBe false
+          batch.set(2, time, Time(pointTime))
+          batch.set(2, dimension(TestDims.DIM_B), 1: Short)
+          batch.set(2, dimension(TestDims.DIM_Y), 2L)
+
+          batch.set(3, time, Time(pointTime))
+          batch.set(3, dimension(TestDims.DIM_B), 1: Short)
+          batch.set(3, dimension(TestDims.DIM_Y), 1L)
+
+          Iterator(batch)
+        }
+
+      val res = tsdb.query(query, now)
+
+      res.next() shouldBe true
+      res.get[BigDecimal]("avgB") shouldBe 1.25
+      res.get[BigDecimal]("avgY") shouldBe 1.25
+
+      res.next() shouldBe false
   }
 
   it should "calculate average for fields when evaluating each data row and each field has null value" in withTsdbMock {
@@ -697,72 +898,79 @@ class TsdbArithmeticTest
         .expects(
           InternalQuery(
             TestSchema.testTable,
-            Set(
+            Set[Expression[_]](
               metric(TestTableFields.TEST_FIELD),
               metric(TestTableFields.TEST_LONG_FIELD),
               metric(TestTableFields.TEST_BIGDECIMAL_FIELD),
               time
             ),
-            and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+            and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+            IndexedSeq.empty
           ),
+          *,
           *,
           *
         )
-        .onCall((_, b, _) =>
-          Iterator(
-            b.set(time, Time(pointTime))
-              .set(metric(TestTableFields.TEST_FIELD), null)
-              .set(metric(TestTableFields.TEST_LONG_FIELD), null)
-              .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), null)
-              .buildAndReset(),
-            b.set(time, Time(pointTime))
-              .set(metric(TestTableFields.TEST_FIELD), null)
-              .set(metric(TestTableFields.TEST_LONG_FIELD), null)
-              .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), null)
-              .buildAndReset()
-          )
-        )
+        .onCall { (_, _, dsSchema, _) =>
+          val batch = new BatchDataset(dsSchema)
 
-      val rows = tsdb.query(query)
+          batch.set(0, time, Time(pointTime))
+          batch.setNull(0, metric(TestTableFields.TEST_FIELD))
+          batch.setNull(0, metric(TestTableFields.TEST_LONG_FIELD))
+          batch.setNull(0, metric(TestTableFields.TEST_BIGDECIMAL_FIELD))
 
-      val r1 = rows.next()
+          batch.set(1, time, Time(pointTime))
+          batch.setNull(1, metric(TestTableFields.TEST_FIELD))
+          batch.setNull(1, metric(TestTableFields.TEST_LONG_FIELD))
+          batch.setNull(1, metric(TestTableFields.TEST_BIGDECIMAL_FIELD))
 
-      r1.get[BigDecimal]("avgDouble") shouldBe null
-      r1.get[BigDecimal]("avgLong") shouldBe null
-      r1.get[BigDecimal]("avgBigDecimal") shouldBe null
+          Iterator(batch)
+        }
 
-      rows.hasNext shouldBe false
+      val res = tsdb.query(query)
+
+      res.next() shouldBe true
+
+      res.get[BigDecimal]("avgDouble") shouldBe null
+      res.get[BigDecimal]("avgLong") shouldBe null
+      res.get[BigDecimal]("avgBigDecimal") shouldBe null
+
+      res.next() shouldBe false
   }
 
   it should "execute query like this (be able to cast long to double)" in withTsdbMock { (tsdb, tsdbDaoMock) =>
     val sql = "SELECT testField + testLongField as plus2 " +
       "FROM test_table " + timeBounds(and = false)
     val query = createQuery(sql)
+    val now = Time(LocalDateTime.now())
 
     (tsdbDaoMock.query _)
       .expects(
         InternalQuery(
           TestSchema.testTable,
           Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_LONG_FIELD)),
-          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+          and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+          IndexedSeq.empty
         ),
+        *,
         *,
         *
       )
-      .onCall((_, b, _) =>
-        Iterator(
-          b.set(metric(TestTableFields.TEST_FIELD), 1d)
-            .set(metric(TestTableFields.TEST_LONG_FIELD), 3L)
-            .buildAndReset()
-        )
-      )
+      .onCall { (_, _, dsSchema, _) =>
+        val batch = new BatchDataset(dsSchema)
 
-    val rows = tsdb.query(query)
+        batch.set(0, metric(TestTableFields.TEST_FIELD), 1d)
+        batch.set(0, metric(TestTableFields.TEST_LONG_FIELD), 3L)
 
-    val r1 = rows.next()
-    r1.get[Double]("plus2") shouldBe 4d
+        Iterator(batch)
+      }
 
-    rows.hasNext shouldBe false
+    val res = tsdb.query(query, now)
+
+    res.next() shouldBe true
+    res.get[Double]("plus2") shouldBe 4d
+
+    res.next() shouldBe false
   }
 
   it should "handle arithmetic in having" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -779,26 +987,28 @@ class TsdbArithmeticTest
         InternalQuery(
           TestSchema.testTable,
           Set[Expression[_]](dimension(TestDims.DIM_A), time),
-          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+          and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+          IndexedSeq.empty
         ),
+        *,
         *,
         *
       )
-      .onCall((_, b, _) =>
-        Iterator(
-          b.set(time, Time(pointTime)).set(dimension(TestDims.DIM_A), "0000270761025003").buildAndReset(),
-          b.set(time, Time(pointTime2)).set(dimension(TestDims.DIM_A), "0000270761025003").buildAndReset()
-        )
-      )
+      .onCall { (_, _, dsSchema, _) =>
+        val batch = new BatchDataset(dsSchema)
+        batch.set(0, time, Time(pointTime))
+        batch.set(0, dimension(TestDims.DIM_A), "0000270761025003")
+        batch.set(1, time, Time(pointTime2))
+        batch.set(1, dimension(TestDims.DIM_A), "0000270761025003")
+        Iterator(batch)
+      }
 
-    val rows = tsdb.query(query)
+    val res = tsdb.query(query)
+    res.next() shouldBe true
 
-    val r1 = rows.next()
-    r1.get[String]("A") shouldBe "0000270761025003"
-    r1.get[Time]("time") shouldBe Time(pointTime2)
-    r1.get[Time]("lag_time") shouldBe Time(pointTime)
-
-    rows.hasNext shouldBe false
+    res.get[String]("A") shouldBe "0000270761025003"
+    res.get[Time]("time") shouldBe Time(pointTime2)
+    res.get[Time]("lag_time") shouldBe Time(pointTime)
   }
 
   it should "handle string arithmetic in having" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -807,6 +1017,7 @@ class TsdbArithmeticTest
       timeBounds(and = false) +
       "HAVING ((operator + lag_operator) <> 'MayorovaBlatov')"
     val query = createQuery(sql)
+    val now = Time(LocalDateTime.now())
 
     val pointTime = from.toInstant.toEpochMilli + 10
     val pointTime2 = pointTime + 10 * 1000
@@ -817,36 +1028,40 @@ class TsdbArithmeticTest
         InternalQuery(
           TestSchema.testTable,
           Set[Expression[_]](metric(TestTableFields.TEST_STRING_FIELD), time),
-          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+          and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+          IndexedSeq.empty
         ),
+        *,
         *,
         *
       )
-      .onCall((_, b, _) =>
-        Iterator(
-          b.set(time, Time(pointTime))
-            .set(metric(TestTableFields.TEST_STRING_FIELD), "Mayorova")
-            .buildAndReset(),
-          b.set(time, Time(pointTime2))
-            .set(metric(TestTableFields.TEST_STRING_FIELD), "Blatov")
-            .buildAndReset(),
-          b.set(time, Time(pointTime3))
-            .set(metric(TestTableFields.TEST_STRING_FIELD), "Mayorova")
-            .buildAndReset()
-        )
-      )
+      .onCall { (_, _, dsSchema, _) =>
+        val batch = new BatchDataset(dsSchema)
 
-    val rows = tsdb.query(query).toList
-    rows should have size 1
-    val row = rows.head
-    row.get[String]("operator") shouldBe "Blatov"
-    row.get[String]("lag_operator") shouldBe "Mayorova"
+        batch.set(0, time, Time(pointTime))
+        batch.set(0, metric(TestTableFields.TEST_STRING_FIELD), "Mayorova")
+
+        batch.set(1, time, Time(pointTime2))
+        batch.set(1, metric(TestTableFields.TEST_STRING_FIELD), "Blatov")
+
+        batch.set(2, time, Time(pointTime3))
+        batch.set(2, metric(TestTableFields.TEST_STRING_FIELD), "Mayorova")
+
+        Iterator(batch)
+      }
+
+    val res = tsdb.query(query, now)
+    res.next() shouldBe true
+
+    res.get[String]("operator") shouldBe "Blatov"
+    res.get[String]("lag_operator") shouldBe "Mayorova"
   }
 
   it should "handle arithmetic with window functions" in withTsdbMock { (tsdb, tsdbDaoMock) =>
     val sql = "SELECT testField, lag(testField), testField + lag(testField) as plus2 " +
       "FROM test_table " + timeBounds(and = false) + " HAVING lag(testField) IS NOT NULL "
     val query = createQuery(sql)
+    val now = Time(LocalDateTime.now())
 
     val pointTime = from.toInstant.toEpochMilli + 10
     val pointTime2 = pointTime + 10 * 1000
@@ -856,26 +1071,33 @@ class TsdbArithmeticTest
         InternalQuery(
           TestSchema.testTable,
           Set[Expression[_]](metric(TestTableFields.TEST_FIELD), time),
-          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+          and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+          IndexedSeq.empty
         ),
+        *,
         *,
         *
       )
-      .onCall((_, b, _) =>
-        Iterator(
-          b.set(time, Time(pointTime)).set(metric(TestTableFields.TEST_FIELD), 1d).buildAndReset(),
-          b.set(time, Time(pointTime2)).set(metric(TestTableFields.TEST_FIELD), 5d).buildAndReset()
-        )
-      )
+      .onCall { (_, _, dsSchema, _) =>
+        val batch = new BatchDataset(dsSchema)
 
-    val rows = tsdb.query(query).toList
+        batch.set(0, time, Time(pointTime))
+        batch.set(0, metric(TestTableFields.TEST_FIELD), 1d)
+        batch.set(1, time, Time(pointTime2))
+        batch.set(1, metric(TestTableFields.TEST_FIELD), 5d)
 
-    val r1 = rows.head
-    r1.get[Double]("testField") shouldBe 5d
-    r1.get[Double]("lag(testField)") shouldBe 1d
-    r1.get[Double]("plus2") shouldBe 6d
+        Iterator(batch)
+      }
 
-    rows should have size 1
+    val res = tsdb.query(query, now)
+
+    res.next() shouldBe true
+
+    res.get[Double]("testField") shouldBe 5d
+    res.get[Double]("lag(testField)") shouldBe 1d
+    res.get[Double]("plus2") shouldBe 6d
+
+    res.next() shouldBe false
   }
 
   it should "support arithmetic on external links" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -883,6 +1105,7 @@ class TsdbArithmeticTest
     val link5 = mockCatalogService(tsdb, TestLinks.TEST_LINK5)
     val sql = "SELECT TestLink5_testField5D + 5 AS plus5 FROM test_table " + timeBounds(and = false)
     val query = createQuery(sql)
+    val now = Time(LocalDateTime.now())
 
     val doubleLinkExpr = link[Double](TestLinks.TEST_LINK5, LinkField[Double]("testField5D"))
 
@@ -891,27 +1114,29 @@ class TsdbArithmeticTest
         InternalQuery(
           TestSchema.testTable,
           Set[Expression[_]](time, dimension(TestDims.DIM_B)),
-          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+          and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+          IndexedSeq.empty
         ),
+        *,
         *,
         *
       )
-      .onCall((_, b, _) =>
-        Iterator(
-          b.set(dimension(TestDims.DIM_B), 12).buildAndReset(),
-          b.set(dimension(TestDims.DIM_B), 15).buildAndReset()
-        )
-      )
+      .onCall { (_, _, dsSchema, _) =>
+        val batch = new BatchDataset(dsSchema)
+        batch.set[Short](0, dimension(TestDims.DIM_B), 12.toShort)
+        Iterator(batch)
+      }
 
     (link5.setLinkedValues _)
-      .expects(*, *, *)
-      .onCall((idx, rs, _) => rs.foreach(r => r.set(idx, doubleLinkExpr, 15.23)))
+      .expects(*, *)
+      .onCall { (ds, _) =>
+        ds.set(0, doubleLinkExpr, 15.23)
+      }
 
-    val rows = tsdb.query(query).toList
+    val res = tsdb.query(query, now)
 
-    val r1 = rows.head
-    r1.get[Double]("plus5") shouldBe 20.23
+    res.next() shouldBe true
 
-    rows should have size 2
+    res.get[Double]("plus5") shouldBe 20.23
   }
 }

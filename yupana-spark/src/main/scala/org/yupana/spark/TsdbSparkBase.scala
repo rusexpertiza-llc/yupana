@@ -23,11 +23,13 @@ import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.yupana.api.query.{ Query, QueryHint }
 import org.yupana.api.schema.Schema
+import org.yupana.api.utils.CloseableIterator
+import org.yupana.core.auth.{ PermissionService, YupanaUser }
 import org.yupana.core.dao.{ DictionaryProvider, TSDao, TsdbQueryMetricsDao }
-import org.yupana.core.model.{ InternalRow, KeyData }
-import org.yupana.core.utils.CloseableIterator
+import org.yupana.core.jit.{ ExpressionCalculatorFactory, JIT }
+import org.yupana.core.model.BatchDataset
 import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
-import org.yupana.core.{ ExpressionCalculatorFactory, QueryContext, TsdbBase }
+import org.yupana.core.{ QueryContext, TsdbBase }
 import org.yupana.hbase.{ HBaseUtils, HdfsFileUtils, TsdbQueryMetricsDaoHBase }
 import org.yupana.spark.TsdbSparkBase.createDefaultMetricCollector
 
@@ -58,9 +60,10 @@ object TsdbSparkBase extends StrictLogging {
   private def createDefaultMetricCollector(
       config: Config,
       opName: String = "query"
-  ): Query => MetricQueryCollector = { query: Query =>
+  ): (Query, String) => MetricQueryCollector = { (query: Query, user: String) =>
     new SparkMetricCollector(
       query,
+      user,
       opName,
       config.metricsUpdateInterval,
       new SparkMetricsReporter(() => getMetricsDao(config))
@@ -76,17 +79,19 @@ abstract class TsdbSparkBase(
     conf: Config,
     override val schema: Schema
 )(
-    metricCollectorCreator: Query => MetricQueryCollector = createDefaultMetricCollector(conf)
+    metricCollectorCreator: (Query, String) => MetricQueryCollector = createDefaultMetricCollector(conf)
 ) extends TsdbBase
     with Serializable {
 
   override type Collection[X] = RDD[X]
-  override type Result = DataRowRDD
+  override type Result = ResultRDD
 
   override val extractBatchSize: Int = conf.extractBatchSize
   override val putBatchSize: Int = conf.putBatchSize
 
-  override val calculatorFactory: ExpressionCalculatorFactory = ExpressionCalculatorFactory
+  override val calculatorFactory: ExpressionCalculatorFactory = JIT
+
+  override val permissionService: PermissionService = new PermissionService(conf.putEnabled)
 
   HBaseUtils.initStorage(
     ConnectionFactory.createConnection(TsDaoHBaseSpark.hbaseConfiguration(conf)),
@@ -100,9 +105,9 @@ abstract class TsdbSparkBase(
   override val dao: TSDao[RDD, Long] =
     new TsDaoHBaseSpark(sparkContext, schema, conf, dictionaryProvider)
 
-  override def createMetricCollector(query: Query): MetricQueryCollector = {
+  override def createMetricCollector(query: Query, user: YupanaUser): MetricQueryCollector = {
     if (conf.collectMetrics) {
-      metricCollectorCreator(query)
+      metricCollectorCreator(query, user.name)
     } else {
       NoMetricCollector
     }
@@ -110,24 +115,24 @@ abstract class TsdbSparkBase(
 
   override def finalizeQuery(
       queryContext: QueryContext,
-      data: RDD[Array[Any]],
+      rows: RDD[BatchDataset],
       metricCollector: MetricQueryCollector
-  ): DataRowRDD = {
-    val rdd = data.mapPartitions { it =>
+  ): ResultRDD = {
+    val rdd = rows.mapPartitions { it =>
       CloseableIterator(it, metricCollector.finish())
     }
-    new DataRowRDD(rdd, queryContext)
+    new ResultRDD(rdd, queryContext)
   }
 
-  def union(rdds: Seq[DataRowRDD]): DataRowRDD = {
-    val rdd = sparkContext.union(rdds.map(_.rows))
-    new DataRowRDD(rdd, rdds.head.queryContext)
+  def union(rdds: Seq[ResultRDD]): ResultRDD = {
+    val rdd = sparkContext.union(rdds.map(_.data))
+    new ResultRDD(rdd, rdds.head.queryContext)
   }
 
   override def applyWindowFunctions(
       queryContext: QueryContext,
-      keysAndValues: RDD[(KeyData, InternalRow)]
-  ): RDD[(KeyData, InternalRow)] = {
+      keysAndValues: RDD[BatchDataset]
+  ): RDD[BatchDataset] = {
     throw new UnsupportedOperationException("Window functions are not supported in TSDB Spark")
   }
 }

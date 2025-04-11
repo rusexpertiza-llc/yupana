@@ -17,12 +17,12 @@
 package org.yupana.spark
 
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.Row
 import org.threeten.extra.Interval
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
-import org.yupana.api.query.{ AndExpr, DataPoint, Expression }
-import org.yupana.api.schema.{ Metric, MetricValue, Rollup, Table }
+import org.yupana.api.query.{ AndExpr, Expression }
+import org.yupana.api.schema.{ Rollup, Table }
+import org.yupana.core.model.BatchDataset
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
 
@@ -40,24 +40,7 @@ abstract class CustomRollup(
   def doRollup(
       tsdbSpark: TsdbSparkBase,
       recalcIntervals: Seq[Interval]
-  ): RDD[DataPoint]
-
-  protected def toDataPoints(table: Table, rdd: RDD[Row]): RDD[DataPoint] = {
-    rdd.map { row =>
-      val dimensions = table.dimensionSeq.map { dimension =>
-        val value = row.getAs[dimension.T](dimension.name)
-        dimension -> value
-      }.toMap
-
-      val metrics = table.metrics.flatMap { metric =>
-        val value = getOpt[metric.T](row, metric.name)
-        value.map(v => MetricValue[metric.T](metric.asInstanceOf[Metric.Aux[metric.T]], v))
-      }
-
-      val timeMillis = row.getAs[Long](Table.TIME_FIELD_NAME)
-      DataPoint(table, timeMillis, dimensions, metrics)
-    }
-  }
+  ): RDD[BatchDataset]
 
   protected def executeQuery(
       tsdbSpark: TsdbSparkBase,
@@ -81,10 +64,5 @@ abstract class CustomRollup(
       case Left(msg) =>
         throw new RuntimeException(s"Bad query ($sql): $msg")
     }
-  }
-
-  private def getOpt[T](row: Row, fieldName: String): Option[T] = {
-    if (row.isNullAt(row.fieldIndex(fieldName))) None
-    else Some(row.getAs[T](fieldName))
   }
 }

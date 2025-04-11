@@ -16,10 +16,12 @@
 
 package org.yupana.core.sql
 
+import org.yupana.api.Currency
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.types.DataType.TypeKind
-import org.yupana.api.types.{ ArrayDataType, DataType }
+import org.yupana.api.types.guards.{ DivGuard, Guard2, MinusGuard, PlusGuard, TimesGuard }
+import org.yupana.api.types.{ ArrayDataType, DataType, Num }
 import org.yupana.core.ConstantCalculator
 
 object FunctionRegistry {
@@ -44,28 +46,46 @@ object FunctionRegistry {
       f: (ConstantCalculator, Expression[_], Expression[_]) => Either[String, Expression[_]]
   )
 
-  trait Bind[A[_], Z] {
+  private trait Bind[A[_], Z] {
     def apply[T](a: A[T]): Z
   }
 
-  trait Bind2[A[_], B[_], Z] {
+  private trait Bind2[A[_], B[_], Z] {
     def apply[T](a: A[T], b: B[T]): Z
   }
 
-  trait Bind2R[A[_], B[_], Z[_]] {
+  private trait Bind2R[A[_], B[_], Z[_]] {
     def apply[T](a: A[T], b: B[T]): Z[T]
   }
 
-  trait Bind3[A[_], B[_], C[_], Z] {
+  private trait Bind3[A[_], B[_], C[_], Z] {
     def apply[T](a: A[T], b: B[T], c: C[T]): Z
   }
 
+  private trait BindGuard2[G[_, _, _]] {
+    def apply[A, B, R](a: Expression[A], b: Expression[B], g: G[A, B, R]): Expression[R]
+  }
+
+  val nullaryFunctions: Map[String, Expression[_]] = Map(
+    "now" -> NowExpr
+  )
+
   private val unaryFunctions: List[FunctionDesc] = List(
     // AGGREGATES
-    uNum(
+    FunctionDesc(
       "sum",
-      new Bind2R[Expression, Numeric, Expression] {
-        override def apply[T](e: Expression[T], n: Numeric[T]): Expression[T] = SumExpr(e)(n)
+      NumberParam,
+      (_, e: Expression[_]) => {
+        e.dataType.meta.sqlTypeName match {
+          case "TINYINT"  => Right(SumExpr[Byte, Int](e.asInstanceOf[Expression[Byte]]))
+          case "SMALLINT" => Right(SumExpr[Short, Int](e.asInstanceOf[Expression[Short]]))
+          case "INTEGER"  => Right(SumExpr[Int, Int](e.asInstanceOf[Expression[Int]]))
+          case "BIGINT"   => Right(SumExpr[Long, Long](e.asInstanceOf[Expression[Long]]))
+          case "DOUBLE"   => Right(SumExpr[Double, Double](e.asInstanceOf[Expression[Double]]))
+          case "DECIMAL"  => Right(SumExpr[BigDecimal, BigDecimal](e.asInstanceOf[Expression[BigDecimal]]))
+          case "CURRENCY" => Right(SumExpr[Currency, Currency](e.asInstanceOf[Expression[Currency]]))
+          case x          => Left(s"$x type is not available for Sum expression")
+        }
       }
     ),
     uOrd(
@@ -88,20 +108,20 @@ object FunctionRegistry {
     // REAL UNARY
     uNum(
       "-",
-      new Bind2R[Expression, Numeric, Expression] {
-        override def apply[T](e: Expression[T], n: Numeric[T]): Expression[T] = UnaryMinusExpr(e)(n)
+      new Bind2R[Expression, Num, Expression] {
+        override def apply[T](e: Expression[T], n: Num[T]): Expression[T] = UnaryMinusExpr(e)(n)
       }
     ),
     uNum(
       "abs",
-      new Bind2R[Expression, Numeric, Expression] {
-        override def apply[T](e: Expression[T], n: Numeric[T]): Expression[T] = AbsExpr(e)(n)
+      new Bind2R[Expression, Num, Expression] {
+        override def apply[T](e: Expression[T], n: Num[T]): Expression[T] = AbsExpr(e)(n)
       }
     ),
     uNum(
       "avg",
-      new Bind2[Expression, Numeric, Expression[BigDecimal]] {
-        override def apply[T](e: Expression[T], n: Numeric[T]): Expression[BigDecimal] = AvgExpr(e)(n)
+      new Bind2[Expression, Num, Expression[BigDecimal]] {
+        override def apply[T](e: Expression[T], n: Num[T]): Expression[BigDecimal] = AvgExpr(e)(n)
       }
     ),
     uTyped("year", TruncYearExpr),
@@ -189,43 +209,38 @@ object FunctionRegistry {
         override def apply[T](a: Expression[T], b: Expression[T]): Condition = NeqExpr(a, b)
       }
     ),
-    biNum(
+    biGuardAligned(
       "+",
-      new Bind3[Expression, Expression, Numeric, Expression[_]] {
-        override def apply[T](a: Expression[T], b: Expression[T], n: Numeric[T]): Expression[_] = PlusExpr(a, b)(n)
+      PlusGuard.get,
+      new BindGuard2[PlusGuard] {
+        override def apply[A, B, R](a: Expression[A], b: Expression[B], g: PlusGuard[A, B, R]): Expression[R] =
+          PlusExpr(a, b)(g)
       }
     ),
-    biNum(
+    biGuardAligned(
       "-",
-      new Bind3[Expression, Expression, Numeric, Expression[_]] {
-        override def apply[T](a: Expression[T], b: Expression[T], n: Numeric[T]): Expression[_] =
-          MinusExpr(a, b)(n)
+      MinusGuard.get,
+      new BindGuard2[MinusGuard] {
+        override def apply[A, B, R](a: Expression[A], b: Expression[B], g: MinusGuard[A, B, R]): Expression[R] =
+          MinusExpr(a, b)(g)
       }
     ),
-    biNum(
+    biGuardOrdered(
       "*",
-      new Bind3[Expression, Expression, Numeric, Expression[_]] {
-        override def apply[T](a: Expression[T], b: Expression[T], n: Numeric[T]): Expression[_] =
-          TimesExpr(a, b)(n)
+      TimesGuard.get,
+      new BindGuard2[TimesGuard] {
+        override def apply[A, B, R](a: Expression[A], b: Expression[B], g: TimesGuard[A, B, R]): Expression[R] =
+          TimesExpr(a, b)(g)
       }
     ),
-    Function2Desc(
+    biGuardOrdered(
       "/",
-      (calculator: ConstantCalculator, a: Expression[_], b: Expression[_]) =>
-        DataTypeUtils.alignTypes(a, b, calculator) match {
-          case Right(pair) if pair.dataType.integral.isDefined =>
-            Right(DivIntExpr(pair.a, pair.b)(pair.dataType.integral.get))
-          case Right(pair) if pair.dataType.fractional.isDefined =>
-            Right(DivFracExpr(pair.a, pair.b)(pair.dataType.fractional.get))
-          case Right(pair) => Left(s"Cannot apply math operations to ${pair.dataType}")
-          case Left(msg)   => Left(msg)
-        }
+      DivGuard.get,
+      new BindGuard2[DivGuard] {
+        override def apply[A, B, R](a: Expression[A], b: Expression[B], g: DivGuard[A, B, R]): Expression[R] =
+          DivExpr(a, b)(g)
+      }
     ),
-    biTyped("+", ConcatExpr),
-    biTyped("-", TimeMinusExpr),
-    biTyped("-", TimeMinusPeriodExpr),
-    biTyped("+", TimePlusPeriodExpr),
-    biTyped("+", PeriodPlusPeriodExpr),
     biArrayAndElem(
       "contains",
       new Bind2[ArrayExpr, Expression, Expression[_]] {
@@ -254,7 +269,7 @@ object FunctionRegistry {
       "hll_count",
       (_, a: Expression[_], c: Expression[_]) =>
         c match {
-          case ConstantExpr(v, _) =>
+          case ConstantExpr(v) =>
             val tpe = a.dataType.meta.sqlTypeName
             val std_err = v.asInstanceOf[BigDecimal]
             if (!Set("VARCHAR", "BIGINT", "SHORT", "TIMESTAMP").contains(tpe)) {
@@ -262,7 +277,7 @@ object FunctionRegistry {
             } else if (std_err < 0.00003 || std_err > 0.367) {
               Left("std_err must be in range (0.00003, 0.367), but: std_err=" + std_err)
             } else {
-              c.dataType.numeric
+              c.dataType.num
                 .map(n => HLLCountExpr(a, n.toDouble(v.asInstanceOf[c.dataType.T])))
                 .toRight(s"$c must be a number")
             }
@@ -272,7 +287,15 @@ object FunctionRegistry {
     )
   )
 
-  def unary(name: String, calculator: ConstantCalculator, e: Expression[_]): Either[String, Expression[_]] = {
+  def nullary(name: String): Either[String, Expression[_]] = {
+    nullaryFunctions.get(name.toLowerCase).toRight(s"Undefined function $name")
+  }
+
+  def unary(
+      name: String,
+      calculator: ConstantCalculator,
+      e: Expression[_]
+  ): Either[String, Expression[_]] = {
     unaryFunctions.filter(_.name == name.toLowerCase) match {
       case Nil => Left(s"Undefined function $name")
       case xs =>
@@ -308,7 +331,7 @@ object FunctionRegistry {
   }
 
   def functionsForType(t: DataType): Seq[String] = {
-    val num = if (t.numeric.isDefined) unaryFunctions.filter(_.t == NumberParam) else Seq.empty
+    val num = if (t.num.isDefined) unaryFunctions.filter(_.t == NumberParam) else Seq.empty
     val ord = if (t.ordering.isDefined) unaryFunctions.filter(_.t == OrdParam) else Seq.empty
     val tpe = unaryFunctions.filter(_.t == DataTypeParam(t))
     val array = if (t.kind == TypeKind.Array) unaryFunctions.filter(_.t == ArrayParam) else Seq.empty
@@ -319,14 +342,14 @@ object FunctionRegistry {
 
   private def uNum(
       fn: String,
-      create: Bind2R[Expression, Numeric, Expression]
+      create: Bind2R[Expression, Num, Expression]
   ): FunctionDesc = {
     FunctionDesc(
       fn,
       NumberParam,
       {
         case (_: ConstantCalculator, e: Expression[t]) =>
-          e.dataType.numeric.fold[Either[String, Expression[t]]](Left(s"$fn requires a number, but got ${e.dataType}"))(
+          e.dataType.num.fold[Either[String, Expression[t]]](Left(s"$fn requires a number, but got ${e.dataType}"))(
             num => Right(create(e, num))
           )
       }
@@ -335,14 +358,14 @@ object FunctionRegistry {
 
   private def uNum[T](
       fn: String,
-      create: Bind2[Expression, Numeric, Expression[T]]
+      create: Bind2[Expression, Num, Expression[T]]
   ): FunctionDesc = {
     FunctionDesc(
       fn,
       NumberParam,
       {
         case (_, e: Expression[t]) =>
-          e.dataType.numeric.fold[Either[String, Expression[T]]](Left(s"$fn requires a number, but got ${e.dataType}"))(
+          e.dataType.num.fold[Either[String, Expression[T]]](Left(s"$fn requires a number, but got ${e.dataType}"))(
             num => Right(create(e, num))
           )
       }
@@ -406,18 +429,76 @@ object FunctionRegistry {
     )
   }
 
-  private def biNum(
+  private def guardedExpr[G[_, _, _] <: Guard2[_, _, _]](
       fn: String,
-      create: Bind3[Expression, Expression, Numeric, Expression[_]]
+      guard: (DataType, DataType) => Option[G[_, _, _]],
+      create: BindGuard2[G],
+      a: Expression[_],
+      b: Expression[_]
+  ): Either[String, Expression[_]] = {
+    guard(a.dataType, b.dataType) match {
+      case Some(g) =>
+        type A = a.dataType.T
+        type B = b.dataType.T
+        type R = g.dataType.T
+        Right(
+          create(a.asInstanceOf[Expression[A]], b.asInstanceOf[Expression[B]], g.asInstanceOf[G[A, B, R]])
+        )
+      case None => Left(s"$fn is not defined for ${a.dataType} and ${b.dataType}")
+    }
+  }
+
+  private def biGuardAligned[G[_, _, _] <: Guard2[_, _, _]](
+      fn: String,
+      guard: (DataType, DataType) => Option[G[_, _, _]],
+      create: BindGuard2[G]
   ): Function2Desc = {
     Function2Desc(
       fn,
-      (calculator, a, b) =>
-        DataTypeUtils.alignTypes(a, b, calculator) match {
-          case Right(pair) if pair.dataType.numeric.isDefined =>
-            Right(create(pair.a, pair.b, pair.dataType.numeric.get))
-          case Right(_) => Left(s"Cannot apply $fn to ${a.dataType} and ${b.dataType}")
-          case Left(_)  => Left(s"Function $fn cannot be applied to $a, $b of types ${a.dataType}, ${b.dataType}")
+      (c, a, b) =>
+        (a, b) match {
+          case (_: ConstExpr[_], _: ConstExpr[_]) => guardedExpr(fn, guard, create, a, b)
+          case (_, bc: ValueExpr[_]) =>
+            DataTypeUtils
+              .valueCast(bc, a.dataType.aux, c)
+              .flatMap(e => guardedExpr(fn, guard, create, a, e))
+              .orElse(guardedExpr(fn, guard, create, a, b))
+          case (ac: ValueExpr[_], _) =>
+            DataTypeUtils
+              .valueCast(ac, b.dataType.aux, c)
+              .flatMap(e => guardedExpr(fn, guard, create, e, b))
+              .orElse(guardedExpr(fn, guard, create, a, b))
+          case (_, _) => guardedExpr(fn, guard, create, a, b)
+        }
+    )
+  }
+
+  private def biGuardOrdered[G[_, _, _] <: Guard2[_, _, _]](
+      fn: String,
+      guard: DataType => List[(DataType, G[_, _, _])],
+      create: BindGuard2[G]
+  ): Function2Desc = {
+
+    val pureGuard = (t1: DataType, t2: DataType) => guard(t1).find(_._1 == t2).map(_._2)
+
+    Function2Desc(
+      fn,
+      (c, a, b) =>
+        (a, b) match {
+          case (_: ConstExpr[_], _: ConstExpr[_]) => guardedExpr(fn, pureGuard, create, a, b)
+          case (_, bc: ValueExpr[_]) =>
+            guard(a.dataType).foldLeft(Left(s"No function $fn found"): Either[String, Expression[_]]) {
+              case (Right(e), _) => Right(e)
+              case (Left(_), (bt, g)) =>
+                DataTypeUtils.valueCast(bc, bt.aux, c).flatMap(e => guardedExpr(fn, pureGuard, create, a, e))
+            }
+          case (ac: ValueExpr[_], _) =>
+            guard(b.dataType).foldLeft(Left(s"No function $fn found"): Either[String, Expression[_]]) {
+              case (Right(e), _) => Right(e)
+              case (Left(_), (at, g)) =>
+                DataTypeUtils.valueCast(ac, at.aux, c).flatMap(e => guardedExpr(fn, pureGuard, create, e, b))
+            }
+          case (_, _) => guardedExpr(fn, pureGuard, create, a, b)
         }
     )
   }
@@ -428,17 +509,6 @@ object FunctionRegistry {
       (calculator, a, b) => DataTypeUtils.alignTypes(a, b, calculator).map(pair => create(pair.a, pair.b))
     )
   }
-
-  private def biTyped[T, U](fn: String, create: (Expression[T], Expression[U]) => Expression[_])(
-      implicit dtt: DataType.Aux[T],
-      dtu: DataType.Aux[U]
-  ): Function2Desc = Function2Desc(
-    fn,
-    (_, a, b) =>
-      if (a.dataType == dtt && b.dataType == dtu)
-        Right(create(a.asInstanceOf[Expression[T]], b.asInstanceOf[Expression[U]]))
-      else Left(s"Function $fn cannot be applied to $a, $b of types ${a.dataType}, ${b.dataType}")
-  )
 
   private def biArray[T](fn: String, create: Bind2[ArrayExpr, ArrayExpr, Expression[_]]): Function2Desc = {
     Function2Desc(

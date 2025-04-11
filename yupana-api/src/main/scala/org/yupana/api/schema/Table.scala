@@ -58,6 +58,8 @@ class Table(
 
   val metricTagsSet: Set[Byte] = metrics.map(_.tag).toSet
 
+  val metricGroups: Seq[Int] = metrics.map(_.group).distinct
+
   @inline
   final def fieldForTag(tag: Byte): Option[Either[Metric, Dimension]] = tagFields(tag & 0xFF)
 
@@ -118,6 +120,7 @@ class Table(
   }
 
   override def hashCode(): Int = name.hashCode
+
 }
 
 object Table {

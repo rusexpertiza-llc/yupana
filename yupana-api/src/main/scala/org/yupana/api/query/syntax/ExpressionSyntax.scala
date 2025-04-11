@@ -24,21 +24,26 @@ import org.yupana.api.types._
 trait ExpressionSyntax {
   val time: TimeExpr.type = TimeExpr
 
-  def tuple[T, U](e1: Expression[T], e2: Expression[U])(implicit rtt: DataType.Aux[T], rtu: DataType.Aux[U]) =
-    TupleExpr(e1, e2)
+  def tuple[T, U](e1: Expression[T], e2: Expression[U]): TupleExpr[T, U] = TupleExpr(e1, e2)
+  def tupleValue[T, U](v1: T, v2: U)(implicit dtt: DataType.Aux[T], dtu: DataType.Aux[U]): ValueExpr[(T, U)] =
+    TupleValueExpr(ConstantExpr(v1), ConstantExpr(v2))
   def array[T](es: Expression[T]*)(implicit dtt: DataType.Aux[T]) = ArrayExpr[T](Seq(es: _*))
   def dimension[T](dim: Dimension.Aux[T]) = DimensionExpr(dim)
   def link(link: ExternalLink, fieldName: String): LinkExpr[String] =
     LinkExpr[String](link, LinkField[String](fieldName))
   def link[T](link: ExternalLink, field: LinkField.Aux[T]): LinkExpr[T] = LinkExpr[T](link, field)
   def metric[T](m: Metric.Aux[T]) = MetricExpr(m)
-  def const[T](c: T)(implicit rt: DataType.Aux[T]): Expression[T] = ConstantExpr[T](c)
+  def const[T](c: T)(implicit rt: DataType.Aux[T]): ConstantExpr[T] = ConstantExpr[T](c)
+  def param[T](id: Int)(implicit dt: DataType.Aux[T]): Expression[T] = PlaceholderExpr(id, dt)
 
   def condition[T](condition: Condition, positive: Expression[T], negative: Expression[T]) =
     ConditionExpr(condition, positive, negative)
 
-  def in[T](e: Expression[T], consts: Set[T]): InExpr[T] = InExpr(e, consts)
-  def notIn[T](e: Expression[T], consts: Set[T]): NotInExpr[T] = NotInExpr(e, consts)
+  def in[T](e: Expression[T], consts: Set[T]): InExpr[T] = InExpr(e, consts.map(x => ConstantExpr(x)(e.dataType)))
+  def inValues[T](e: Expression[T], consts: Set[ValueExpr[T]]): InExpr[T] = InExpr(e, consts)
+  def notIn[T](e: Expression[T], consts: Set[T]): NotInExpr[T] =
+    NotInExpr(e, consts.map(x => ConstantExpr(x)(e.dataType)))
+  def notInValues[T](e: Expression[T], consts: Set[ValueExpr[T]]): NotInExpr[T] = NotInExpr(e, consts)
 
   def and(exprs: Condition*): Condition = AndExpr(Seq(exprs: _*))
   def or(exprs: Condition*): Condition = OrExpr(Seq(exprs: _*))

@@ -16,13 +16,17 @@
 
 package org.yupana.core
 
+import org.yupana.core.model.{ BatchDataset, HashTableDataset }
 import org.yupana.core.utils.CollectionUtils
+
 import scala.reflect.ClassTag
 
 class IteratorMapReducible(reduceLimit: Int = Int.MaxValue) extends MapReducible[Iterator] {
 
   override def empty[A: ClassTag]: Iterator[A] = Iterator.empty
+  override def fromSeq[A: ClassTag](seq: Seq[A]): Iterator[A] = seq.iterator
   override def singleton[A: ClassTag](a: A): Iterator[A] = Iterator(a)
+
   override def filter[A: ClassTag](it: Iterator[A])(f: A => Boolean): Iterator[A] = it.filter(f)
 
   override def map[A: ClassTag, B: ClassTag](it: Iterator[A])(f: A => B): Iterator[B] = it.map(f)
@@ -47,13 +51,39 @@ class IteratorMapReducible(reduceLimit: Int = Int.MaxValue) extends MapReducible
   )(createZero: A => B, seqOp: (B, A) => B, combOp: (B, B) => B): Iterator[(K, B)] =
     CollectionUtils.foldByKey(it)(createZero, seqOp)
 
+  override def aggregate[A: ClassTag, B: ClassTag](
+      it: Iterator[A]
+  )(createZero: A => B, seqOp: (B, A) => B, combOp: (B, B) => B): Iterator[B] = {
+    if (it.hasNext) {
+      val first = it.next()
+      val r = it.foldLeft(createZero(first))(seqOp)
+      Iterator(r)
+    } else {
+      Iterator.empty[B]
+    }
+  }
+
+  override def aggregateDatasets(it: Iterator[BatchDataset], queryContext: QueryContext)(
+      foldOp: (HashTableDataset, BatchDataset) => Unit,
+      combOp: (HashTableDataset, BatchDataset) => Unit
+  ): Iterator[BatchDataset] = {
+    val acc = HashTableDataset(queryContext)
+    it.foreach { batch =>
+      foldOp(acc, batch)
+    }
+    acc.iterator
+  }
+
   override def distinct[A: ClassTag](it: Iterator[A]): Iterator[A] = it.toSet.iterator
 
-  override def limit[A: ClassTag](it: Iterator[A])(n: Int): Iterator[A] = it.take(n)
+  override def limit(it: Iterator[BatchDataset])(n: Int): Iterator[BatchDataset] = {
+    new LimitIterator(it, n)
+  }
 
   override def materialize[A: ClassTag](it: Iterator[A]): Seq[A] = it.toList
 
   override def concat[A: ClassTag](a: Iterator[A], b: Iterator[A]): Iterator[A] = a ++ b
+
 }
 
 object IteratorMapReducible {

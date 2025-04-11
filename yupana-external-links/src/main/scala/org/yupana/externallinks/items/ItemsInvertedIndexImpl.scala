@@ -17,20 +17,29 @@
 package org.yupana.externallinks.items
 
 import com.typesafe.scalalogging.StrictLogging
+import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.Schema
+import org.yupana.api.types.{ ID, ReaderWriter }
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.ExternalLinkService
+import org.yupana.core.auth.YupanaUser
 import org.yupana.core.dao.InvertedIndexDao
-import org.yupana.core.model.InternalRow
+import org.yupana.core.model.BatchDataset
 import org.yupana.core.utils.FlatAndCondition
 import org.yupana.externallinks.ExternalLinkUtils
+import org.yupana.serialization.ByteBufferEvalReaderWriter
 import org.yupana.schema.externallinks.ItemsInvertedIndex
 import org.yupana.schema.{ Dimensions, ItemDimension }
+
+import java.nio.ByteBuffer
+import scala.collection.mutable
 
 object ItemsInvertedIndexImpl {
 
   val TABLE_NAME: String = "ts_items_reverse_index"
+
+  implicit val readerWriter: ReaderWriter[ByteBuffer, ID, Int, Int] = ByteBufferEvalReaderWriter
 
   def indexItems(schema: Schema)(items: Seq[(ItemDimension.KeyType, String)]): Map[String, Seq[ItemDimension.KeyType]] =
     items
@@ -47,6 +56,18 @@ object ItemsInvertedIndexImpl {
         case (word, group) =>
           (word, group.map(_._2))
       }
+
+  def valueSerializer(v: ItemDimension.KeyType): Array[Byte] = {
+    val s = Dimensions.ITEM.rStorable.size
+    val a = Array.ofDim[Byte](s)
+    val bb = ByteBuffer.wrap(a)
+    Dimensions.ITEM.rStorable.write(bb, v: ID[ItemDimension.KeyType])
+    a
+  }
+
+  def valueDeserializer(a: Array[Byte]): ItemDimension.KeyType = {
+    Dimensions.ITEM.rStorable.read(ByteBuffer.wrap(a)): ID[ItemDimension.KeyType]
+  }
 }
 
 class ItemsInvertedIndexImpl(
@@ -68,6 +89,15 @@ class ItemsInvertedIndexImpl(
         .filter(_.trim.nonEmpty)
       putItemNames(items)
     }
+  }
+
+  override def put(batchDataset: BatchDataset): Unit = {
+    val items = mutable.Set.empty[String]
+    batchDataset.foreach { rowNum =>
+      val item = batchDataset.get[Dimensions.ITEM.T](rowNum, Dimensions.ITEM.name)
+      items.add(item)
+    }
+    putItemNames(items.toSet)
   }
 
   def putItemNames(names: Set[String]): Unit = {
@@ -98,12 +128,15 @@ class ItemsInvertedIndexImpl(
 
   // Read only external link
   override def setLinkedValues(
-      exprIndex: collection.Map[Expression[_], Int],
-      rows: Seq[InternalRow],
+      batch: BatchDataset,
       exprs: Set[LinkExpr[_]]
   ): Unit = {}
 
-  override def transformCondition(condition: FlatAndCondition): Seq[ConditionTransformation] = {
+  override def transformCondition(
+      condition: FlatAndCondition,
+      startTime: Time,
+      user: YupanaUser
+  ): Seq[ConditionTransformation] = {
     ExternalLinkUtils.transformConditionT[String](
       externalLink.linkName,
       condition,
@@ -135,4 +168,5 @@ class ItemsInvertedIndexImpl(
     val idsPerPrefix = transPrefixes.map(dimIdsForPrefix)
     SortedSetIterator.intersectAll(idsPerWord.toSeq ++ idsPerPrefix)
   }
+
 }

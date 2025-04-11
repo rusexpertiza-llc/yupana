@@ -39,7 +39,7 @@ class SettingsTest extends AnyFlatSpec with Matchers {
   }
 
   it should "parse existing property with empty value to Option when allowEmpty is true" in {
-    val res = settings.opt[String]("empty_string", true)
+    val res = settings.opt[String]("empty_string", allowEmpty = true)
     res should not be empty
     res.get should be("")
   }
@@ -50,7 +50,7 @@ class SettingsTest extends AnyFlatSpec with Matchers {
   }
 
   it should "throw an SettingsException while parsing an existing value to incompatible type when allowEmpty is true" in {
-    an[SettingsException] should be thrownBy settings.opt[Period]("empty_string", true)
+    an[SettingsException] should be thrownBy settings.opt[Period]("empty_string", allowEmpty = true)
   }
 
   it should "throw an SettingsException when apply is called with not existing property name" in {

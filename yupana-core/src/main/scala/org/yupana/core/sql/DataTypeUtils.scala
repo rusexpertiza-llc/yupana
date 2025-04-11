@@ -16,8 +16,9 @@
 
 package org.yupana.core.sql
 
+import org.yupana.api.Currency
 import org.yupana.api.query._
-import org.yupana.api.types.DataType
+import org.yupana.api.types.{ DataType, TupleDataType }
 import org.yupana.core.ConstantCalculator
 
 object DataTypeUtils {
@@ -37,32 +38,62 @@ object DataTypeUtils {
   }
 
   def constCast[U, T](
-      const: ConstExpr[U],
-      dataType: DataType.Aux[T],
+      v: U,
+      fromType: DataType.Aux[U],
+      toType: DataType.Aux[T],
       calc: ConstantCalculator
   ): Either[String, T] = {
+    if (fromType == toType) {
+      Right(v.asInstanceOf[T])
+    } else {
+      autoConverter(fromType, toType)
+        .map(conv => calc.evaluateConstant(conv(ConstantExpr(v)(fromType))))
+        .orElse(
+          partial(fromType, toType)
+            .flatMap(conv => conv(v))
+        )
+        .toRight(
+          s"Cannot convert value '$v' of type ${fromType.meta.sqlTypeName} to ${toType.meta.sqlTypeName}"
+        )
+    }
+  }
+
+  def constCast[U, T](const: ConstExpr[U], dataType: DataType.Aux[T], calc: ConstantCalculator): Either[String, T] = {
     const match {
-      case ConstantExpr(v, _) =>
-        if (const.dataType == dataType) {
-          Right(v.asInstanceOf[T])
-        } else {
-          autoConverter(const.dataType, dataType.aux)
-            .map(conv => calc.evaluateConstant(conv(const)))
-            .orElse(
-              partial(const.dataType, dataType.aux)
-                .flatMap(conv => conv(v))
-            )
-            .toRight(
-              s"Cannot convert value '$v' of type ${const.dataType.meta.sqlTypeName} to ${dataType.meta.sqlTypeName}"
-            )
-        }
-      case NullExpr(_) => Right(null.asInstanceOf[T])
+      case ConstantExpr(v) => constCast(v, const.dataType, dataType, calc)
+      case NullExpr(_)     => Right(null.asInstanceOf[T])
       case TrueExpr =>
         if (dataType == DataType[Boolean]) Right(true.asInstanceOf[T])
         else Left(s"Cannot convert TRUE to data type $dataType")
       case FalseExpr =>
         if (dataType == DataType[Boolean]) Right(false.asInstanceOf[T])
         else Left(s"Cannot convert FALSE to data type $dataType")
+    }
+  }
+
+  def valueCast[U, T](
+      value: ValueExpr[U],
+      dataType: DataType.Aux[T],
+      calc: ConstantCalculator
+  ): Either[String, ValueExpr[T]] = {
+    value match {
+      case UntypedPlaceholderExpr(id) => Right(PlaceholderExpr(id, dataType))
+      case PlaceholderExpr(id, dt) =>
+        Either.cond(dt == dataType, PlaceholderExpr(id, dataType), s"Expect placeholder type $dataType, but got $dt")
+      case ConstantExpr(v) => constCast(v, value.dataType, dataType, calc).map(c => ConstantExpr(c)(dataType))
+      case TrueExpr | FalseExpr =>
+        if (dataType == DataType[Boolean]) Right(value.asInstanceOf[ValueExpr[T]])
+        else Left(s"Cannot cast value $value to $dataType")
+      case NullExpr(_) => Right(NullExpr(dataType))
+      case TupleValueExpr(a, b) =>
+        dataType match {
+          case tdt: TupleDataType[x, y] =>
+            for {
+              ac <- valueCast(a, tdt.aType, calc)
+              bc <- valueCast(b, tdt.bType, calc)
+            } yield TupleValueExpr(ac, bc).asInstanceOf[ValueExpr[T]]
+          case _ => Left(s"Cannot cast tuple to $dataType")
+        }
     }
   }
 
@@ -74,14 +105,14 @@ object DataTypeUtils {
     if (e.dataType == dataType) Right(e.asInstanceOf[Expression[T]])
     else {
       e match {
-        case c @ ConstantExpr(_, p) =>
+        case c @ ConstantExpr(_) =>
           constCast(c, dataType, calculator)
             .orElse(
               manualConverter(e.dataType, dataType.aux)
                 .map(conv => calculator.evaluateConstant[T](conv(e)))
                 .toRight(s"Cannot convert $e of type ${e.dataType} to $dataType")
             )
-            .map(x => ConstantExpr(x, p)(dataType.aux))
+            .map(x => ConstantExpr(x)(dataType.aux))
         case _ =>
           autoConverter(e.dataType, dataType.aux)
             .orElse(manualConverter(e.dataType, dataType.aux))
@@ -98,19 +129,14 @@ object DataTypeUtils {
       (ca, cb) match {
         case (_: ConstantExpr[_], _: ConstantExpr[_]) => convertRegular(ca, cb)
 
-        case (c: ConstExpr[_], _) =>
-          constCast(c, cb.dataType, calc).map(cc => DataTypeUtils.pair(wrapConstant(cc, cb.dataType), cb))
-
-        case (_, c: ConstExpr[_]) =>
-          constCast(c, ca.dataType, calc).map(cc => DataTypeUtils.pair(ca, wrapConstant(cc, ca.dataType)))
+        case (UntypedPlaceholderExpr(id), _) => Right(pair(PlaceholderExpr(id, cb.dataType.aux), cb))
+        case (_, UntypedPlaceholderExpr(id)) => Right(pair(ca, PlaceholderExpr(id, ca.dataType.aux)))
+        case (c: ValueExpr[_], _)            => valueCast(c, cb.dataType, calc).map(cc => DataTypeUtils.pair(cc, cb))
+        case (_, c: ValueExpr[_])            => valueCast(c, ca.dataType, calc).map(cc => DataTypeUtils.pair(ca, cc))
 
         case (_, _) => convertRegular(ca, cb)
       }
     }
-  }
-
-  private def wrapConstant[T](v: T, dt: DataType.Aux[T]): ConstExpr[T] = {
-    if (v != null) ConstantExpr(v)(dt) else NullExpr(dt)
   }
 
   private def convertRegular[T, U](ca: Expression[T], cb: Expression[U]): Either[String, ExprPair] = {
@@ -153,7 +179,14 @@ object DataTypeUtils {
     entry[Byte, Double](Byte2DoubleExpr)
   )
 
-  private val manualConverters: Map[(String, String), ToTypeConverter[_, _]] = Map()
+  private val manualConverters: Map[(String, String), ToTypeConverter[_, _]] = Map(
+    entry[BigDecimal, Currency](BigDecimal2CurrencyExpr),
+    entry[Long, Currency](Long2CurrencyExpr),
+    entry[Double, Currency](Double2CurrencyExpr),
+    entry[Currency, BigDecimal](Currency2BigDecimalExpr),
+    entry[Currency, Long](Currency2LongExpr),
+    entry[Currency, Double](Currency2DoubleExpr)
+  )
 
   private def entry[T, U](ttc: ToTypeConverter[T, U])(
       implicit dtt: DataType.Aux[T],
@@ -180,6 +213,10 @@ object DataTypeUtils {
     pEntry[BigDecimal, Long](x => Option.when(x.isValidLong)(x.toLong)),
     pEntry[BigDecimal, Int](x => Option.when(x.isValidInt)(x.toInt)),
     pEntry[BigDecimal, Short](x => Option.when(x.isValidShort)(x.toShort)),
-    pEntry[BigDecimal, Byte](x => Option.when(x.isValidByte)(x.toByte))
+    pEntry[BigDecimal, Byte](x => Option.when(x.isValidByte)(x.toByte)),
+    pEntry[BigDecimal, Currency] { x =>
+      val bc = x.setScale(Currency.SCALE, BigDecimal.RoundingMode.HALF_UP) * Currency.SUB
+      Option.when(bc.isValidLong)(Currency(bc.toLong))
+    }
   )
 }

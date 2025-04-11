@@ -21,12 +21,12 @@ import org.apache.hadoop.hbase.client.{ Connection, ConnectionFactory, Result =>
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.yupana.api.query.DataPoint
-import org.yupana.api.schema.{ Dimension, Schema }
+import org.yupana.api.schema.{ Dimension, Schema, Table }
 import org.yupana.core.MapReducible
 import org.yupana.core.dao.{ DictionaryProvider, TSDao }
-import org.yupana.core.model.UpdateInterval
+import org.yupana.core.model.{ BatchDataset, UpdateInterval }
 import org.yupana.core.utils.metric.MetricQueryCollector
-import org.yupana.hbase.HBaseUtils.doPutBatch
+import org.yupana.hbase.HBaseUtils.{ doPutBatch, doPutBatchDataset }
 import org.yupana.hbase._
 
 class TsDaoHBaseSpark(
@@ -76,8 +76,32 @@ class TsDaoHBaseSpark(
     }
   }
 
-  override def putBatch(username: String)(dataPointsBatch: Seq[DataPoint]): Seq[UpdateInterval] = {
-    doPutBatch(connection, dictionaryProvider, config.hbaseNamespace, username, putsBatchSize, dataPointsBatch)
+  override def put(
+      mr: MapReducible[RDD],
+      dataPoints: RDD[DataPoint],
+      username: String
+  ): RDD[UpdateInterval] = {
+    mr.batchFlatMap(dataPoints, putsBatchSize) { dataPointsBatch =>
+      doPutBatch(connection, dictionaryProvider, config.hbaseNamespace, username, dataPointsBatch)
+    }
+
+  }
+
+  override def putDataset(
+      mr: MapReducible[RDD],
+      tables: Seq[Table],
+      dataset: RDD[BatchDataset],
+      username: String
+  ): RDD[UpdateInterval] = {
+    mr.flatMap(dataset) { batch =>
+      tables.flatMap(table =>
+        doPutBatchDataset(connection, dictionaryProvider, config.hbaseNamespace, username, batch, table)
+      )
+    }
+  }
+
+  override def putBatch(table: Table, batch: BatchDataset, username: String): Seq[UpdateInterval] = {
+    doPutBatchDataset(connection, dictionaryProvider, config.hbaseNamespace, username, batch, table)
   }
 
   @transient lazy val connection: Connection = {
@@ -89,6 +113,7 @@ class TsDaoHBaseSpark(
       case Some(c) => c
     }
   }
+
 }
 
 object TsDaoHBaseSpark {

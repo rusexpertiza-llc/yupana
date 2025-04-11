@@ -3,10 +3,11 @@ package org.yupana.externallinks.universal
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
-import org.yupana.api.query.{ AddCondition, DimensionExpr, Expression, RemoveCondition }
+import org.yupana.api.query.{ AddCondition, DataPoint, DimensionExpr, Expression, RemoveCondition }
 import org.yupana.api.schema._
 import org.yupana.core.ConstantCalculator
-import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
+import org.yupana.core.auth.YupanaUser
+import org.yupana.core.model.{ BatchDataset, DatasetSchema }
 import org.yupana.core.utils.FlatAndCondition
 import org.yupana.externallinks.TestSchema
 import org.yupana.utils.RussianTokenizer
@@ -31,15 +32,22 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
 
     override def keyIndex: Int = 0
 
-    override def fillKeyValues(indexMap: collection.Map[Expression[_], Int], valueData: Seq[InternalRow]): Unit = {
-      valueData.foreach { vd =>
-        val tagValue = vd.get(indexMap, DimensionExpr(externalLink.dimension))
-        val keyValue = valueToKeys.get(tagValue).flatMap(_.headOption).orNull
-        vd.set(indexMap, keyExpr, keyValue)
+    override def fillKeyValues(batch: BatchDataset): Unit = {
+      batch.foreach { rowNum =>
+        val tagValue = batch.get(rowNum, DimensionExpr(externalLink.dimension))
+        val keyValue = valueToKeys.get(tagValue).flatMap(_.headOption)
+        keyValue match {
+          case Some(k) => batch.set(rowNum, keyExpr, k)
+          case None    => batch.setNull(rowNum, keyExpr)
+        }
       }
     }
 
     override def keyExpr: Expression[String] = dimension(DictionaryDimension("TAG_X"))
+
+    override def put(dataPoints: Seq[DataPoint]): Unit = {}
+
+    override def put(batchDataset: BatchDataset): Unit = {}
   }
 
   class TestLink extends ExternalLink {
@@ -57,7 +65,7 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
     val testField3 = "testField3"
   }
 
-  val testData = Array(
+  val testData: Array[Array[String]] = Array(
     Array("foo", "bar", "baz"),
     Array("foo", "quux", "baz"),
     Array("bar", "bar", "look"),
@@ -71,25 +79,31 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
   val testCatalog = new TestExternalLink(testData, testExternalLink)
 
   "InMemoryCatalogBase" should "fill value data" in {
-    val exprIndex = Seq[Expression[_]](
-      time,
-      dimension(RawDimension[Int]("TAG_Y")),
-      link(testExternalLink, TestExternalLink.testField1),
-      link(testExternalLink, TestExternalLink.testField2),
-      link(testExternalLink, TestExternalLink.testField3)
-    ).zipWithIndex.toMap
-
-    val builder = new InternalRowBuilder(exprIndex, None)
-
-    val valueData = Seq(
-      builder.set(time, Time(100)).set(dimension(RawDimension[Int]("TAG_Y")), 1).buildAndReset(),
-      builder.set(time, Time(200)).set(dimension(RawDimension[Int]("TAG_Y")), 4).buildAndReset(),
-      builder.set(time, Time(300)).set(dimension(RawDimension[Int]("TAG_Y")), 42).buildAndReset()
+    val valExprIndex = Map[Expression[_], Int](
+      time -> 0,
+      dimension(RawDimension[Int]("TAG_Y")) -> 1
+    )
+    val refExprIndex = Map[Expression[_], Int](
+      dimension(DictionaryDimension("TAG_X")) -> 2,
+      link(testExternalLink, TestExternalLink.testField1) -> 3,
+      link(testExternalLink, TestExternalLink.testField2) -> 4,
+      link(testExternalLink, TestExternalLink.testField3) -> 5
     )
 
+    val schema = new DatasetSchema(valExprIndex, refExprIndex, Map.empty, None)
+    val batch = new BatchDataset(schema)
+
+    batch.set(0, time, Time(100))
+    batch.set(0, dimension(RawDimension[Int]("TAG_Y")), 1)
+
+    batch.set(1, time, Time(200))
+    batch.set(1, dimension(RawDimension[Int]("TAG_Y")), 4)
+
+    batch.set(2, time, Time(300))
+    batch.set(2, dimension(RawDimension[Int]("TAG_Y")), 42)
+
     testCatalog.setLinkedValues(
-      exprIndex,
-      valueData,
+      batch,
       Set(
         link(testExternalLink, TestExternalLink.testField1),
         link(testExternalLink, TestExternalLink.testField2),
@@ -97,20 +111,17 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
       )
     )
 
-    val r1 = valueData(0)
-    r1.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField1)) shouldEqual "foo"
-    r1.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField2)) shouldEqual "bar"
-    r1.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField3)) shouldEqual "baz"
+    batch.get[String](0, link(testExternalLink, TestExternalLink.testField1)) shouldEqual "foo"
+    batch.get[String](0, link(testExternalLink, TestExternalLink.testField2)) shouldEqual "bar"
+    batch.get[String](0, link(testExternalLink, TestExternalLink.testField3)) shouldEqual "baz"
 
-    val r2 = valueData(1)
-    r2.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField1)) shouldEqual "aaa"
-    r2.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField2)) shouldEqual "bbb"
-    r2.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField3)) shouldEqual "at"
+    batch.get[String](1, link(testExternalLink, TestExternalLink.testField1)) shouldEqual "aaa"
+    batch.get[String](1, link(testExternalLink, TestExternalLink.testField2)) shouldEqual "bbb"
+    batch.get[String](1, link(testExternalLink, TestExternalLink.testField3)) shouldEqual "at"
 
-    val r3 = valueData(2)
-    r3.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField1)) shouldBe null
-    r3.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField2)) shouldBe null
-    r3.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField3)) shouldBe null
+    batch.isNull(2, link(testExternalLink, TestExternalLink.testField1)) shouldBe true
+    batch.isNull(2, link(testExternalLink, TestExternalLink.testField2)) shouldBe true
+    batch.isNull(2, link(testExternalLink, TestExternalLink.testField3)) shouldBe true
 
   }
 
@@ -119,7 +130,12 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
     val t1 = LocalDateTime.of(2022, 10, 27, 1, 5)
     val t2 = t1.plusWeeks(1)
     testCatalog.transformCondition(
-      FlatAndCondition(calculator, and(c, ge(time, const(Time(t1))), le(time, const(Time(t2))))).head
+      FlatAndCondition(
+        calculator,
+        and(c, ge(time, const(Time(t1))), le(time, const(Time(t2))))
+      ).head,
+      Time(100000L),
+      YupanaUser.ANONYMOUS
     ) should contain theSameElementsAs Seq(
       RemoveCondition(c),
       AddCondition(in(lower(dimension(DictionaryDimension("TAG_X"))), Set("aaa")))
@@ -136,7 +152,9 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
           c2,
           c2_2
         )
-      ).head
+      ).head,
+      Time(100000L),
+      YupanaUser.ANONYMOUS
     ) should contain theSameElementsAs Seq(
       RemoveCondition(c2),
       RemoveCondition(c2_2),
@@ -154,7 +172,9 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
           ge(time, const(Time(t1))),
           le(time, const(Time(t2)))
         )
-      ).head
+      ).head,
+      Time(100000L),
+      YupanaUser.ANONYMOUS
     ) should contain theSameElementsAs Seq(
       RemoveCondition(c3),
       RemoveCondition(c3_2),
@@ -167,7 +187,12 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
     val t2 = LocalDateTime.now()
     val t1 = t2.minusDays(3)
     testCatalog.transformCondition(
-      FlatAndCondition(calculator, and(ge(time, const(Time(t1))), le(time, const(Time(t2))), c)).head
+      FlatAndCondition(
+        calculator,
+        and(ge(time, const(Time(t1))), le(time, const(Time(t2))), c)
+      ).head,
+      Time(100000L),
+      YupanaUser.ANONYMOUS
     ) should contain theSameElementsAs Seq(
       RemoveCondition(c),
       AddCondition(notIn(lower(dimension(DictionaryDimension("TAG_X"))), Set("foo", "bar")))
@@ -184,7 +209,9 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
           c2,
           c2_2
         )
-      ).head
+      ).head,
+      Time(100000L),
+      YupanaUser.ANONYMOUS
     ) should contain theSameElementsAs Seq(
       RemoveCondition(c2),
       RemoveCondition(c2_2),
@@ -202,7 +229,9 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
           c3,
           c3_2
         )
-      ).head
+      ).head,
+      Time(100000L),
+      YupanaUser.ANONYMOUS
     ) should contain theSameElementsAs Seq(
       RemoveCondition(c3),
       RemoveCondition(c3_2),

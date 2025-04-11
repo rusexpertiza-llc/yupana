@@ -3,13 +3,13 @@ package org.yupana.hbase
 import org.apache.hadoop.hbase.client.ConnectionFactory
 import org.scalatest.GivenWhenThen
 import org.yupana.api.query.Query
-import org.yupana.core.{ TestDims, TestSchema }
 import org.yupana.core.dao.QueryMetricsFilter
 import org.yupana.core.model.MetricData
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.yupana.core.utils.metric.InternalMetricData
 import org.yupana.metrics.QueryStates
+import org.yupana.testutils.{ TestDims, TestSchema }
 
 import java.time.temporal.ChronoUnit
 import java.time.{ OffsetDateTime, ZoneOffset }
@@ -41,7 +41,8 @@ trait TsdbQueryMetricsDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike wi
           QueryStates.Running,
           0L,
           Map.empty,
-          sparkQuery = false
+          sparkQuery = false,
+          "test"
         )
       )
     )
@@ -57,6 +58,7 @@ trait TsdbQueryMetricsDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike wi
     m.totalDuration shouldEqual 0d
     m.metrics.foreach { case (_, data) => data shouldEqual MetricData(0, 0, 0) }
     m.startDate shouldEqual startTime
+    m.user shouldEqual Some("test")
 
     When("metrics are updated")
     dao.saveQueryMetrics(
@@ -68,7 +70,8 @@ trait TsdbQueryMetricsDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike wi
           QueryStates.Finished,
           10000000000L,
           Map("create_scans" -> MetricData(1, 2, 3)),
-          sparkQuery = false
+          sparkQuery = false,
+          "test"
         )
       )
     )
@@ -84,6 +87,7 @@ trait TsdbQueryMetricsDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike wi
     mu.query shouldEqual query.toString
     mu.totalDuration shouldEqual 10000000000L
     mu.metrics("create_scans") shouldEqual MetricData(1, 2, 3)
+    mu.user shouldEqual Some("test")
 
     Then("No running queries available")
     dao.queriesByFilter(Some(QueryMetricsFilter(queryState = Some(QueryStates.Running)))) shouldBe empty
@@ -110,7 +114,8 @@ trait TsdbQueryMetricsDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike wi
           QueryStates.Running,
           0L,
           Map.empty,
-          sparkQuery = false
+          sparkQuery = false,
+          "test"
         )
       )
     )
@@ -123,7 +128,8 @@ trait TsdbQueryMetricsDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike wi
           QueryStates.Running,
           0L,
           Map.empty,
-          sparkQuery = false
+          sparkQuery = false,
+          "test"
         )
       )
     )
@@ -139,6 +145,7 @@ trait TsdbQueryMetricsDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike wi
     m.totalDuration shouldEqual 3000000000L
     m.metrics.foreach { case (_, data) => data shouldEqual MetricData(0, 0, 0) }
     m.startDate shouldEqual startTime
+    m.user shouldEqual Some("test")
 
     When("metrics are updated")
     dao.saveQueryMetrics(
@@ -150,7 +157,8 @@ trait TsdbQueryMetricsDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike wi
           QueryStates.Finished,
           4000000000L,
           Map("create_scans" -> MetricData(1, 2, 3)),
-          sparkQuery = false
+          sparkQuery = false,
+          "test"
         )
       )
     )
@@ -164,7 +172,8 @@ trait TsdbQueryMetricsDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike wi
           QueryStates.Finished,
           2000000000L,
           Map("create_scans" -> MetricData(2, 3, 1)),
-          sparkQuery = false
+          sparkQuery = false,
+          "test"
         )
       )
     )
@@ -180,6 +189,7 @@ trait TsdbQueryMetricsDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike wi
     mu.query shouldEqual query.toString
     mu.totalDuration shouldEqual 5000000000L
     mu.metrics("create_scans") shouldEqual MetricData(1 + 2, 2 + 3, (1 + 2) / 5d)
+    mu.user shouldEqual Some("test")
 
     Then("No running queries available")
     dao.queriesByFilter(Some(QueryMetricsFilter(queryState = Some(QueryStates.Running)))) shouldBe empty

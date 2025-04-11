@@ -20,9 +20,10 @@ import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
+import org.yupana.api.types.{ ID, InternalStorable }
 import org.yupana.api.utils.ConditionMatchers._
-import org.yupana.core.model.{ InternalRow, TimeSensitiveFieldValues }
-import org.yupana.core.utils.{ CollectionUtils, Table, FlatAndCondition }
+import org.yupana.core.model.{ BatchDataset, TimeSensitiveFieldValues }
+import org.yupana.core.utils.{ CollectionUtils, ConditionUtils, FlatAndCondition, Table }
 
 import scala.collection.mutable
 
@@ -30,7 +31,7 @@ object ExternalLinkUtils {
 
   /**
     * Extracts external link fields from time bounded condition
-    * @note this function doesn't care if the field condition case sensitive or not
+    * @note this function doesn't care if the field condition case-sensitive or not
     *
     * @param simpleCondition condition to extract values from
     * @param linkName the external link name.
@@ -50,41 +51,41 @@ object ExternalLinkUtils {
     ) {
       case ((cat, neg, oth), cond) =>
         cond match {
-          case EqExpr(LinkExpr(c, field), ConstantExpr(v, _)) if c.linkName == linkName =>
+          case EqExpr(LinkExpr(c, field), ConstantExpr(v)) if c.linkName == linkName =>
             ((cond, field.name, Set[Any](v)) :: cat, neg, oth)
 
-          case EqExpr(ConstantExpr(v, _), LinkExpr(c, field)) if c.linkName == linkName =>
+          case EqExpr(ConstantExpr(v), LinkExpr(c, field)) if c.linkName == linkName =>
             ((cond, field.name, Set[Any](v)) :: cat, neg, oth)
 
           case InExpr(LinkExpr(c, field), cs) if c.linkName == linkName =>
-            ((cond, field.name, cs) :: cat, neg, oth)
+            ((cond, field.name, cs.map(ConditionUtils.value)) :: cat, neg, oth)
 
-          case NeqExpr(LinkExpr(c, field), ConstantExpr(v, _)) if c.linkName == linkName =>
+          case NeqExpr(LinkExpr(c, field), ConstantExpr(v)) if c.linkName == linkName =>
             (cat, (cond, field.name, Set[Any](v)) :: neg, oth)
 
-          case NeqExpr(ConstantExpr(v, _), LinkExpr(c, field)) if c.linkName == linkName =>
+          case NeqExpr(ConstantExpr(v), LinkExpr(c, field)) if c.linkName == linkName =>
             (cat, (cond, field.name, Set[Any](v)) :: neg, oth)
 
           case NotInExpr(LinkExpr(c, field), cs) if c.linkName == linkName =>
-            (cat, (cond, field.name, cs) :: neg, oth)
+            (cat, (cond, field.name, cs.map(ConditionUtils.value)) :: neg, oth)
 
-          case EqString(LowerExpr(LinkExpr(c, field)), ConstantExpr(v, _)) if c.linkName == linkName =>
+          case EqString(LowerExpr(LinkExpr(c, field)), ConstantExpr(v)) if c.linkName == linkName =>
             ((cond, field.name, Set[Any](v)) :: cat, neg, oth)
 
-          case EqString(ConstantExpr(v, _), LowerExpr(LinkExpr(c, field))) if c.linkName == linkName =>
+          case EqString(ConstantExpr(v), LowerExpr(LinkExpr(c, field))) if c.linkName == linkName =>
             ((cond, field.name, Set[Any](v)) :: cat, neg, oth)
 
           case InString(LowerExpr(LinkExpr(c, field)), cs) if c.linkName == linkName =>
-            ((cond, field.name, cs.asInstanceOf[Set[Any]]) :: cat, neg, oth)
+            ((cond, field.name, cs.map(ConditionUtils.value).asInstanceOf[Set[Any]]) :: cat, neg, oth)
 
-          case NeqString(LowerExpr(LinkExpr(c, field)), ConstantExpr(v, _)) if c.linkName == linkName =>
+          case NeqString(LowerExpr(LinkExpr(c, field)), ConstantExpr(v)) if c.linkName == linkName =>
             (cat, (cond, field.name, Set[Any](v)) :: neg, oth)
 
-          case NeqString(ConstantExpr(v, _), LowerExpr(LinkExpr(c, field))) if c.linkName == linkName =>
+          case NeqString(ConstantExpr(v), LowerExpr(LinkExpr(c, field))) if c.linkName == linkName =>
             (cat, (cond, field.name, Set[Any](v)) :: neg, oth)
 
           case NotInString(LowerExpr(LinkExpr(c, field)), cs) if c.linkName == linkName =>
-            (cat, (cond, field.name, cs.asInstanceOf[Set[Any]]) :: neg, oth)
+            (cat, (cond, field.name, cs.map(ConditionUtils.value).asInstanceOf[Set[Any]]) :: neg, oth)
 
           case _ => (cat, neg, cond :: oth)
         }
@@ -148,34 +149,43 @@ object ExternalLinkUtils {
 
   def setLinkedValues[R](
       externalLink: ExternalLink.Aux[R],
-      exprIndex: scala.collection.Map[Expression[_], Int],
-      rows: Seq[InternalRow],
+      batch: BatchDataset,
       linkExprs: Set[LinkExpr[_]],
       fieldValuesForDimValues: (Set[String], Set[R]) => Table[R, String, Any]
   ): Unit = {
-    val dimExprIdx = exprIndex(DimensionExpr(externalLink.dimension))
+
+    val dimExprIdx = batch.schema.fieldIndex(DimensionExpr(externalLink.dimension))
     val fields = linkExprs.map(_.linkField.name)
-    val dimValues = rows.map(r => r.get[R](dimExprIdx)).toSet
-    val allFieldsValues = fieldValuesForDimValues(fields, dimValues)
-    val linkExprsIdx = linkExprs.toSeq.map(e => e -> exprIndex(e))
-    rows.foreach { row =>
-      val dimValue = row.get[R](dimExprIdx)
-      val rowValues = allFieldsValues.row(dimValue)
-      updateRow(row, linkExprsIdx, rowValues)
+
+    val dimValues = mutable.Set.empty[R]
+    batch.foreach { rowNum =>
+      val v = batch.get(rowNum, dimExprIdx)(externalLink.dimension.dataType.internalStorable)
+      dimValues.add(v)
+    }
+
+    val allFieldsValues = fieldValuesForDimValues(fields, dimValues.toSet)
+    val linkExprsIdx = linkExprs.toSeq.map(e => e -> batch.schema.fieldIndex(e))
+
+    batch.foreach { rowNum =>
+      val dimValue = batch.get[R](rowNum, dimExprIdx)(externalLink.dimension.dataType.internalStorable)
+      val values = allFieldsValues.row(dimValue)
+      setValues(linkExprsIdx, batch, rowNum, values)
     }
   }
 
   def setLinkedValuesTimeSensitive[R](
       externalLink: ExternalLink.Aux[R],
-      exprIndex: scala.collection.Map[Expression[_], Int],
-      rows: Seq[InternalRow],
+      batch: BatchDataset,
       linkExprs: Set[LinkExpr[_]],
       fieldValuesForDimValues: (Set[String], Set[R], Time, Time) => Map[R, Array[TimeSensitiveFieldValues]]
   ): Unit = {
+
     val dimExpr = DimensionExpr(externalLink.dimension.aux)
     val fields = linkExprs.map(_.linkField.name)
-    val dimIdIdx = exprIndex(dimExpr)
-    val timeIdx = exprIndex(TimeExpr)
+    val dimIdIdx = batch.schema.fieldIndex(dimExpr)
+    val timeIdx = batch.schema.fieldIndex(TimeExpr)
+
+    implicit val internalStorable: InternalStorable[R] = externalLink.dimension.dataType.internalStorable
 
     def findFieldValuesByTime(
         allFieldsValues: Map[R, Array[TimeSensitiveFieldValues]],
@@ -209,9 +219,9 @@ object ExternalLinkUtils {
       val dimValues = mutable.Set.empty[R]
       var from = Time(Long.MaxValue)
       var to = Time(Long.MinValue)
-      rows.foreach { row =>
-        val dimId = row.get[R](dimIdIdx)
-        val time = row.get[Time](timeIdx)
+      batch.foreach { rowNum =>
+        val dimId = batch.get[R](rowNum, dimIdIdx)
+        val time = batch.get[Time](rowNum, timeIdx)
         dimValues += dimId
         if (time < from) {
           from = time
@@ -226,22 +236,28 @@ object ExternalLinkUtils {
     val (dimValues, from, to) = getDimValuesAndPeriod
 
     val allFieldsValues = fieldValuesForDimValues(fields, dimValues, from, to)
-    val linkExprsIdx = linkExprs.toSeq.map(e => e -> exprIndex(e))
+    val linkExprsIdx = linkExprs.toSeq.map(e => e -> batch.schema.fieldIndex(e))
 
-    rows.foreach { row =>
-      val dimId = row.get[R](dimIdIdx)
-      val time = row.get[Time](timeIdx)
+    batch.foreach { rowNum =>
+      val dimId = batch.get[R](rowNum, dimIdIdx)
+      val time = batch.get[Time](rowNum, timeIdx)
       val values = findFieldValuesByTime(allFieldsValues, dimId, time)
-      updateRow(row, linkExprsIdx, values)
+      setValues(linkExprsIdx, batch, rowNum, values)
     }
   }
 
-  private def updateRow(row: InternalRow, exprIndex: Seq[(LinkExpr[_], Int)], values: Map[String, Any]): Unit = {
+  private def setValues(
+      exprIndex: Seq[(LinkExpr[_], Int)],
+      batch: BatchDataset,
+      rowNum: Int,
+      values: Map[String, Any]
+  ): Unit = {
     exprIndex.foreach {
       case (expr, idx) =>
         values.get(expr.linkField.name).foreach { value =>
           if (value != null) {
-            row.set(idx, value)
+            val v = value.asInstanceOf[ID[expr.dataType.T]]
+            batch.set(rowNum, idx, v)(expr.dataType.internalStorable)
           }
         }
     }

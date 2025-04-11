@@ -34,9 +34,9 @@ class HBaseUtilsTest extends AnyFlatSpec with Matchers with MockFactory with Opt
     (dictionaryDaoMock.getIdByValue _).expects(DIM_B, "b value").returning(Some(1L))
     (dictionaryDaoMock.getIdByValue _).expects(DIM_C, "c value").returning(Some(31L))
 
-    val bytes = HBaseUtils.rowKeyBuffer(dp, TestTable, HBaseUtils.tableKeySize(TestTable), dictionaryProvider)
+    val bytes = HBaseUtils.rowKeyBuffer(dp, TestTable, HBaseUtils.tableKeySize(TestTable), dictionaryProvider).bytes()
     val expectedRowKey = TSDRowKey(HBaseUtils.baseTime(time, TestTable), Array(Some(4), Some(1L), Some(31L)))
-    val actualRowKey = HBaseUtils.parseRowKey(bytes.array(), TestTable)
+    val actualRowKey = HBaseUtils.parseRowKey(bytes, TestTable)
 
     actualRowKey should be(expectedRowKey)
   }
@@ -45,7 +45,7 @@ class HBaseUtilsTest extends AnyFlatSpec with Matchers with MockFactory with Opt
     val time = OffsetDateTime.of(2017, 10, 15, 12, 57, 0, 0, ZoneOffset.UTC).toInstant.toEpochMilli
     val dims: Map[Dimension, Any] = Map(DIM_A -> 1111, DIM_B -> "test2", DIM_C -> "test3")
     val dp1 = DataPoint(TestTable, time, dims, Seq(MetricValue(TEST_FIELD, 1.0)))
-    val dp2 = DataPoint(TestTable2, time + 1, dims, Seq(MetricValue(TEST_FIELD, 2.0)))
+    val dp2 = DataPoint(TestTable, time + 1, dims, Seq(MetricValue(TEST_FIELD, 2.0)))
     val dp3 = DataPoint(TestTable, time + 2, dims, Seq(MetricValue(TEST_FIELD, 3.0)))
 
     val dictionaryDaoMock = mock[DictionaryDao]
@@ -54,11 +54,8 @@ class HBaseUtilsTest extends AnyFlatSpec with Matchers with MockFactory with Opt
     (dictionaryDaoMock.getIdsByValues _).expects(DIM_B, Set("test2")).returning(Map("test2" -> 22))
     (dictionaryDaoMock.getIdsByValues _).expects(DIM_C, Set("test3")).returning(Map("test3" -> 33))
 
-    val pbt = HBaseUtils.createPuts(Seq(dp1, dp2, dp3), dictionaryProvider, "test")
+    val (puts, _) = HBaseUtils.createPuts(dictionaryProvider, "test", Seq(dp1, dp2, dp3), TestTable)
 
-    pbt should have size 2
-
-    val puts = pbt.find(_._1 == TestTable).value._2
     puts should have size 1
 
     val put1 =
@@ -106,12 +103,8 @@ class HBaseUtilsTest extends AnyFlatSpec with Matchers with MockFactory with Opt
 
     CellUtil.cloneValue(cells2.head) shouldEqual expected2
 
-    val put3 = pbt
-      .find(_._1 == TestTable2)
-      .value
-      ._2
-      .find(p => !p.get(HBaseUtils.family(1), Bytes.toBytes(HBaseUtils.restTime(time + 1, TestTable2))).isEmpty)
-      .get
+    val put3 =
+      puts.find(p => !p.get(HBaseUtils.family(1), Bytes.toBytes(HBaseUtils.restTime(time + 1, TestTable))).isEmpty).get
 
     val cells3 = put3.get(HBaseUtils.family(1), Bytes.toBytes(HBaseUtils.restTime(time + 1, TestTable2))).asScala
     cells3 should have size 1
@@ -119,7 +112,7 @@ class HBaseUtilsTest extends AnyFlatSpec with Matchers with MockFactory with Opt
     bb.rewind()
     bb.put(1.toByte)
       .putDouble(2.0)
-      .put(Table.DIM_TAG_OFFSET)
+      .put((Table.DIM_TAG_OFFSET + 1).toByte)
       .putInt("test2".length)
       .put("test2".getBytes(StandardCharsets.UTF_8))
       .put((Table.DIM_TAG_OFFSET + 2).toByte)

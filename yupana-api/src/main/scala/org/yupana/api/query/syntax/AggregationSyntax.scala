@@ -18,10 +18,26 @@ package org.yupana.api.query.syntax
 
 import org.yupana.api.query._
 import org.yupana.api.schema.Metric
+import org.yupana.api.types.DataType
+import org.yupana.api.types.guards.PlusGuard
 
 trait AggregationSyntax {
-  def sum[T](e: Expression[T])(implicit n: Numeric[T]) = SumExpr(e)
-  def sum[T](m: Metric.Aux[T])(implicit n: Numeric[T]) = SumExpr(MetricExpr(m))
+
+  def sum[In, Out](e: Expression[In])(
+      implicit guard: SumExpr.SumGuard[In, Out],
+      plus: PlusGuard[Out, Out, Out],
+      dt: DataType.Aux[Out]
+  ): SumExpr[In, Out] = {
+    SumExpr(e)
+  }
+  def sum[In, Out](m: Metric.Aux[In])(
+      implicit guard: SumExpr.SumGuard[In, Out],
+      plus: PlusGuard[Out, Out, Out],
+      dt: DataType.Aux[Out]
+  ): SumExpr[In, Out] = {
+    sum[In, Out](MetricExpr(m))
+  }
+
   def min[T](e: Expression[T])(implicit ord: Ordering[T]) = MinExpr(e)
   def min[T](m: Metric.Aux[T])(implicit ord: Ordering[T]) = MinExpr(MetricExpr(m))
   def max[T](e: Expression[T])(implicit ord: Ordering[T]) = MaxExpr(e)

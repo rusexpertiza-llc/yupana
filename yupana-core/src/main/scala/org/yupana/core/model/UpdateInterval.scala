@@ -17,8 +17,9 @@
 package org.yupana.core.model
 
 import org.threeten.extra.Interval
+import org.yupana.api.schema.Table
 
-import java.time.OffsetDateTime
+import java.time.{ Instant, OffsetDateTime, ZoneOffset }
 
 case class UpdateInterval(
     table: String,
@@ -39,4 +40,14 @@ object UpdateInterval {
   val fromColumn = "from"
   val toColumn = "to"
   val tableColumn = "table"
+
+  def apply(table: Table, time: Long, updatedAt: OffsetDateTime, updatedBy: String): UpdateInterval = {
+    UpdateInterval(
+      table.name,
+      OffsetDateTime.ofInstant(Instant.ofEpochMilli(time), ZoneOffset.UTC),
+      OffsetDateTime.ofInstant(Instant.ofEpochMilli(time + table.rowTimeSpan), ZoneOffset.UTC),
+      updatedAt,
+      updatedBy
+    )
+  }
 }

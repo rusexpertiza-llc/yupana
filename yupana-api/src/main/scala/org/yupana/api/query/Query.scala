@@ -109,8 +109,12 @@ object Query {
     new Query(Some(table), fields, Some(newCondition), groupBy, limit, postFilter)
   }
 
-  def apply(table: Table, from: Expression[Time], to: Expression[Time], fields: Seq[QueryField]): Query =
-    apply(table, from, to, fields, None, Seq.empty, None, None)
+  def apply(
+      table: Table,
+      from: Expression[Time],
+      to: Expression[Time],
+      fields: Seq[QueryField]
+  ): Query = apply(table, from, to, fields, None, Seq.empty, None, None)
 
   def apply(
       table: Table,
@@ -128,5 +132,4 @@ object Query {
       filter: Option[Condition],
       groupBy: Seq[Expression[_]]
   ): Query = apply(table, from, to, fields, filter, groupBy, None, None)
-
 }

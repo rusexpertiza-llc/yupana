@@ -18,7 +18,7 @@ package org.yupana.api.query
 
 import org.yupana.api.types.DataType
 
-trait Result extends Iterator[DataRow] {
+trait Result extends AutoCloseable {
 
   def name: String
 
@@ -26,10 +26,38 @@ trait Result extends Iterator[DataRow] {
   def dataTypes: Seq[DataType]
   def dataIndexForFieldName(name: String): Int
   def dataIndexForFieldIndex(idx: Int): Int
-  def rows: Iterator[Array[Any]]
+  def next(): Boolean
 
-  override def hasNext: Boolean = rows.hasNext
-  override def next(): DataRow = new DataRow(rows.next(), dataIndexForFieldName, dataIndexForFieldIndex)
+  def isLast(): Boolean
+
+  def isEmpty(name: String): Boolean
+
+  def isEmpty(index: Int): Boolean
+
+  def isDefined(name: String): Boolean = !isEmpty(name)
+
+  def isDefined(index: Int): Boolean = !isEmpty(index)
+
+  def get[T](name: String): T
+
+  def get[T](index: Int): T
+
+  def getOption[T](name: String): Option[T] = {
+    if (isEmpty(name)) None else Some(get[T](name))
+  }
+
+  def getOption[T](index: Int): Option[T] = {
+    if (isEmpty(index)) None else Some(get[T](index))
+  }
+
+  def getOrElse[T](name: String, default: => T): T = {
+    if (isEmpty(name)) default else get(name)
+  }
+
+  def getOrElse[T](index: Int, default: => T): T = {
+    if (isEmpty(index)) default else get(index)
+  }
+
 }
 
 object Result {
@@ -44,64 +72,26 @@ object Result {
 
     override def dataIndexForFieldIndex(idx: Int): Int = 0
 
-    override def rows: Iterator[Array[Any]] = Iterator.empty
-  }
-}
+    override def next(): Boolean = false
 
-case class SimpleResult(
-    override val name: String,
-    fieldNames: Seq[String],
-    dataTypes: Seq[DataType],
-    rows: Iterator[Array[Any]]
-) extends Result {
+    override def close(): Unit = ()
 
-  private val nameIndexMap = fieldNames.zipWithIndex.toMap
+    override def isEmpty(name: String): Boolean = true
 
-  override def dataIndexForFieldName(name: String): Int = nameIndexMap(name)
-  override def dataIndexForFieldIndex(idx: Int): Int = idx
-}
+    override def isEmpty(index: Int): Boolean = true
 
-class DataRow(
-    val fields: Array[Any],
-    dataIndexForFieldName: String => Int,
-    dataIndexForFieldIndex: Int => Int
-) extends Serializable {
+    override def get[T](name: String): T = throw new IllegalStateException("get on empty result")
 
-  def isEmpty(name: String): Boolean = {
-    fields(dataIndexForFieldName(name)) == null
-  }
+    override def get[T](index: Int): T = throw new IllegalStateException("get on empty result")
 
-  def isEmpty(index: Int): Boolean = {
-    fields(dataIndexForFieldIndex(index)) == null
-  }
+    override def getOption[T](name: String): Option[T] = None
 
-  def isDefined(name: String): Boolean = !isEmpty(name)
+    override def getOption[T](index: Int): Option[T] = None
 
-  def isDefined(index: Int): Boolean = !isEmpty(index)
+    override def getOrElse[T](name: String, default: => T): T = default
 
-  def get[T](name: String): T = {
-    fields(dataIndexForFieldName(name)).asInstanceOf[T]
-  }
+    override def getOrElse[T](index: Int, default: => T): T = default
 
-  def get[T](index: Int): T = {
-    fields(dataIndexForFieldIndex(index)).asInstanceOf[T]
-  }
-
-  def getOption[T](name: String): Option[T] = {
-    Option(fields(dataIndexForFieldName(name))).asInstanceOf[Option[T]]
-  }
-
-  def getOption[T](index: Int): Option[T] = {
-    Option(fields(dataIndexForFieldIndex(index))).asInstanceOf[Option[T]]
-  }
-
-  def getOrElse[T](name: String, default: => T): T = {
-    val idx = dataIndexForFieldName(name)
-    if (fields(idx) != null) fields(idx).asInstanceOf[T] else default
-  }
-
-  def getOrElse[T](index: Int, default: => T): T = {
-    val idx = dataIndexForFieldIndex(index)
-    if (fields(idx) != null) fields(idx).asInstanceOf[T] else default
+    override def isLast(): Boolean = true
   }
 }

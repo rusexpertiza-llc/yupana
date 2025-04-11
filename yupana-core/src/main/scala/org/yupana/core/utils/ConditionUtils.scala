@@ -25,9 +25,9 @@ object ConditionUtils {
     def doFlat(xs: Seq[Condition]): Seq[Condition] = {
       xs.flatMap(x =>
         flatMap(x)(f) match {
-          case ConstantExpr(true, _) => None
-          case TrueExpr              => None
-          case nonEmpty              => Some(nonEmpty)
+          case ConstantExpr(true) => None
+          case TrueExpr           => None
+          case nonEmpty           => Some(nonEmpty)
         }
       )
     }
@@ -53,5 +53,16 @@ object ConditionUtils {
         c.copy(conditions = t.c +: c.conditions)
       else c
     )
+  }
+
+  def value[T](v: ValueExpr[T]): T = {
+    v match {
+      case ConstantExpr(t)      => t
+      case NullExpr(_)          => null.asInstanceOf[T]
+      case TrueExpr             => true
+      case FalseExpr            => false
+      case TupleValueExpr(a, b) => (value(a), value(b))
+      case x                    => throw new IllegalStateException(s"Unexpected value $x in DAO")
+    }
   }
 }

@@ -29,16 +29,6 @@ import org.yupana.core.{ ConstantCalculator, QueryOptimizer }
   * @param conditions sequence of conditions
   */
 case class FlatAndCondition(from: Long, to: Long, conditions: Seq[SimpleCondition]) {
-  def toCondition: Condition = {
-    import org.yupana.api.query.syntax.All._
-
-    QueryOptimizer.simplifyCondition(
-      AndExpr(
-        Seq(ge(time, const(Time(from))), lt(time, const(Time(to)))) ++ conditions
-      )
-    )
-  }
-
   override def hashCode(): Int = encoded.hashCode
 
   override def equals(obj: Any): Boolean = {
@@ -146,8 +136,8 @@ object FlatAndCondition {
 
       case x: SimpleCondition => update(t => t.copy(conditions = t.conditions :+ x))
 
-      case ConstantExpr(true, _)  => tbcs
-      case ConstantExpr(false, _) => update(t => t.copy(conditions = t.conditions :+ FalseExpr))
+      case ConstantExpr(true)  => tbcs
+      case ConstantExpr(false) => update(t => t.copy(conditions = t.conditions :+ FalseExpr))
 
       case x => throw new IllegalArgumentException(s"Unexpected condition $x")
     }

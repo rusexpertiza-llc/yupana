@@ -16,22 +16,22 @@
 
 package org.yupana.examples.server
 
-import org.apache.pekko.actor.ActorSystem
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase.HBaseConfiguration
 import org.apache.hadoop.hbase.client.{ ConnectionFactory, HBaseAdmin }
-import org.yupana.pekko.{ RequestHandler, TsdbTcp }
 import org.yupana.api.query.Query
-import org.yupana.core.utils.metric.{ PersistentMetricQueryReporter, StandaloneMetricCollector }
+import org.yupana.core.auth.{ DaoAuthorizer, PermissionService, UserManager }
 import org.yupana.core.providers.JdbcMetadataProvider
 import org.yupana.core.sql.SqlQueryProcessor
-import org.yupana.core.{ FlatQueryEngine, QueryEngineRouter, SimpleTsdbConfig, TimeSeriesQueryEngine }
+import org.yupana.core.utils.metric.{ PersistentMetricQueryReporter, StandaloneMetricCollector }
+import org.yupana.core.{ FlatQueryEngine, QueryEngineRouter, SimpleTsdbConfig }
 import org.yupana.examples.ExampleSchema
 import org.yupana.examples.externallinks.ExternalLinkRegistrator
 import org.yupana.externallinks.universal.{ JsonCatalogs, JsonExternalLinkDeclarationsParser }
 import org.yupana.hbase._
 import org.yupana.metrics.{ CombinedMetricReporter, Slf4jMetricReporter }
+import org.yupana.netty.{ ServerContext, YupanaServer }
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -39,9 +39,6 @@ import scala.concurrent.duration.Duration
 object Main extends StrictLogging {
 
   def main(args: Array[String]): Unit = {
-
-    implicit val actorSystem: ActorSystem = ActorSystem("Yupana")
-
     val hbaseRegionsMax = "hbase.regions.initial.max"
     val config = Config.create(ConfigFactory.load())
 
@@ -81,9 +78,10 @@ object Main extends StrictLogging {
       new PersistentMetricQueryReporter(tsdbQueryMetricsDaoHBase)
     )
 
-    val metricCreator = { query: Query =>
+    val metricCreator = { (query: Query, user: String) =>
       new StandaloneMetricCollector(
         query,
+        user,
         "query",
         tsdbConfig.metricsUpdateInterval,
         metricReporter
@@ -95,11 +93,16 @@ object Main extends StrictLogging {
         metricCreator
       )
 
+    val userDao = new UserDaoHBase(connection, config.hbaseNamespace)
+    val userManager = new UserManager(userDao, Some("admin"), Some("admin"))
+
     val queryEngineRouter = new QueryEngineRouter(
-      new TimeSeriesQueryEngine(tsdb),
+      tsdb,
       new FlatQueryEngine(metricsDao, changelogDao),
-      new JdbcMetadataProvider(schemaWithJson),
-      new SqlQueryProcessor(schemaWithJson)
+      new JdbcMetadataProvider(schemaWithJson, 2, 0, "2.0"),
+      new SqlQueryProcessor(schemaWithJson),
+      new PermissionService(putEnabled = true),
+      userManager
     )
     logger.info("Registering catalogs")
     val elRegistrator =
@@ -107,10 +110,10 @@ object Main extends StrictLogging {
     elRegistrator.registerAll(schemaWithJson)
     logger.info("Registering catalogs done")
 
-    val requestHandler = new RequestHandler(queryEngineRouter)
-    new TsdbTcp(requestHandler, config.host, config.port, 1, 0, "1.0")
+    val ctx = ServerContext(queryEngineRouter, new DaoAuthorizer(userManager))
+    val server = new YupanaServer(config.host, config.port, 4, ctx)
+    val f = server.start()
     logger.info(s"Yupana server started, listening on ${config.host}:${config.port}")
-
-    Await.ready(actorSystem.whenTerminated, Duration.Inf)
+    Await.ready(f, Duration.Inf)
   }
 }

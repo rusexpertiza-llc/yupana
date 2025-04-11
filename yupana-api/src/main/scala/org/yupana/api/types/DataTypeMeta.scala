@@ -19,7 +19,7 @@ package org.yupana.api.types
 import org.threeten.extra.PeriodDuration
 
 import java.sql.Types
-import org.yupana.api.{ Blob, Time }
+import org.yupana.api.{ Blob, Currency, Time }
 
 /**
   * Contains different meta information for type `T`
@@ -38,8 +38,9 @@ case class DataTypeMeta[T](
     sqlTypeName: String,
     javaTypeName: String,
     precision: Int,
+    scale: Int,
     isSigned: Boolean,
-    scale: Int
+    isCurrency: Boolean
 )
 
 object DataTypeMeta {
@@ -64,6 +65,8 @@ object DataTypeMeta {
     DataTypeMeta(Types.DOUBLE, 25, "DOUBLE", classOf[java.lang.Double], 17, 17)
   implicit val longMeta: DataTypeMeta[Long] = DataTypeMeta(Types.BIGINT, 20, "BIGINT", classOf[java.lang.Long], 19, 0)
   implicit val decimalMeta: DataTypeMeta[BigDecimal] = scaledDecimalMeta(MONEY_SCALE)
+  implicit val currencyMeta: DataTypeMeta[Currency] =
+    DataTypeMeta(Types.DECIMAL, 20, "CURRENCY", "java.lang.Long", 19, 2, isSigned = true, isCurrency = true)
   implicit val timestampMeta: DataTypeMeta[Time] =
     DataTypeMeta(Types.TIMESTAMP, 23, "TIMESTAMP", classOf[java.sql.Timestamp], 23, 6)
   implicit val periodMeta: DataTypeMeta[PeriodDuration] =
@@ -90,7 +93,16 @@ object DataTypeMeta {
   }
 
   def apply[T](t: Int, ds: Int, tn: String, jt: Class[_], p: Int, s: Int): DataTypeMeta[T] =
-    DataTypeMeta(t, ds, tn, if (jt != null) jt.getCanonicalName else "Null", p, SIGNED_TYPES.contains(t), s)
+    DataTypeMeta(
+      t,
+      ds,
+      tn,
+      if (jt != null) jt.getCanonicalName else "Null",
+      p,
+      s,
+      SIGNED_TYPES.contains(t),
+      isCurrency = false
+    )
 
   def tuple[T, U](implicit tMeta: DataTypeMeta[T], uMeta: DataTypeMeta[U]): DataTypeMeta[(T, U)] = DataTypeMeta(
     Types.OTHER,
@@ -98,7 +110,8 @@ object DataTypeMeta {
     s"${tMeta.sqlTypeName}_${uMeta.sqlTypeName}",
     classOf[(T, U)].getCanonicalName,
     tMeta.precision + uMeta.precision,
+    0,
     isSigned = false,
-    0
+    isCurrency = false
   )
 }

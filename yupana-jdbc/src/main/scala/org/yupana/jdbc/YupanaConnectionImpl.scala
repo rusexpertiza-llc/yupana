@@ -16,280 +16,368 @@
 
 package org.yupana.jdbc
 
-import java.sql.{ Array => _, _ }
-import java.util
-import java.util.Properties
-import java.util.concurrent.Executor
-import org.yupana.api.query.Result
-import org.yupana.jdbc.model.ParameterValue
-import org.yupana.proto.Version
+import org.yupana.api.query.SimpleResult
+import org.yupana.api.types.{ ByteReaderWriter, DataType }
+import org.yupana.api.utils.CollectionUtils
+import org.yupana.jdbc.YupanaConnection.QueryResult
+import org.yupana.jdbc.build.BuildInfo
+import org.yupana.protocol._
+import org.yupana.serialization.ByteBufferEvalReaderWriter
 
-class YupanaConnectionImpl(override val url: String, properties: Properties) extends YupanaConnection {
-  private var autoCommit = false
-  private var closed = false
+import java.io.IOException
+import java.net.{ InetSocketAddress, StandardSocketOptions }
+import java.nio.ByteBuffer
+import java.nio.channels.{ AsynchronousSocketChannel, CompletionHandler }
+import java.sql.SQLException
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.logging.Logger
+import java.util.{ Properties, Timer, TimerTask }
+import scala.collection.mutable
+import scala.concurrent.duration.Duration
+import scala.concurrent.{ Await, ExecutionContext, Future, Promise }
+
+class YupanaConnectionImpl(override val url: String, properties: Properties, executionContext: ExecutionContext)
+    extends YupanaConnection {
+
+  implicit private val ec: ExecutionContext = executionContext
+
+  private val logger = Logger.getLogger(classOf[YupanaConnectionImpl].getName)
+
+  private var channel: AsynchronousSocketChannel = _
+  private var chanelReader: FramingChannelReader = _
+  private val nextId: AtomicInteger = new AtomicInteger(0)
+  private var iterators: Map[Int, ResultIterator] = Map.empty
+  private val commandQueue: mutable.Queue[Handler[_]] = mutable.Queue.empty
+
+  private val heartbeatTimer = new Timer(true)
+  private val HEARTBEAT_INTERVAL = 30_000
+
+  private var closed: Boolean = true
+
+  implicit val readerWriter: ByteReaderWriter[ByteBuffer] = ByteBufferEvalReaderWriter
 
   private val host = properties.getProperty("yupana.host")
   private val port = properties.getProperty("yupana.port").toInt
-  private val tcpClient = new YupanaTcpClient(host, port)
+  private val batchSize = Option(properties.getProperty("yupana.batchSize")).map(_.toInt).getOrElse(100)
+  private val user = Option(properties.getProperty("user")).filter(_.nonEmpty)
+  private val password = Option(properties.getProperty("password")).filter(_.nonEmpty)
 
-  override val serverVersion: Option[Version] = tcpClient.ping(System.currentTimeMillis())
+  connect(System.currentTimeMillis())
 
-  override def runQuery(query: String, params: Map[Int, ParameterValue]): Result = {
-    try {
-      tcpClient.query(query, params)
-    } catch {
-      case e: Throwable =>
-        throw new SQLException(e)
+  override def runQuery(query: String, params: Map[Int, ParameterValue]): QueryResult = {
+    val id = nextId.incrementAndGet()
+    wrapError(execRequestQuery(id, SqlQuery(id, query, params)))
+  }
+
+  override def runBatchQuery(query: String, params: Seq[Map[Int, ParameterValue]]): QueryResult = {
+    val id = nextId.incrementAndGet()
+    wrapError(execRequestQuery(id, BatchQuery(id, query, params)))
+  }
+
+  override def cancelStream(streamId: Int): Unit = {
+    if (iterators.contains(streamId)) {
+      val f = runCommand(
+        Cancel(streamId),
+        waitFor(Cancelled).transform { cancelled =>
+          cancelled.map { c =>
+            assert(c.id == streamId)
+            iterators.synchronized {
+              iterators -= streamId
+            }
+          }
+        }
+      )
+
+      wrapError(f)
     }
-  }
-
-  override def runBatchQuery(query: String, params: Seq[Map[Int, ParameterValue]]): Result = {
-    try {
-      tcpClient.batchQuery(query, params)
-    } catch {
-      case e: Throwable =>
-        throw new SQLException(e)
-    }
-  }
-
-  @throws[SQLException]
-  override def createStatement: Statement = {
-    new YupanaStatement(this)
-  }
-
-  @throws[SQLException]
-  override def prepareStatement(sql: String): PreparedStatement = {
-    new YupanaPreparedStatement(this, sql)
-  }
-
-  @throws[SQLException]
-  override def prepareCall(s: String): CallableStatement = {
-    throw new UnsupportedOperationException("Method not supported: Connection.prepareCall(String)")
-  }
-
-  @throws[SQLException]
-  override def nativeSQL(s: String): String = {
-    throw new UnsupportedOperationException("Method not supported: Connection.nativeSQL(String)")
-  }
-
-  @throws[SQLException]
-  override def setAutoCommit(autoCommit: Boolean): Unit = {
-    this.autoCommit = autoCommit
-  }
-
-  @throws[SQLException]
-  override def getAutoCommit: Boolean = autoCommit
-
-  @throws[SQLException]
-  override def commit(): Unit = {}
-
-  @throws[SQLException]
-  override def rollback(): Unit = {}
-
-  @throws[SQLException]
-  override def close(): Unit = {
-    tcpClient.close()
-    closed = true
   }
 
   @throws[SQLException]
   override def isClosed: Boolean = closed
 
-  @throws[SQLException]
-  override lazy val getMetaData: DatabaseMetaData = new YupanaDatabaseMetaData(this)
+  private def wrapError[T](r: => Future[T]): T = {
+    try {
+      Await.result(r, Duration.Inf)
+    } catch {
+      case io: IOException =>
+        channel.close()
+        closed = true
+        cancelHeartbeats()
+        throw new SQLException("Connection problem, closing", io)
 
-  @throws[SQLException]
-  override def setReadOnly(b: Boolean): Unit = {}
+      case e: SQLException => throw e
+      case x: Throwable    => throw new SQLException(x)
+    }
+  }
 
-  @throws[SQLException]
-  override def isReadOnly = true
+  private def ensureNotClosed(): Unit = {
+    closed &= !channel.isOpen
+    if (closed) {
+      cancelHeartbeats()
+      throw new YupanaException("Connection is closed")
+    }
+  }
 
-  @throws[SQLException]
-  override def setCatalog(s: String): Unit = {}
+  private def startHeartbeats(startTime: Long): Unit = {
+    heartbeatTimer.schedule(
+      new TimerTask {
+        override def run(): Unit = sendHeartbeat(startTime)
+      },
+      HEARTBEAT_INTERVAL,
+      HEARTBEAT_INTERVAL
+    )
+  }
 
-  @throws[SQLException]
-  override def getCatalog: String = null
+  private def cancelHeartbeats(): Unit = {
+    heartbeatTimer.cancel()
+    heartbeatTimer.purge()
+  }
 
-  @throws[SQLException]
-  override def setTransactionIsolation(i: Int): Unit = {}
+  private def connect(reqTime: Long): Unit = {
+    logger.fine("Hello")
 
-  @throws[SQLException]
-  override def getTransactionIsolation: Int = Connection.TRANSACTION_NONE
+    if (channel == null || !channel.isOpen /* || !channel.isConnected*/ ) {
+      logger.info(s"Connect to $host:$port")
+      channel = AsynchronousSocketChannel.open()
+      channel.setOption(StandardSocketOptions.SO_KEEPALIVE, java.lang.Boolean.FALSE)
+      channel.connect(new InetSocketAddress(host, port)).get()
 
-  @throws[SQLException]
-  override def getWarnings: SQLWarning = null
-
-  @throws[SQLException]
-  override def clearWarnings(): Unit = {}
-
-  @throws[SQLException]
-  override def createStatement(resultSetType: Int, resultSetConcurrency: Int): Statement = {
-    if (resultSetType != ResultSet.TYPE_FORWARD_ONLY || resultSetConcurrency != ResultSet.CONCUR_READ_ONLY) {
-      throw new SQLFeatureNotSupportedException(
-        s"Unsupported statement type $resultSetType or concurrency: $resultSetConcurrency"
-      )
+      chanelReader = new FramingChannelReader(channel, Frame.MAX_FRAME_SIZE + FramingChannelReader.PAYLOAD_OFFSET)
     }
 
-    createStatement()
-  }
-
-  @throws[SQLException]
-  override def prepareStatement(sql: String, resultSetType: Int, resultSetConcurrency: Int): PreparedStatement = {
-    if (resultSetType != ResultSet.TYPE_FORWARD_ONLY || resultSetConcurrency != ResultSet.CONCUR_READ_ONLY) {
-      throw new SQLFeatureNotSupportedException(
-        s"Unsupported prepared statement type $resultSetType or concurrency: $resultSetConcurrency"
-      )
+    val cf = for {
+      _ <- write(Hello(ProtocolVersion.value, BuildInfo.version, reqTime, Map.empty))
+      _ <- waitHelloResponse(reqTime)
+      cr <- waitFor(CredentialsRequest)
+      _ <- sendCredentials(cr)
+      _ <- waitFor(Authorized)
+    } yield {
+      closed = false
     }
 
-    prepareStatement(sql)
+    Await.result(cf, Duration.Inf)
+    startHeartbeats(reqTime)
   }
 
-  @throws[SQLException]
-  override def prepareCall(s: String, i: Int, i1: Int): CallableStatement = {
-    throw new SQLFeatureNotSupportedException("Method not supported: Connection.prepareCall(String, int, int)")
+  private def waitHelloResponse(reqTime: Long): Future[HelloResponse] = {
+    waitFor(HelloResponse).flatMap { response =>
+      if (response.protocolVersion != ProtocolVersion.value) {
+        val msg =
+          s"Incompatible protocol versions: ${response.protocolVersion} on server and ${ProtocolVersion.value} in this driver"
+        logger.severe(msg)
+        Future.failed(new YupanaException(msg))
+      } else if (response.reqTime != reqTime) {
+        logger.severe(s"Request time $reqTime != response time ${response.reqTime}")
+        Future.failed(new YupanaException("Got wrong hello response"))
+      } else {
+        Future.successful(response)
+      }
+    }
   }
 
-  @throws[SQLException]
-  override def getTypeMap: util.Map[String, Class[_]] = null
-
-  @throws[SQLException]
-  override def setTypeMap(map: util.Map[String, Class[_]]): Unit = {
-    JdbcUtils.checkTypeMapping(map)
+  private def sendCredentials(cr: CredentialsRequest): Future[Unit] = {
+    if (!cr.methods.contains(CredentialsRequest.METHOD_PLAIN)) {
+      val msg = s"All the auth methods ${cr.methods.mkString(", ")} are not supported"
+      logger.warning(msg)
+      Future.failed(new YupanaException(msg))
+    } else {
+      write(Credentials(CredentialsRequest.METHOD_PLAIN, user, password))
+    }
   }
 
-  @throws[SQLException]
-  override def setHoldability(holdability: Int): Unit =
-    if (holdability != ResultSet.HOLD_CURSORS_OVER_COMMIT)
-      throw new SQLFeatureNotSupportedException("Unsupported holdability: " + holdability)
-
-  @throws[SQLException]
-  override def getHoldability: Int = ResultSet.HOLD_CURSORS_OVER_COMMIT
-
-  @throws[SQLException]
-  override def setSavepoint(): Savepoint = {
-    throw new SQLFeatureNotSupportedException("Method not supported: Connection.setSavepoint()")
+  private def sendHeartbeat(startTime: Long): Unit = {
+    val time = (System.currentTimeMillis() - startTime) / 1000
+    if (channel.isOpen) {
+      Await.result(write(Heartbeat(time.toInt)), Duration.Inf)
+    } else {
+      cancelHeartbeats()
+    }
   }
 
-  @throws[SQLException]
-  override def setSavepoint(s: String): Savepoint = {
-    throw new SQLFeatureNotSupportedException("Method not supported: Connection.setSavepoint(s)")
-  }
-
-  @throws[SQLException]
-  override def rollback(savepoint: Savepoint): Unit = {
-    throw new SQLFeatureNotSupportedException("MethodNotSupported: Connection.rollback(Savepoint)")
-  }
-
-  @throws[SQLException]
-  override def releaseSavepoint(savepoint: Savepoint): Unit = {
-    throw new SQLFeatureNotSupportedException("Method not supported: Connection.releaseSavepoint(Savepoint)")
-  }
-
-  @throws[SQLException]
-  override def createStatement(resultSetType: Int, resultSetConcurrency: Int, resultSetHoldability: Int): Statement = {
-    if (resultSetHoldability != ResultSet.CLOSE_CURSORS_AT_COMMIT) {
-      throw new SQLFeatureNotSupportedException(s"Unsupported statement holdability $resultSetConcurrency")
+  private def runNext(): Future[Unit] = {
+    val handler: Option[Handler[_]] = commandQueue.synchronized {
+      if (commandQueue.nonEmpty) Some(commandQueue.dequeue()) else None
     }
 
-    createStatement(resultSetType, resultSetConcurrency)
+    handler match {
+      case Some(handler) =>
+        for {
+          _ <- handler.execute()
+          _ <- runNext()
+        } yield ()
+      case None => Future.successful(())
+    }
   }
 
-  @throws[SQLException]
-  override def prepareStatement(
-      sql: String,
-      resultSetType: Int,
-      resultSetConcurrency: Int,
-      resultSetHoldability: Int
-  ): PreparedStatement = {
-    if (resultSetHoldability != ResultSet.CLOSE_CURSORS_AT_COMMIT) {
-      throw new SQLFeatureNotSupportedException(s"Unsupported statement holdability $resultSetConcurrency")
+  private def runCommand[T](cmd: Command[_], f: => Future[T]): Future[T] = {
+    val p = Promise[T]()
+    commandQueue.synchronized {
+      commandQueue.enqueue(new Handler(cmd, p, f))
+    }
+    runNext()
+
+    p.future
+  }
+
+  private def readBatch(id: Int, read: Int): Future[Int] = {
+    chanelReader.readFrame().flatMap { frame =>
+      frame.frameType match {
+        case Tags.RESULT_ROW.value =>
+          val row = ResultRow.readFrame(frame)
+          if (row.id == id) {
+            val newRead = read + 1
+            iterators(id).addResult(row)
+            if (newRead < batchSize) readBatch(id, newRead) else Future.successful(newRead)
+          } else {
+            Future.failed(new YupanaException(s"Unexpected row id ${row.id}"))
+          }
+
+        case Tags.RESULT_FOOTER.value =>
+          iterators(id).setDone()
+          iterators.synchronized {
+            iterators -= id
+          }
+          Future.successful(read)
+
+        case Tags.ERROR_MESSAGE.value =>
+          val em = ErrorMessage.readFrame(frame)
+          val ex = new YupanaException(em.message)
+
+          em.streamId match {
+            case Some(sId) =>
+              logger.info(s"Got error message $em")
+              failIterator(sId, ex)
+              if (sId == id) {
+                Future.failed(ex)
+              } else {
+                logger.severe(s"Unexpected error message '${em.message}'")
+                readBatch(id, read)
+              }
+
+            case None =>
+              logger.warning(s"Got global error message $em")
+              iterators.synchronized {
+                iterators.foreach(_._2.setFailed(ex))
+                iterators = Map.empty
+              }
+              Future.failed(ex)
+          }
+
+          Future.failed(ex)
+
+        case x => Future.failed(new YupanaException(s"Unexpected response ${x.toChar} in Next handler"))
+      }
+    }
+  }
+
+  private def failIterator(id: Int, ex: Throwable): Unit = {
+    iterators.synchronized {
+      iterators.get(id).foreach(_.setFailed(ex))
+      iterators -= id
+    }
+  }
+
+  private def acquireNext(id: Int): Unit = {
+    logger.fine(s"Acquire next $id")
+    assert(iterators.contains(id))
+    wrapError(runCommand(NextBatch(id, batchSize), readBatch(id, 0)))
+  }
+
+  private def waitFor[T <: Message[T]](helper: MessageHelper[T])(
+      implicit ec: ExecutionContext
+  ): Future[T] = {
+    chanelReader.readFrame().flatMap { frame =>
+      frame.frameType match {
+        case x if x == helper.tag.value => Future.successful(helper.readFrame[ByteBuffer](frame))
+        case Tags.ERROR_MESSAGE.value =>
+          val msg = ErrorMessage.readFrame(frame).message
+          logger.warning(s"Got error response on '${helper.tag.value.toChar}', '$msg'")
+          Future.failed(new YupanaException(msg))
+
+        case x =>
+          val error = s"Unexpected response '${x.toChar}' while waiting for '${helper.tag.value.toChar}'"
+          logger.severe(error)
+          Future.failed(new YupanaException(error))
+      }
+    }
+  }
+
+  private def execRequestQuery(id: Int, command: Command[_]): Future[QueryResult] = {
+    logger.fine(s"Exec request query $command")
+    ensureNotClosed()
+    runCommand(
+      command,
+      waitFor(ResultHeader).map { header =>
+        iterators.synchronized {
+          val r = new ResultIterator(header, () => acquireNext(id))
+          iterators += id -> r
+          r
+        }
+      }
+    ).flatMap { it =>
+      runCommand(NextBatch(id, batchSize), readBatch(id, 0)).map(_ => it)
+    }.map(it => extractProtoResult(id, it))
+  }
+
+  private def write(request: Command[_]): Future[Unit] = {
+    logger.fine(s"Writing command ${request.helper.tag.value.toChar}")
+    val f = request.toFrame[ByteBuffer](ByteBuffer.allocate(Frame.MAX_FRAME_SIZE))
+    val bb = ByteBuffer.allocate(f.payload.position() + 4 + 1)
+    bb.put(f.frameType)
+    bb.putInt(f.payload.position())
+    f.payload.flip()
+    bb.put(f.payload)
+    bb.flip()
+
+    JdbcUtils.wrapHandler[Unit](
+      new CompletionHandler[Integer, Promise[Unit]] {
+        override def completed(result: Integer, p: Promise[Unit]): Unit = p.success(())
+        override def failed(exc: Throwable, p: Promise[Unit]): Unit = p.failure(exc)
+      },
+      (p, h) => channel.write(bb, 10, TimeUnit.SECONDS, p, h)
+    )
+  }
+
+  override def close(): Unit = {
+    logger.info("Close connection")
+    closed = true
+    cancelHeartbeats()
+    Await.ready(write(Quit()), Duration.Inf)
+    channel.close()
+  }
+
+  private def extractProtoResult(id: Int, res: ResultIterator): QueryResult = {
+    val header = res.header
+    val names = header.fields.map(_.name)
+    val dataTypes = CollectionUtils.collectErrors(header.fields.map { resultField =>
+      DataType.bySqlName(resultField.typeName).toRight(s"Unknown type ${resultField.typeName}")
+    }) match {
+      case Right(types) => types
+      case Left(err)    => throw new IllegalArgumentException(s"Cannot read data: $err")
     }
 
-    prepareStatement(sql, resultSetType, resultSetConcurrency)
-  }
-
-  @throws[SQLException]
-  override def prepareCall(sql: String, resultSetType: Int, resultSetConcurrency: Int, resultSetHoldability: Int) =
-    throw new UnsupportedOperationException("Method not supported: Connection.prepareCall(String,int,int,int)")
-
-  @throws[SQLException]
-  override def prepareStatement(sql: String, autoGeneratedKeys: Int): PreparedStatement = {
-    throw new SQLFeatureNotSupportedException("Method not supported: Connection.prepareStatement(String,int)")
-  }
-
-  @throws[SQLException]
-  override def prepareStatement(sql: String, columnIndexes: Array[Int]): PreparedStatement = {
-    throw new SQLFeatureNotSupportedException("Method not supported: Connection.prepareStatement(String,int[])")
-  }
-
-  @throws[SQLException]
-  override def prepareStatement(sql: String, columnNames: Array[String]): PreparedStatement = {
-    throw new SQLFeatureNotSupportedException("Method not supported: Connection.prepareStatement(String,String[])")
-  }
-
-  @throws[SQLException]
-  override def createClob: Clob = throw new SQLFeatureNotSupportedException("CLOBs are not supported")
-
-  @throws[SQLException]
-  override def createBlob: Blob = throw new SQLFeatureNotSupportedException("BLOBs are not supported")
-
-  @throws[SQLException]
-  override def createNClob: NClob = throw new SQLFeatureNotSupportedException("NCLOBs are not supported")
-
-  @throws[SQLException]
-  override def createSQLXML: SQLXML = throw new SQLFeatureNotSupportedException("SQLXMLs are not supported")
-
-  @throws[SQLException]
-  override def isValid(i: Int): Boolean = !closed
-
-  @throws[SQLClientInfoException]
-  override def setClientInfo(s: String, s1: String): Unit = {}
-
-  @throws[SQLClientInfoException]
-  override def setClientInfo(properties: Properties): Unit = {}
-
-  @throws[SQLException]
-  override def getClientInfo(s: String): String = null
-
-  @throws[SQLException]
-  override def getClientInfo: Properties = null
-
-  @throws[SQLException]
-  override def createArrayOf(s: String, objects: Array[AnyRef]): java.sql.Array =
-    throw new SQLFeatureNotSupportedException("Arrays are not supported")
-
-  @throws[SQLException]
-  override def createStruct(s: String, objects: Array[AnyRef]): Struct =
-    throw new SQLFeatureNotSupportedException("Structs are not supported")
-
-  @throws[SQLException]
-  override def setSchema(s: String): Unit = {}
-
-  @throws[SQLException]
-  override def getSchema: String = null
-
-  @throws[SQLException]
-  override def abort(executor: Executor): Unit = {
-    throw new UnsupportedOperationException("Method not found: Connection.abort(Executor)")
-  }
-
-  @throws[SQLException]
-  override def setNetworkTimeout(executor: Executor, i: Int): Unit = {
-    throw new SQLFeatureNotSupportedException("Method not found: Connection.setNetworkTimeout(Executor,int)")
-  }
-
-  @throws[SQLException]
-  override def getNetworkTimeout: Int = 0
-
-  @throws[SQLException]
-  override def unwrap[T](aClass: Class[T]): T = {
-    if (!aClass.isAssignableFrom(getClass)) {
-      throw new SQLException(s"Cannot unwrap to ${aClass.getName}")
+    val values = res.map { row =>
+      dataTypes
+        .zip(row.values)
+        .map {
+          case (rt, bytes) =>
+            if (bytes.isEmpty) {
+              null
+            } else {
+              val b = ByteBuffer.wrap(bytes)
+              rt.storable.read(b)
+            }
+        }
+        .toArray
     }
 
-    aClass.cast(this)
+    QueryResult(id, SimpleResult(header.tableName, names, dataTypes, values))
   }
 
-  @throws[SQLException]
-  override def isWrapperFor(aClass: Class[_]): Boolean = aClass.isAssignableFrom(getClass)
+  private class Handler[R](cmd: Command[_], promise: Promise[R], f: => Future[R]) {
+    def execute(): Future[R] = {
+      promise.completeWith(write(cmd).flatMap(_ => f)).future
+    }
+  }
 }

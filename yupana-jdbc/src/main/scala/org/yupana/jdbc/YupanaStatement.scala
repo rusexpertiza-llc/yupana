@@ -31,17 +31,6 @@ class YupanaStatement(val connection: YupanaConnection) extends Statement {
   }
 
   @throws[SQLException]
-  override def execute(sql: String): Boolean = {
-    val result = connection.runQuery(sql, Map.empty)
-    lastResultSet = new YupanaResultSet(this, result)
-    true
-  }
-
-  @throws[SQLException]
-  override def executeUpdate(s: String): Int =
-    throw new SQLFeatureNotSupportedException("Method not supported: Statement.executeUpdate(String,int)")
-
-  @throws[SQLException]
   override def close(): Unit = {
     if (lastResultSet != null) {
       lastResultSet.close()
@@ -49,6 +38,25 @@ class YupanaStatement(val connection: YupanaConnection) extends Statement {
     }
     closed = true
   }
+
+  @throws[SQLException]
+  override def isClosed: Boolean = closed
+
+  protected def checkClosed(): Unit = {
+    if (isClosed) throw new YupanaException("Statement is already closed")
+  }
+
+  @throws[SQLException]
+  override def execute(sql: String): Boolean = {
+    checkClosed()
+    val result = connection.runQuery(sql, Map.empty)
+    lastResultSet = new YupanaResultSet(this, result.result, Some(result.id))
+    true
+  }
+
+  @throws[SQLException]
+  override def executeUpdate(s: String): Int =
+    throw new SQLFeatureNotSupportedException("Method not supported: Statement.executeUpdate(String,int)")
 
   @throws[SQLException]
   override def getMaxFieldSize: Int =
@@ -172,9 +180,6 @@ class YupanaStatement(val connection: YupanaConnection) extends Statement {
 
   @throws[SQLException]
   override def getResultSetHoldability: Int = ResultSet.CLOSE_CURSORS_AT_COMMIT
-
-  @throws[SQLException]
-  override def isClosed: Boolean = closed
 
   @throws[SQLException]
   override def setPoolable(b: Boolean): Unit = throw new SQLFeatureNotSupportedException("Pooling is not supported")

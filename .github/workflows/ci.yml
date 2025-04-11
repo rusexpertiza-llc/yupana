@@ -13,14 +13,18 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4.2.2
-    - name: Set up JDK 8
-      uses: actions/setup-java@v4.5.0
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4.7.0
       with:
-        java-version: '8'
+        java-version: '17'
         distribution: 'temurin'
 
+    - name: Set up sbt
+      uses: sbt/setup-sbt@v1
+
     - name: Cache sbt
-      uses: actions/cache@v4.2.0
+      uses: actions/cache@v4.2.3
       with:
         path: |
           ~/.sbt
@@ -42,20 +46,24 @@ jobs:
     name: Compile and test
     strategy:
       matrix:
-        scala: [2.13.14]
+        scala: [2.13.16]
 
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4.2.2
-    - name: Set up JDK 8
-      uses: actions/setup-java@v4.5.0
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4.7.0
       with:
-        java-version: '8'
+        java-version: '17'
         distribution: 'temurin'
 
+    - name: Set up sbt
+      uses: sbt/setup-sbt@v1
+
+
     - name: Cache sbt
-      uses: actions/cache@v4.2.0
+      uses: actions/cache@v4.2.3
       with:
         path: |
           ~/.sbt
@@ -73,6 +81,6 @@ jobs:
     - name: Run tests
       run: sbt ++${{ matrix.scala }} clean coverage test coverageReport
 
-    - uses: codecov/codecov-action@v5.1.1
+    - uses: codecov/codecov-action@v5.4.0
       with:
         token: ${{ secrets.CODECOV_TOKEN }}

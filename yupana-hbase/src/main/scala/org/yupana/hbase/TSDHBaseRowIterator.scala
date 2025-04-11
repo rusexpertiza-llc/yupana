@@ -16,8 +16,6 @@
 
 package org.yupana.hbase
 
-import java.nio.ByteBuffer
-
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.commons.codec.binary.Hex
 import org.apache.hadoop.hbase.client.{ Result => HBaseResult }
@@ -25,18 +23,21 @@ import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.{ Cell, CellUtil }
 import org.yupana.api.Time
 import org.yupana.api.schema.{ DictionaryDimension, HashDimension, RawDimension, Table }
-import org.yupana.api.types.DataType
-import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
+import org.yupana.api.types.{ ByteReaderWriter, DataType }
+import org.yupana.core.model.{ BatchDataset, DatasetSchema }
 import org.yupana.hbase.HBaseUtils.TAGS_POSITION_IN_ROW_KEY
+import org.yupana.serialization.{ MemoryBuffer, MemoryBufferEvalReaderWriter }
 
 import scala.collection.AbstractIterator
 
 class TSDHBaseRowIterator(
     context: InternalQueryContext,
     rows: Iterator[HBaseResult],
-    internalRowBuilder: InternalRowBuilder
-) extends AbstractIterator[InternalRow]
+    schema: DatasetSchema
+) extends AbstractIterator[BatchDataset]
     with StrictLogging {
+
+  implicit val readerWriter: ByteReaderWriter[MemoryBuffer] = MemoryBufferEvalReaderWriter
 
   private val dimensions = context.table.dimensionSeq.toArray
 
@@ -54,16 +55,23 @@ class TSDHBaseRowIterator(
     rows.hasNext || currentTime != Long.MaxValue
   }
 
-  override def next(): InternalRow = {
-    if (rows.hasNext && currentTime == Long.MaxValue) {
-      nextHBaseRow()
-    } else if (rows.isEmpty && currentTime == Long.MaxValue) {
+  override def next(): BatchDataset = {
+    if (rows.isEmpty && currentTime == Long.MaxValue) {
       throw new IllegalStateException("Next on empty iterator")
     }
 
-    currentTime = nextDataPoint()
+    val batch = new BatchDataset(schema)
+    var rowNum = 0
+    while (rowNum < BatchDataset.MAX_MUM_OF_ROWS && (rows.hasNext || currentTime != Long.MaxValue)) {
 
-    internalRowBuilder.buildAndReset()
+      if (rows.hasNext && currentTime == Long.MaxValue) {
+        nextHBaseRow()
+      }
+
+      loadNextDataPoint(batch, rowNum)
+      rowNum += 1
+    }
+    batch
   }
 
   private def nextHBaseRow(): Unit = {
@@ -85,15 +93,15 @@ class TSDHBaseRowIterator(
     currentTime = findMinTime()
   }
 
-  private def nextDataPoint(): Long = {
-    loadRow(currentRowKey)
+  private def loadNextDataPoint(batchDataset: BatchDataset, rowNum: Int): Unit = {
+    loadRow(currentRowKey, batchDataset, rowNum)
     var nextMinTime = Long.MaxValue
     var i = 0
     while (i < familiesCount) {
       val offset = offsets(i)
       val cell = cells(offset)
       if (getTimeOffset(cell) == currentTime) {
-        loadCell(cell)
+        loadCell(cell, batchDataset, rowNum)
         if (offset < endOffsets(i)) {
           nextMinTime = math.min(nextMinTime, getTimeOffset(cells(offset + 1)))
           offsets(i) = offset + 1
@@ -101,47 +109,50 @@ class TSDHBaseRowIterator(
       }
       i += 1
     }
-    nextMinTime
+    currentTime = nextMinTime
   }
 
-  private def loadRow(rowKey: Array[Byte]): Unit = {
+  private def loadRow(rowKey: Array[Byte], batch: BatchDataset, rowNum: Int): Unit = {
     val baseTime = Bytes.toLong(rowKey)
-    internalRowBuilder.set(Time(baseTime + currentTime))
+    batch.set(rowNum, Time(baseTime + currentTime))
     var i = 0
-    val bb = ByteBuffer.wrap(rowKey, TAGS_POSITION_IN_ROW_KEY, rowKey.length - TAGS_POSITION_IN_ROW_KEY)
+    val bb = MemoryBuffer.ofBytes(rowKey).asSlice(TAGS_POSITION_IN_ROW_KEY, rowKey.length - TAGS_POSITION_IN_ROW_KEY)
     dimensions.foreach { dim =>
-      val bytes = new Array[Byte](dim.rStorable.size)
-      bb.mark()
+      val pos = bb.position()
 
-      val value = dim.rStorable.read(bb)
-      if (dim.isInstanceOf[RawDimension[_]]) {
-        internalRowBuilder.set((Table.DIM_TAG_OFFSET + i).toByte, value)
+      dim match {
+        case rd: RawDimension[_] =>
+          val value = rd.rStorable.read(bb)
+          batch.set(rowNum, (Table.DIM_TAG_OFFSET + i).toByte, value)(rd.dataType.internalStorable)
+        case _ =>
+          dim.rStorable.read(bb)
       }
-      if (internalRowBuilder.needId((Table.DIM_TAG_OFFSET + i).toByte)) {
-        bb.reset()
-        bb.get(bytes)
-        internalRowBuilder.setId((Table.DIM_TAG_OFFSET + i).toByte, new String(Hex.encodeHex(bytes)))
+      if (dim.isInstanceOf[RawDimension[_]]) {}
+      if (schema.needId((Table.DIM_TAG_OFFSET + i).toByte)) {
+        val bytes = new Array[Byte](dim.rStorable.size)
+        bb.get(pos, bytes)
+        batch.setId(rowNum, (Table.DIM_TAG_OFFSET + i).toByte, new String(Hex.encodeHex(bytes)))
       }
 
       i += 1
     }
   }
 
-  private def loadCell(cell: Cell): Boolean = {
-    val bb = ByteBuffer.wrap(cell.getValueArray, cell.getValueOffset, cell.getValueLength)
+  private def loadCell(cell: Cell, batchDataset: BatchDataset, rowNum: Int): Boolean = {
+    val bb = MemoryBuffer.ofBytes(cell.getValueArray).asSlice(cell.getValueOffset, cell.getValueLength)
     var correct = true
-    while (bb.hasRemaining && correct) {
+    while (bb.hasRemaining() && correct) {
       val tag = bb.get()
       context.table.fieldForTag(tag) match {
         case Some(Left(metric)) =>
           val v = metric.dataType.storable.read(bb)
-          internalRowBuilder.set(tag, v)
+          batchDataset.set(rowNum, tag, v)(metric.dataType.internalStorable)
         case Some(Right(_: DictionaryDimension)) =>
           val v = DataType.stringDt.storable.read(bb)
-          internalRowBuilder.set(tag, v)
+          batchDataset.set(rowNum, tag, v)
         case Some(Right(hd: HashDimension[_, _])) =>
           val v = hd.tStorable.read(bb)
-          internalRowBuilder.set(tag, v)
+          batchDataset.set(rowNum, tag, v)(hd.dataType.internalStorable)
         case _ =>
           logger.warn(s"Unknown tag: $tag, in table: ${context.table.name}")
           correct = false

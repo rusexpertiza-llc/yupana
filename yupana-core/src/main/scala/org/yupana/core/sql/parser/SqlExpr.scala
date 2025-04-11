@@ -24,7 +24,7 @@ case class Constant(value: Value) extends SqlExpr {
   override def proposedName: Option[String] = Some(value.asString)
 }
 
-case class SqlArray(values: Seq[Value]) extends SqlExpr {
+case class SqlArray(values: Seq[Literal]) extends SqlExpr {
   override def proposedName: Option[String] = None
 }
 

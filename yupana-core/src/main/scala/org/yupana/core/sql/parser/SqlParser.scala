@@ -24,6 +24,16 @@ object SqlParser {
 
   private def selectWord[$: P] = P(IgnoreCase("SELECT"))
   private def showWord[$: P] = P(IgnoreCase("SHOW"))
+  private def createWord[$: P] = P(IgnoreCase("CREATE"))
+  private def withWord[$: P] = P(IgnoreCase("WITH"))
+  private def setWord[$: P] = P(IgnoreCase("SET"))
+  private def passwordWord[$: P] = P(IgnoreCase("PASSWORD"))
+  private def roleWord[$: P] = P(IgnoreCase("ROLE"))
+  private def alterWord[$: P] = P(IgnoreCase("ALTER"))
+  private def dropWord[$: P] = P(IgnoreCase("DROP"))
+  private def userWord[$: P] = P(IgnoreCase("USER"))
+  private def usersWord[$: P] = P(IgnoreCase("USERS"))
+  private def versionWord[$: P] = P(IgnoreCase("VERSION"))
   private def tablesWord[$: P] = P(IgnoreCase("TABLES"))
   private def columnsWord[$: P] = P(IgnoreCase("COLUMNS"))
   private def queriesWord[$: P] = P(IgnoreCase("QUERIES"))
@@ -57,8 +67,14 @@ object SqlParser {
   private def valuesWord[$: P] = P(IgnoreCase("VALUES"))
   private def functionsWord[$: P] = P(IgnoreCase("FUNCTIONS"))
   private def forWord[$: P] = P(IgnoreCase("FOR"))
+
   private val keywords = Set(
     "select",
+    "upsert",
+    "delete",
+    "kill",
+    "alter",
+    "drop",
     "from",
     "where",
     "and",
@@ -76,7 +92,9 @@ object SqlParser {
     "in",
     "is",
     "null",
-    "not"
+    "not",
+    "with",
+    "set"
   )
   private def asterisk[$: P] = P("*")
 
@@ -86,6 +104,10 @@ object SqlParser {
   private def divide[$: P] = P("/").map(_ => Divide)
 
   def name[$: P]: P[String] = P(CharsWhileIn("a-zA-Z0-9_").!.filter(s => s.nonEmpty && s.exists(_.isLetter)))
+  def username[$: P]: P[String] =
+    P("'" ~ CharIn("a-zA-Z").! ~ CharsWhileIn("a-zA-Z0-9_\\-").!.filter(_.nonEmpty) ~ "'").map { case (h, t) => h + t }
+
+  def password[$: P]: P[String] = P("'" ~ CharsWhile(c => c != '\'' && CharPredicates.isPrintableChar(c)).! ~ "'")
 
   def schemaName[$: P]: P[String] = P(name | "\"" ~ name ~ "\"")
   def fieldWithSchema[$: P]: P[String] = P((schemaName ~ ".").? ~ schemaName).map(_._2)
@@ -102,7 +124,7 @@ object SqlParser {
 
   def constExpr[$: P]: P[Constant] = P(ValueParser.value).map(Constant)
 
-  def arrayExpr[$: P]: P[SqlArray] = P("{" ~ ValueParser.value.rep(min = 1, sep = ",") ~ "}").map(SqlArray)
+  def arrayExpr[$: P]: P[SqlArray] = P("{" ~ ValueParser.literal.rep(min = 1, sep = ",") ~ "}").map(SqlArray)
 
   def caseExpr[$: P]: P[Case] =
     P(
@@ -120,7 +142,7 @@ object SqlParser {
     }
   }
 
-  def mathExpr[$: P]: P[SqlExpr] = chained1(minusMathTerm | mathTerm, mathTerm, plus | minus)
+  def mathExpr[$: P]: P[SqlExpr] = chained1(mathTerm | minusMathTerm, mathTerm, plus | minus)
 
   def expr[$: P]: P[SqlExpr] = P(condition)
 
@@ -168,10 +190,10 @@ object SqlParser {
   }
 
   def in[$: P]: P[SqlExpr => SqlExpr] =
-    P(inWord ~/ "(" ~ ValueParser.value.rep(min = 1, sep = ",") ~ ")").map(vs => e => In(e, vs))
+    P(inWord ~/ "(" ~ (ValueParser.value).rep(min = 1, sep = ",") ~ ")").map(vs => e => In(e, vs))
 
   def notIn[$: P]: P[SqlExpr => SqlExpr] =
-    P(notWord ~ inWord ~/ "(" ~ ValueParser.value.rep(min = 1, sep = ",") ~ ")").map(vs => e => NotIn(e, vs))
+    P(notWord ~ inWord ~/ "(" ~ (ValueParser.value).rep(min = 1, sep = ",") ~ ")").map(vs => e => NotIn(e, vs))
 
   def isNull[$: P]: P[SqlExpr => SqlExpr] = P(isWord ~ nullWord).map(_ => IsNull)
 
@@ -269,6 +291,10 @@ object SqlParser {
 
   def tables[$: P]: P[ShowTables.type] = P(tablesWord).map(_ => ShowTables)
 
+  def users[$: P]: P[ShowUsers.type] = P(usersWord).map(_ => ShowUsers)
+
+  def version[$: P]: P[ShowVersion.type] = P(versionWord).map(_ => ShowVersion)
+
   def columns[$: P]: P[ShowColumns] = P(columnsWord ~/ fromWord ~ schemaName).map(ShowColumns)
 
   def metricQueryIdFilter[$: P]: P[MetricsFilter] =
@@ -290,7 +316,7 @@ object SqlParser {
   def functions[$: P]: P[ShowFunctions] = P(functionsWord ~/ forWord ~ name).map(ShowFunctions)
 
   def show[$: P]: P[Statement] =
-    P(showWord ~/ (columns | tables | queries | functions | updatesIntervals))
+    P(showWord ~/ (columns | tables | version | users | queries | functions | updatesIntervals))
 
   def kill[$: P]: P[Statement] = P(killWord ~/ query)
 
@@ -299,24 +325,67 @@ object SqlParser {
 
   def upsertFields[$: P]: P[Seq[String]] = "(" ~/ fieldWithSchema.rep(min = 1, sep = ",") ~ ")"
 
-  def values[$: P](count: Int): P[Seq[Seq[SqlExpr]]] =
-    ("(" ~/ expr.rep(exactly = count, sep = ",") ~ ")").opaque(s"<$count expressions>").rep(1, ",")
+  def values[$: P](count: Int): P[Seq[Seq[Value]]] =
+    ("(" ~/ ValueParser.value.rep(exactly = count, sep = ",") ~ ")").opaque(s"<$count expressions>").rep(1, ",")
 
   def upsert[$: P]: P[Upsert] =
     P(upsertWord ~ intoWord ~/ schemaName ~/ upsertFields ~ valuesWord).flatMap {
       case (table, fields) => values(fields.size).map(vs => Upsert(table, fields, vs))
     }
 
-  def statement[$: P]: P[Statement] = P((select | upsert | show | kill | delete) ~ ";".? ~ End)
+  def withPassword[$: P](cu: CreateUser): P[CreateUser] = {
+    P(passwordWord ~/ password ~ (withWord ~ roleWord ~/ username).?).map {
+      case (p, mr) => cu.copy(password = Some(p), role = mr)
+    }
+  }
+
+  def withRole[$: P](cu: CreateUser): P[CreateUser] = {
+    P(roleWord ~/ username ~ (withWord ~ passwordWord ~/ password).?).map {
+      case (r, mp) => cu.copy(role = Some(r), password = mp)
+    }
+  }
+
+  def withExtras[$: P](cu: CreateUser): P[CreateUser] = {
+    (withWord ~/ (withPassword(cu) | withRole(cu))).?.map(_.getOrElse(cu))
+  }
+
+  def createUser[$: P]: P[CreateUser] =
+    P(createWord ~ userWord ~/ username).flatMap(u => withExtras(CreateUser(u, None, None)))
+
+  def dropUser[$: P]: P[DropUser] = P(dropWord ~ userWord ~/ username).map(DropUser)
+
+  def setPassword[$: P](au: AlterUser): P[AlterUser] = {
+    P(passwordWord ~/ "=" ~ password ~/ (setWord ~ roleWord ~/ "=" ~ username).?).map {
+      case (p, mr) => au.copy(password = Some(p), role = mr)
+    }
+  }
+
+  def setRole[$: P](au: AlterUser): P[AlterUser] = {
+    P(roleWord ~/ "=" ~ username ~/ (setWord ~ passwordWord ~/ "=" ~ password).?).map {
+      case (r, mp) => au.copy(role = Some(r), password = mp)
+    }
+  }
+
+  def setExtras[$: P](au: AlterUser): P[AlterUser] = {
+    P(setWord ~/ (setPassword(au) | setRole(au)))
+  }
+  def alterUser[$: P]: P[AlterUser] =
+    P(alterWord ~ userWord ~/ username).flatMap(n => setExtras(AlterUser(n, None, None)))
+
+  def setValue[$: P]: P[SetValue] = P(setWord ~/ name ~ "=" ~/ ValueParser.value).map(SetValue.tupled)
+
+  def statement[$: P]: P[Statement] = P(
+    (select | upsert | show | createUser | alterUser | kill | delete | dropUser | setValue) ~ ";".? ~ End
+  )
 
   def parse(sql: String): Either[String, Statement] = {
     fastparse.parse(sql.trim, statement(_)) match {
       case Parsed.Success(s, _) => Right(s)
-      case f @ Parsed.Failure(_, index, extra) =>
+      case f: Parsed.Failure =>
         val trace = f.trace()
         val expected = trace.terminals.render
-        val actual = Util.literalize(extra.input.slice(index, index + 10))
-        val position = extra.input.prettyIndex(index)
+        val actual = Util.literalize(f.extra.input.slice(f.index, f.index + 10))
+        val position = f.extra.input.prettyIndex(f.index)
 
         Left(
           s"""Invalid SQL statement: '$sql'

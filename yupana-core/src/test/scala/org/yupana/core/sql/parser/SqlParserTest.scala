@@ -7,6 +7,7 @@ import fastparse._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.threeten.extra.PeriodDuration
+import org.yupana.api.Time
 
 import java.time.format.DateTimeFormatter
 import java.time.{ Duration, OffsetDateTime, Period, ZoneOffset }
@@ -14,45 +15,45 @@ import java.time.{ Duration, OffsetDateTime, Period, ZoneOffset }
 class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedValues with TableDrivenPropertyChecks {
 
   "Value parser" should "parse strings" in {
-    parse("''", ValueParser.value(_)).value shouldEqual StringValue("")
-    parse("'test me'", ValueParser.value(_)).value shouldEqual StringValue("test me")
-    parse("' with spaces '", ValueParser.value(_)).value shouldEqual StringValue(" with spaces ")
+    parse("''", ValueParser.value(_)).value shouldEqual TypedValue("")
+    parse("'test me'", ValueParser.value(_)).value shouldEqual TypedValue("test me")
+    parse("' with spaces '", ValueParser.value(_)).value shouldEqual TypedValue(" with spaces ")
   }
 
   it should "support escaped text" in {
-    parse("'slash \\\\'", ValueParser.value(_)).value shouldEqual StringValue("slash \\")
-    parse("'\\'escaped\\' quotes'", ValueParser.value(_)).value shouldEqual StringValue("'escaped' quotes")
-    parse("'multi\\nline'", ValueParser.value(_)).value shouldEqual StringValue("multi\nline")
-    parse("'multi\\n\\rline'", ValueParser.value(_)).value shouldEqual StringValue("multi\n\rline")
-    parse("'col1\\tcol2'", ValueParser.value(_)).value shouldEqual StringValue("col1\tcol2")
+    parse("'slash \\\\'", ValueParser.value(_)).value shouldEqual TypedValue("slash \\")
+    parse("'\\'escaped\\' quotes'", ValueParser.value(_)).value shouldEqual TypedValue("'escaped' quotes")
+    parse("'multi\\nline'", ValueParser.value(_)).value shouldEqual TypedValue("multi\nline")
+    parse("'multi\\n\\rline'", ValueParser.value(_)).value shouldEqual TypedValue("multi\n\rline")
+    parse("'col1\\tcol2'", ValueParser.value(_)).value shouldEqual TypedValue("col1\tcol2")
     parse("'test\\g'", ValueParser.value(_)).error should include("found \"g'")
   }
 
   it should "parse integer numbers" in {
-    parse("1234567", ValueParser.value(_)).value shouldEqual NumericValue(1234567)
+    parse("1234567", ValueParser.value(_)).value shouldEqual TypedValue(BigDecimal(1234567))
   }
 
   it should "parse decimal values" in {
-    parse("1234567.89", ValueParser.value(_)).value shouldEqual NumericValue(1234567.89)
+    parse("1234567.89", ValueParser.value(_)).value shouldEqual TypedValue(BigDecimal(1234567.89))
   }
 
   it should "parse timestamps" in {
-    parse("TIMESTAMP '2017-08-23 12:44:02.000'", ValueParser.value(_)).value shouldEqual TimestampValue(
-      OffsetDateTime.of(2017, 8, 23, 12, 44, 2, 0, ZoneOffset.UTC)
+    parse("TIMESTAMP '2017-08-23 12:44:02.000'", ValueParser.value(_)).value shouldEqual TypedValue(
+      Time(OffsetDateTime.of(2017, 8, 23, 12, 44, 2, 0, ZoneOffset.UTC))
     )
 
-    parse("TIMESTAMP '2017-08-23'", ValueParser.value(_)).value shouldEqual TimestampValue(
-      OffsetDateTime.of(2017, 8, 23, 0, 0, 0, 0, ZoneOffset.UTC)
+    parse("TIMESTAMP '2017-08-23'", ValueParser.value(_)).value shouldEqual TypedValue(
+      Time(OffsetDateTime.of(2017, 8, 23, 0, 0, 0, 0, ZoneOffset.UTC))
     )
 
-    parse("TIMESTAMP '2018-08-4 22:25:51.03'", ValueParser.value(_)).value shouldEqual TimestampValue(
-      OffsetDateTime.of(2018, 8, 4, 22, 25, 51, 30, ZoneOffset.UTC)
+    parse("TIMESTAMP '2018-08-4 22:25:51.03'", ValueParser.value(_)).value shouldEqual TypedValue(
+      Time(OffsetDateTime.of(2018, 8, 4, 22, 25, 51, 30, ZoneOffset.UTC))
     )
   }
 
   it should "support alternative timestamp syntax" in {
-    parse("{TS '2017-10-31 00:00:00' }", ValueParser.value(_)).value shouldEqual TimestampValue(
-      OffsetDateTime.of(2017, 10, 31, 0, 0, 0, 0, ZoneOffset.UTC)
+    parse("{TS '2017-10-31 00:00:00' }", ValueParser.value(_)).value shouldEqual TypedValue(
+      Time(OffsetDateTime.of(2017, 10, 31, 0, 0, 0, 0, ZoneOffset.UTC))
     )
   }
 
@@ -71,8 +72,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
   }
 
   it should "parse booleans" in {
-    parse("true", ValueParser.value(_)).value shouldEqual BooleanValue(true)
-    parse("FALSE", ValueParser.value(_)).value shouldEqual BooleanValue(false)
+    parse("true", ValueParser.value(_)).value shouldEqual TypedValue(value = true)
+    parse("FALSE", ValueParser.value(_)).value shouldEqual TypedValue(value = false)
   }
 
   it should "support single field SQL intervals" in {
@@ -126,8 +127,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         fields should contain theSameElementsAs List(SqlField(FieldName("sum")), SqlField(FieldName("quantity")))
         condition shouldEqual And(
           Seq(
-            Ge(FieldName("time"), Constant(NumericValue(54321))),
-            Lt(FieldName("time"), Constant(NumericValue(939393)))
+            Ge(FieldName("time"), Constant(TypedValue(BigDecimal(54321)))),
+            Lt(FieldName("time"), Constant(TypedValue(BigDecimal(939393))))
           )
         )
         groupings shouldBe empty
@@ -142,8 +143,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         schema shouldEqual "items"
         condition shouldEqual And(
           Seq(
-            Ge(FieldName("time"), Constant(NumericValue(12345678))),
-            Lt(FieldName("time"), Constant(NumericValue(23456789)))
+            Ge(FieldName("time"), Constant(TypedValue(BigDecimal(12345678)))),
+            Lt(FieldName("time"), Constant(TypedValue(BigDecimal(23456789))))
           )
         )
         groupings shouldBe empty
@@ -160,11 +161,11 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         fields should contain theSameElementsAs List(SqlField(FieldName("sum")), SqlField(FieldName("quantity")))
         condition shouldEqual And(
           Seq(
-            Ge(FieldName("time"), Constant(NumericValue(12345678))),
+            Ge(FieldName("time"), Constant(TypedValue(BigDecimal(12345678)))),
             And(
               Seq(
-                Lt(FieldName("time"), Constant(NumericValue(23456789))),
-                Eq(FieldName("kkmId"), Constant(StringValue("123456")))
+                Lt(FieldName("time"), Constant(TypedValue(BigDecimal(23456789)))),
+                Eq(FieldName("kkmId"), Constant(TypedValue("123456")))
               )
             )
           )
@@ -182,9 +183,24 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         fields should contain theSameElementsAs List(SqlField(FieldName("foo")))
         condition shouldEqual Or(
           Seq(
-            And(Seq(Gt(FieldName("a"), Constant(NumericValue(5))), Lt(FieldName("a"), Constant(NumericValue(10))))),
-            And(Seq(Ge(FieldName("a"), Constant(NumericValue(30))), Le(FieldName("a"), Constant(NumericValue(40))))),
-            Or(Seq(Eq(FieldName("b"), Constant(NumericValue(10))), Eq(FieldName("b"), Constant(NumericValue(42)))))
+            And(
+              Seq(
+                Gt(FieldName("a"), Constant(TypedValue(BigDecimal(5)))),
+                Lt(FieldName("a"), Constant(TypedValue(BigDecimal(10))))
+              )
+            ),
+            And(
+              Seq(
+                Ge(FieldName("a"), Constant(TypedValue(BigDecimal(30)))),
+                Le(FieldName("a"), Constant(TypedValue(BigDecimal(40))))
+              )
+            ),
+            Or(
+              Seq(
+                Eq(FieldName("b"), Constant(TypedValue(BigDecimal(10)))),
+                Eq(FieldName("b"), Constant(TypedValue(BigDecimal(42))))
+              )
+            )
           )
         )
     }
@@ -199,11 +215,11 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         fields should contain theSameElementsAs List(SqlField(FieldName("foo")))
         condition shouldEqual Or(
           Seq(
-            Gt(FieldName("a"), Constant(NumericValue(10))),
+            Gt(FieldName("a"), Constant(TypedValue(BigDecimal(10)))),
             And(
               Seq(
-                In(FieldName("b"), Seq(StringValue("aaa"), StringValue("bbb"))),
-                Eq(FieldName("c"), Constant(NumericValue(8)))
+                In(FieldName("b"), Seq(TypedValue("aaa"), TypedValue("bbb"))),
+                Eq(FieldName("c"), Constant(TypedValue(BigDecimal(8))))
               )
             )
           )
@@ -218,8 +234,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         fields should contain theSameElementsAs List(SqlField(FieldName("foo")))
         condition shouldEqual And(
           Seq(
-            NotIn(FieldName("x"), Seq(NumericValue(1), NumericValue(2), NumericValue(3))),
-            Eq(FieldName("z"), Constant(NumericValue(12)))
+            NotIn(FieldName("x"), Seq(TypedValue(BigDecimal(1)), TypedValue(BigDecimal(2)), TypedValue(BigDecimal(3)))),
+            Eq(FieldName("z"), Constant(TypedValue(BigDecimal(12))))
           )
         )
     }
@@ -234,7 +250,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         fields should contain theSameElementsAs List(SqlField(FieldName("foo")))
         condition shouldEqual And(
           Seq(
-            Gt(FieldName("a"), Constant(NumericValue(10))),
+            Gt(FieldName("a"), Constant(TypedValue(BigDecimal(10)))),
             IsNull(FieldName("c"))
           )
         )
@@ -250,7 +266,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         fields should contain theSameElementsAs List(SqlField(FieldName("foo")))
         condition shouldEqual And(
           Seq(
-            Gt(FieldName("a"), Constant(NumericValue(10))),
+            Gt(FieldName("a"), Constant(TypedValue(BigDecimal(10)))),
             IsNotNull(FieldName("c"))
           )
         )
@@ -270,7 +286,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
             val (c, v) = conditionalValues.head
             c shouldBe IsNotNull(FieldName("foo"))
             v shouldBe FieldName("quantity")
-            default shouldBe Constant(NumericValue(BigDecimal(0)))
+            default shouldBe Constant(TypedValue(BigDecimal(0)))
 
           case _ => fail(s"Unexpected field $f")
         }
@@ -290,13 +306,13 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
           Seq(
             BetweenCondition(
               FieldName("time"),
-              TimestampValue(OffsetDateTime.of(2021, 3, 9, 0, 0, 0, 0, ZoneOffset.UTC)),
-              TimestampValue(OffsetDateTime.of(2021, 3, 10, 0, 0, 0, 0, ZoneOffset.UTC))
+              TypedValue(Time(OffsetDateTime.of(2021, 3, 9, 0, 0, 0, 0, ZoneOffset.UTC))),
+              TypedValue(Time(OffsetDateTime.of(2021, 3, 10, 0, 0, 0, 0, ZoneOffset.UTC)))
             ),
             BetweenCondition(
               FieldName("sum"),
-              NumericValue(1000),
-              NumericValue(10000)
+              TypedValue(BigDecimal(1000)),
+              TypedValue(BigDecimal(10000))
             )
           )
         )
@@ -312,8 +328,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         table shouldEqual "table"
         fields should contain theSameElementsInOrderAs List(SqlField(FieldName("x")), SqlField(FieldName("y")))
         condition shouldEqual Eq(
-          Gt(FieldName("x"), Constant(NumericValue(100))),
-          Le(Plus(FieldName("y"), Constant(NumericValue(50))), Constant(NumericValue(1000)))
+          Gt(FieldName("x"), Constant(TypedValue(BigDecimal(100)))),
+          Le(Plus(FieldName("y"), Constant(TypedValue(BigDecimal(50)))), Constant(TypedValue(BigDecimal(1000))))
         )
     }
   }
@@ -325,9 +341,12 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
       case Select(Some(table), SqlFieldList(fields), None, Nil, None, None) =>
         table shouldEqual "items"
         fields should contain theSameElementsInOrderAs List(
-          SqlField(Gt(FieldName("quantity"), Constant(NumericValue(100))), Some("more_100")),
+          SqlField(Gt(FieldName("quantity"), Constant(TypedValue(BigDecimal(100)))), Some("more_100")),
           SqlField(
-            Lt(Divide(FieldName("quantity"), Constant(NumericValue(2))), Constant(NumericValue(1000))),
+            Lt(
+              Divide(FieldName("quantity"), Constant(TypedValue(BigDecimal(2)))),
+              Constant(TypedValue(BigDecimal(1000)))
+            ),
             Some("less_1000")
           )
         )
@@ -341,7 +360,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
     parsed(statement) {
       case Select(Some(table), SqlFieldList(fields), Some(condition), groupings, None, None) =>
         table shouldEqual "items"
-        condition shouldEqual Eq(FieldName("item"), Constant(StringValue("биг мак")))
+        condition shouldEqual Eq(FieldName("item"), Constant(TypedValue("биг мак")))
         fields should contain theSameElementsAs List(
           SqlField(FunctionCall("sum", FieldName("quantity") :: Nil)),
           SqlField(FunctionCall("day", FieldName("time") :: Nil))
@@ -355,7 +374,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
     parsed(statement) {
       case Select(Some(table), SqlFieldList(fields), Some(condition), groupings, None, None) =>
         table shouldEqual "items"
-        condition shouldEqual Lt(FieldName("quantity"), Constant(NumericValue(2.5)))
+        condition shouldEqual Lt(FieldName("quantity"), Constant(TypedValue(BigDecimal(2.5))))
         fields should contain theSameElementsAs List(
           SqlField(FunctionCall("sum", FieldName("quantity") :: Nil)),
           SqlField(FunctionCall("day", FieldName("time") :: Nil), Some("d"))
@@ -378,7 +397,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
     parsed(statement) {
       case Select(Some(table), SqlFieldList(fields), Some(condition), groupings, None, None) =>
         table shouldEqual "tickets"
-        condition shouldEqual Le(FieldName("sum"), Constant(NumericValue(1000)))
+        condition shouldEqual Le(FieldName("sum"), Constant(TypedValue(BigDecimal(1000))))
         fields should contain theSameElementsAs List(
           SqlField(FunctionCall("sum", FieldName("quantity") :: Nil)),
           SqlField(FunctionCall("day", FieldName("time") :: Nil), Some("d"))
@@ -397,7 +416,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
           SqlField(FieldName("quantity"), Some("q")),
           SqlField(FieldName("sum"), Some("s"))
         )
-        condition shouldEqual Ge(FieldName("q"), Constant(NumericValue(10)))
+        condition shouldEqual Ge(FieldName("q"), Constant(TypedValue(BigDecimal(10))))
         groupings shouldBe empty
     }
   }
@@ -428,7 +447,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
           SqlField(FunctionCall("sum", FieldName("quantity") :: Nil), Some("sum")),
           SqlField(FieldName("name"), Some("n"))
         )
-        condition shouldEqual Ne(FieldName("n"), Constant(StringValue("картошка")))
+        condition shouldEqual Ne(FieldName("n"), Constant(TypedValue("картошка")))
         groupings should contain(FieldName("n"))
     }
   }
@@ -440,7 +459,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
       case Select(Some(table), SqlFieldList(fields), Some(condition), groupings, None, None) =>
         table shouldEqual "bar"
         fields should contain theSameElementsAs List(SqlField(FieldName("foo")))
-        condition shouldEqual Eq(FunctionCall("day", FieldName("time") :: Nil), Constant(NumericValue(28)))
+        condition shouldEqual Eq(FunctionCall("day", FieldName("time") :: Nil), Constant(TypedValue(BigDecimal(28))))
         groupings shouldBe empty
     }
   }
@@ -456,7 +475,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
       case Select(Some(table), SqlFieldList(fields), Some(condition), groupings, None, None) =>
         table shouldEqual "foo"
         fields should contain(SqlField(FieldName("field")))
-        condition shouldEqual Le(FieldName("bar"), Constant(NumericValue(5)))
+        condition shouldEqual Le(FieldName("bar"), Constant(TypedValue(BigDecimal(5))))
         groupings should contain(FieldName("baz"))
     }
   }
@@ -488,7 +507,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
       case Select(Some(table), SqlFieldList(fields), Some(condition), groupings, None, None) =>
         table shouldEqual "table"
         fields should contain theSameElementsAs List(SqlField(FieldName("field"), Some("f")))
-        condition shouldEqual Eq(FieldName("f"), Constant(StringValue("hello")))
+        condition shouldEqual Eq(FieldName("f"), Constant(TypedValue("hello")))
         groupings shouldBe empty
     }
   }
@@ -511,7 +530,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
       case Select(Some(table), SqlFieldList(fields), Some(condition), groupings, None, Some(limit)) =>
         table shouldEqual "bar"
         fields should contain theSameElementsAs Seq(SqlField(FieldName("foo")))
-        condition shouldEqual Eq(FieldName("qux"), Constant(NumericValue(5)))
+        condition shouldEqual Eq(FieldName("qux"), Constant(TypedValue(BigDecimal(5))))
         groupings shouldBe empty
         limit shouldEqual 10
     }
@@ -524,7 +543,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
       case Select(Some(table), SqlFieldList(fields), Some(condition), groupings, None, Some(limit)) =>
         table shouldEqual "bar"
         fields should contain theSameElementsAs Seq(SqlField(FieldName("foo")))
-        condition shouldEqual Eq(FieldName("qux"), Constant(NumericValue(5)))
+        condition shouldEqual Eq(FieldName("qux"), Constant(TypedValue(BigDecimal(5))))
         groupings should contain theSameElementsAs Seq(FieldName("time"), FieldName("q"))
         limit shouldEqual 10
     }
@@ -546,8 +565,14 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
 
         condition shouldEqual And(
           Seq(
-            Ge(FieldName("time"), Constant(TimestampValue(OffsetDateTime.of(2017, 10, 1, 0, 0, 0, 0, ZoneOffset.UTC)))),
-            Lt(FieldName("time"), Constant(TimestampValue(OffsetDateTime.of(2017, 10, 30, 0, 0, 0, 0, ZoneOffset.UTC))))
+            Ge(
+              FieldName("time"),
+              Constant(TypedValue(Time(OffsetDateTime.of(2017, 10, 1, 0, 0, 0, 0, ZoneOffset.UTC))))
+            ),
+            Lt(
+              FieldName("time"),
+              Constant(TypedValue(Time(OffsetDateTime.of(2017, 10, 30, 0, 0, 0, 0, ZoneOffset.UTC))))
+            )
           )
         )
 
@@ -569,7 +594,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
           SqlField(FieldName("foo")),
           SqlField(FieldName("barbarian"), Some("bar"))
         )
-        condition shouldEqual Ne(FieldName("mode"), Constant(StringValue("test")))
+        condition shouldEqual Ne(FieldName("mode"), Constant(TypedValue("test")))
     }
   }
 
@@ -587,7 +612,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
           SqlField(FieldName("two")),
           SqlField(FieldName("three"))
         )
-        condition shouldEqual Ne(FieldName("four"), Constant(NumericValue(4)))
+        condition shouldEqual Ne(FieldName("four"), Constant(TypedValue(4)))
     }
   }
 
@@ -607,8 +632,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         )
         condition shouldEqual And(
           Seq(
-            Ne(FieldName("four"), Constant(NumericValue(4))),
-            Eq(Constant(NumericValue(1)), Constant(NumericValue(0)))
+            Ne(FieldName("four"), Constant(TypedValue(4))),
+            Eq(Constant(TypedValue(1)), Constant(TypedValue(0)))
           )
         )
     }
@@ -635,12 +660,15 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         )
         condition shouldEqual And(
           Seq(
-            Ge(FieldName("time"), Constant(TimestampValue(OffsetDateTime.of(2017, 11, 1, 0, 0, 0, 0, ZoneOffset.UTC)))),
+            Ge(
+              FieldName("time"),
+              Constant(TypedValue(Time(OffsetDateTime.of(2017, 11, 1, 0, 0, 0, 0, ZoneOffset.UTC))))
+            ),
             Lt(
               FieldName("time"),
-              Constant(TimestampValue(OffsetDateTime.of(2017, 12, 20, 0, 0, 0, 0, ZoneOffset.UTC)))
+              Constant(TypedValue(Time(OffsetDateTime.of(2017, 12, 20, 0, 0, 0, 0, ZoneOffset.UTC))))
             ),
-            Eq(FieldName("KkmsRetailPlaceOrgCatalog_orgInn"), Constant(StringValue("7706091500")))
+            Eq(FieldName("KkmsRetailPlaceOrgCatalog_orgInn"), Constant(TypedValue("7706091500")))
           )
         )
         groupings should contain theSameElementsAs List(FieldName("d"))
@@ -669,12 +697,15 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         )
         condition shouldEqual And(
           Seq(
-            Ge(FieldName("time"), Constant(TimestampValue(OffsetDateTime.of(2017, 11, 1, 0, 0, 0, 0, ZoneOffset.UTC)))),
+            Ge(
+              FieldName("time"),
+              Constant(TypedValue(Time(OffsetDateTime.of(2017, 11, 1, 0, 0, 0, 0, ZoneOffset.UTC))))
+            ),
             Lt(
               FieldName("time"),
-              Constant(TimestampValue(OffsetDateTime.of(2017, 12, 20, 0, 0, 0, 0, ZoneOffset.UTC)))
+              Constant(TypedValue(Time(OffsetDateTime.of(2017, 12, 20, 0, 0, 0, 0, ZoneOffset.UTC))))
             ),
-            Eq(FieldName("KkmsRetailPlaceOrgCatalog_orgInn"), Constant(StringValue("7706091500")))
+            Eq(FieldName("KkmsRetailPlaceOrgCatalog_orgInn"), Constant(TypedValue("7706091500")))
           )
         )
         groupings should contain theSameElementsAs List(FieldName("d"))
@@ -700,19 +731,22 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
       case Select(Some(table), SqlFieldList(fields), Some(condition), groupings, None, None) =>
         table shouldEqual "kkm_items"
         fields should contain theSameElementsInOrderAs List(
-          SqlField(Constant(NumericValue(1)), Some("Number_of_Records")),
+          SqlField(Constant(TypedValue(BigDecimal(1))), Some("Number_of_Records")),
           SqlField(FunctionCall("day", FieldName("time") :: Nil), Some("d")),
           SqlField(FunctionCall("sum", FieldName("quantity") :: Nil), Some("quantity")),
           SqlField(FunctionCall("sum", FieldName("sum") :: Nil), Some("sum"))
         )
         condition shouldEqual And(
           Seq(
-            Ge(FieldName("time"), Constant(TimestampValue(OffsetDateTime.of(2017, 11, 1, 0, 0, 0, 0, ZoneOffset.UTC)))),
+            Ge(
+              FieldName("time"),
+              Constant(TypedValue(Time(OffsetDateTime.of(2017, 11, 1, 0, 0, 0, 0, ZoneOffset.UTC))))
+            ),
             Lt(
               FieldName("time"),
-              Constant(TimestampValue(OffsetDateTime.of(2017, 11, 20, 0, 0, 0, 0, ZoneOffset.UTC)))
+              Constant(TypedValue(Time(OffsetDateTime.of(2017, 11, 20, 0, 0, 0, 0, ZoneOffset.UTC))))
             ),
-            Eq(FieldName("KkmsRetailPlaceOrgCatalog_orgInn"), Constant(StringValue("7706091500")))
+            Eq(FieldName("KkmsRetailPlaceOrgCatalog_orgInn"), Constant(TypedValue("7706091500")))
           )
         )
         groupings should contain theSameElementsAs List(FieldName("d"))
@@ -729,7 +763,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         fields should contain theSameElementsInOrderAs List(
           SqlField(
             Plus(
-              Minus(Constant(NumericValue(1)), Divide(FieldName("sum"), FieldName("quantity"))),
+              Minus(Constant(TypedValue(BigDecimal(1))), Divide(FieldName("sum"), FieldName("quantity"))),
               FieldName("bar")
             ),
             Some("baz")
@@ -737,7 +771,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
           SqlField(FieldName("qux"))
         )
 
-        condition shouldEqual Gt(FieldName("x"), Constant(NumericValue(100)))
+        condition shouldEqual Gt(FieldName("x"), Constant(TypedValue(BigDecimal(100))))
     }
   }
 
@@ -759,20 +793,23 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
           SqlField(
             Case(
               Seq(
-                (Lt(FieldName("x"), Constant(NumericValue(10))), Constant(NumericValue(0))),
+                (Lt(FieldName("x"), Constant(TypedValue(BigDecimal(10)))), Constant(TypedValue(BigDecimal(0)))),
                 (
                   And(
-                    Seq(Ge(FieldName("x"), Constant(NumericValue(10))), Lt(FieldName("x"), Constant(NumericValue(100))))
+                    Seq(
+                      Ge(FieldName("x"), Constant(TypedValue(BigDecimal(10)))),
+                      Lt(FieldName("x"), Constant(TypedValue(BigDecimal(100))))
+                    )
                   ),
-                  Constant(NumericValue(1))
+                  Constant(TypedValue(BigDecimal(1)))
                 )
               ),
-              Constant(NumericValue(2))
+              Constant(TypedValue(BigDecimal(2)))
             ),
             Some("logx")
           )
         )
-        condition shouldEqual Eq(FieldName("y"), Constant(NumericValue(5)))
+        condition shouldEqual Eq(FieldName("y"), Constant(TypedValue(BigDecimal(5))))
     }
   }
 
@@ -797,15 +834,15 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
             FunctionCall(
               "sum",
               Case(
-                Seq((Lt(FieldName("x"), Constant(NumericValue(10))), Constant(NumericValue(0)))),
-                Constant(NumericValue(1))
+                Seq((Lt(FieldName("x"), Constant(TypedValue(BigDecimal(10)))), Constant(TypedValue(BigDecimal(0))))),
+                Constant(TypedValue(BigDecimal(1)))
               ) :: Nil
             ),
             Some("more_than_ten")
           )
         )
 
-        condition shouldEqual Ge(FieldName("more_than_ten"), Constant(NumericValue(5)))
+        condition shouldEqual Ge(FieldName("more_than_ten"), Constant(TypedValue(BigDecimal(5))))
 
         groupings should contain theSameElementsAs List(FieldName("item"))
     }
@@ -830,15 +867,15 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
             FunctionCall(
               "sum",
               Case(
-                Seq((Eq(FieldName("x"), Constant(StringValue("type_one"))), FieldName("y"))),
-                Constant(NumericValue(0))
+                Seq((Eq(FieldName("x"), Constant(TypedValue("type_one"))), FieldName("y"))),
+                Constant(TypedValue(BigDecimal(0)))
               ) :: Nil
             ),
             Some("sum_type_one")
           )
         )
 
-        condition shouldEqual Ge(FieldName("more_than_ten"), Constant(NumericValue(5)))
+        condition shouldEqual Ge(FieldName("more_than_ten"), Constant(TypedValue(BigDecimal(5))))
 
         groupings should contain theSameElementsAs List(FieldName("item"))
     }
@@ -851,7 +888,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
       case Select(Some(table), SqlFieldList(fields), Some(condition), groupings, None, None) =>
         table shouldEqual "bar"
         fields should contain theSameElementsAs List(SqlField(FunctionCall("lag", FieldName("time") :: Nil)))
-        condition shouldEqual Eq(FunctionCall("day", FieldName("time") :: Nil), Constant(NumericValue(28)))
+        condition shouldEqual Eq(FunctionCall("day", FieldName("time") :: Nil), Constant(TypedValue(BigDecimal(28))))
         groupings shouldBe empty
     }
   }
@@ -884,8 +921,11 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         )
         condition shouldEqual And(
           Seq(
-            Lt(FieldName("time"), Constant(TimestampValue(OffsetDateTime.of(2018, 1, 11, 0, 0, 0, 0, ZoneOffset.UTC)))),
-            Gt(FieldName("time"), Constant(TimestampValue(OffsetDateTime.of(2018, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC))))
+            Lt(
+              FieldName("time"),
+              Constant(TypedValue(Time(OffsetDateTime.of(2018, 1, 11, 0, 0, 0, 0, ZoneOffset.UTC))))
+            ),
+            Gt(FieldName("time"), Constant(TypedValue(Time(OffsetDateTime.of(2018, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC)))))
           )
         )
         groupings should contain theSameElementsAs List(FieldName("kkmId"))
@@ -893,18 +933,18 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
           Seq(
             And(
               Seq(
-                Gt(Minus(FieldName("l"), FieldName("t")), Constant(StringValue("2:00:00"))),
-                Ge(FieldName("h"), Constant(NumericValue(8))),
-                Le(FieldName("h"), Constant(NumericValue(18)))
+                Gt(Minus(FieldName("l"), FieldName("t")), Constant(TypedValue("2:00:00"))),
+                Ge(FieldName("h"), Constant(TypedValue(BigDecimal(8)))),
+                Le(FieldName("h"), Constant(TypedValue(BigDecimal(18))))
               )
             ),
             And(
               Seq(
-                Gt(Minus(FieldName("l"), FieldName("t")), Constant(StringValue("4:00:00"))),
+                Gt(Minus(FieldName("l"), FieldName("t")), Constant(TypedValue("4:00:00"))),
                 Or(
                   Seq(
-                    Gt(FieldName("h"), Constant(NumericValue(18))),
-                    Lt(FieldName("h"), Constant(NumericValue(8)))
+                    Gt(FieldName("h"), Constant(TypedValue(BigDecimal(18)))),
+                    Lt(FieldName("h"), Constant(TypedValue(BigDecimal(8))))
                   )
                 )
               )
@@ -940,7 +980,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
               FieldName("time"),
               Minus(FunctionCall("now", Nil), Constant(PeriodValue(PeriodDuration.of(Period.ofMonths(1)))))
             ),
-            Eq(FieldName("item"), Constant(StringValue("конфета 'Чупа-чупс'")))
+            Eq(FieldName("item"), Constant(TypedValue("конфета 'Чупа-чупс'")))
           )
         )
 
@@ -1008,11 +1048,11 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
               Minus(
                 Multiply(
                   Plus(FieldName("cardSum"), FieldName("cashSum")),
-                  Constant(NumericValue(5))
+                  Constant(TypedValue(BigDecimal(5)))
                 ),
-                Divide(FieldName("whatever"), Constant(NumericValue(1.3)))
+                Divide(FieldName("whatever"), Constant(TypedValue(BigDecimal(1.3))))
               ),
-              Constant(NumericValue(52))
+              Constant(TypedValue(BigDecimal(52)))
             ),
             Some("wtf")
           )
@@ -1035,7 +1075,10 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         fields should contain theSameElementsInOrderAs List(SqlField(FieldName("a")), SqlField(FieldName("b")))
         condition shouldEqual FunctionCall(
           "containsall",
-          List(FieldName("x"), SqlArray(Seq(NumericValue(1), NumericValue(2), NumericValue(3))))
+          List(
+            FieldName("x"),
+            SqlArray(Seq(TypedValue(BigDecimal(1)), TypedValue(BigDecimal(2)), TypedValue(BigDecimal(3))))
+          )
         )
     }
   }
@@ -1053,7 +1096,10 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         fields should contain theSameElementsInOrderAs List(SqlField(FieldName("a")), SqlField(FieldName("b")))
         condition shouldEqual In(
           Tuple(FieldName("a"), FieldName("b")),
-          Seq(TupleValue(NumericValue(1), NumericValue(2)), TupleValue(NumericValue(3), NumericValue(4)))
+          Seq(
+            TupleValue(TypedValue(BigDecimal(1)), TypedValue(BigDecimal(2))),
+            TupleValue(TypedValue(BigDecimal(3)), TypedValue(BigDecimal(4)))
+          )
         )
     }
   }
@@ -1076,13 +1122,17 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         )
         condition shouldEqual FunctionCall(
           "contain",
-          List(CastExpr(FieldName("x"), "TEXT"), Constant(StringValue("0")))
+          List(CastExpr(FieldName("x"), "TEXT"), Constant(TypedValue("0")))
         )
     }
   }
 
   it should "parse SHOW TABLES statements" in {
     SqlParser.parse("SHOW TABLES") shouldBe Right(ShowTables)
+  }
+
+  it should "parse SHOW VERSION statements" in {
+    SqlParser.parse("SHOW VERSION") shouldBe Right(ShowVersion)
   }
 
   it should "parse SHOW COLUMNS statements" in {
@@ -1144,8 +1194,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         Some(
           And(
             Seq(
-              Eq(FieldName("table"), Constant(StringValue("receipt"))),
-              BetweenCondition(FieldName("updated_at"), TimestampValue(t), TimestampValue(t))
+              Eq(FieldName("table"), Constant(TypedValue("receipt"))),
+              BetweenCondition(FieldName("updated_at"), TypedValue(Time(t)), TypedValue(Time(t)))
             )
           )
         )
@@ -1167,9 +1217,9 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         Some(
           And(
             Seq(
-              Eq(FieldName("table"), Constant(StringValue("receipt"))),
-              Eq(Constant(StringValue("somebody")), FieldName("updated_by")),
-              BetweenCondition(FieldName("updated_at"), TimestampValue(t), TimestampValue(t))
+              Eq(FieldName("table"), Constant(TypedValue("receipt"))),
+              Eq(Constant(TypedValue("somebody")), FieldName("updated_by")),
+              BetweenCondition(FieldName("updated_at"), TypedValue(Time(t)), TypedValue(Time(t)))
             )
           )
         )
@@ -1194,7 +1244,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
               "isthesame",
               List(
                 FunctionCall("toarray", List(FieldName("foo"))),
-                FunctionCall("toarray", List(Constant(StringValue("bar"))))
+                FunctionCall("toarray", List(Constant(TypedValue("bar"))))
               )
             )
           )
@@ -1225,12 +1275,12 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
                   List(
                     Case(
                       Seq(
-                        Lt(FieldName("sum"), Constant(NumericValue(40000))) -> Plus(
-                          UMinus(Constant(NumericValue(10))),
-                          UMinus(Constant(NumericValue(5)))
+                        Lt(FieldName("sum"), Constant(TypedValue(BigDecimal(40000)))) -> Plus(
+                          Constant(TypedValue(BigDecimal(-10))),
+                          Constant(TypedValue(BigDecimal(-5)))
                         )
                       ),
-                      Constant(NumericValue(1))
+                      Constant(TypedValue(BigDecimal(1)))
                     )
                   )
                 )
@@ -1248,13 +1298,13 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
                   List(
                     Case(
                       Seq(
-                        Eq(FieldName("operation_type"), Constant(StringValue("0"))) -> UMinus(FieldName("sum")),
-                        Eq(FieldName("operation_type"), Constant(StringValue("2"))) -> Plus(
-                          UMinus(Constant(NumericValue(5))),
+                        Eq(FieldName("operation_type"), Constant(TypedValue("0"))) -> UMinus(FieldName("sum")),
+                        Eq(FieldName("operation_type"), Constant(TypedValue("2"))) -> Plus(
+                          Constant(TypedValue(BigDecimal(-5))),
                           FieldName("sum")
                         )
                       ),
-                      UMinus(Constant(NumericValue(10)))
+                      Constant(TypedValue(BigDecimal(-10)))
                     )
                   )
                 )
@@ -1265,9 +1315,15 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         )
         condition shouldEqual And(
           Seq(
-            Ge(FieldName("time"), Constant(TimestampValue(OffsetDateTime.of(2019, 4, 10, 0, 0, 0, 0, ZoneOffset.UTC)))),
-            Le(FieldName("time"), Constant(TimestampValue(OffsetDateTime.of(2019, 4, 11, 0, 0, 0, 0, ZoneOffset.UTC)))),
-            Lt(UMinus(FieldName("quantity")), UMinus(Constant(NumericValue(100))))
+            Ge(
+              FieldName("time"),
+              Constant(TypedValue(Time(OffsetDateTime.of(2019, 4, 10, 0, 0, 0, 0, ZoneOffset.UTC))))
+            ),
+            Le(
+              FieldName("time"),
+              Constant(TypedValue(Time(OffsetDateTime.of(2019, 4, 11, 0, 0, 0, 0, ZoneOffset.UTC))))
+            ),
+            Lt(UMinus(FieldName("quantity")), Constant(TypedValue(BigDecimal(-100))))
           )
         )
     }
@@ -1278,7 +1334,10 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
       case Select(Some(table), SqlFieldList(fields), Some(condition), Nil, None, None) =>
         table shouldEqual "table"
         fields should contain theSameElementsInOrderAs Seq(SqlField(FieldName("field")))
-        condition shouldEqual In(FieldName("id"), Seq(NumericValue(1), NumericValue(2), NumericValue(-3)))
+        condition shouldEqual In(
+          FieldName("id"),
+          Seq(TypedValue(BigDecimal(1)), TypedValue(BigDecimal(2)), TypedValue(BigDecimal(-3)))
+        )
     }
 
   }
@@ -1292,7 +1351,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         )
         condition shouldEqual Gt(
           FieldName("time"),
-          Constant(TimestampValue(OffsetDateTime.of(2017, 1, 3, 0, 0, 0, 0, ZoneOffset.UTC)))
+          Constant(TypedValue(Time(OffsetDateTime.of(2017, 1, 3, 0, 0, 0, 0, ZoneOffset.UTC))))
         )
     }
   }
@@ -1303,7 +1362,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         s shouldEqual "foo"
         fs should contain theSameElementsInOrderAs List("bar", "baz")
         vs should contain theSameElementsInOrderAs List(
-          List(Constant(StringValue("bar value")), Constant(NumericValue(42)))
+          List(TypedValue("bar value"), TypedValue(BigDecimal(42)))
         )
     }
   }
@@ -1314,9 +1373,86 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         s shouldEqual "foo"
         fs should contain theSameElementsInOrderAs List("bar", "baz")
         vs should contain theSameElementsInOrderAs List(
-          List(Constant(StringValue("abc")), Constant(NumericValue(1))),
-          List(Constant(StringValue("def")), Constant(NumericValue(2)))
+          List(TypedValue("abc"), TypedValue(BigDecimal(1))),
+          List(TypedValue("def"), TypedValue(BigDecimal(2)))
         )
+    }
+  }
+
+  it should "support create user" in {
+    parsed("""CREATE USER 'John'""") {
+      case CreateUser(u, p, r) =>
+        u shouldEqual "John"
+        p shouldEqual None
+        r shouldEqual None
+    }
+  }
+
+  it should "support create user with password" in {
+    parsed("""CREATE USER 'John' WITH PASSWORD '12345'""") {
+      case CreateUser(u, p, r) =>
+        u shouldEqual "John"
+        p shouldEqual Some("12345")
+        r shouldEqual None
+    }
+  }
+
+  it should "support create user with password and role" in {
+    parsed("""CREATE USER 'John' WITH PASSWORD '12345' WITH ROLE 'admin'""") {
+      case CreateUser(u, p, r) =>
+        u shouldEqual "John"
+        p shouldEqual Some("12345")
+        r shouldEqual Some("admin")
+    }
+
+    parsed("""CREATE USER 'John' WITH ROLE 'admin' WITH PASSWORD '12345'""") {
+      case CreateUser(u, p, r) =>
+        u shouldEqual "John"
+        p shouldEqual Some("12345")
+        r shouldEqual Some("admin")
+    }
+  }
+
+  it should "support change user password" in {
+    parsed("ALTER USER 'John' SET PASSWORD='54321'") {
+      case AlterUser(u, p, r) =>
+        u shouldEqual "John"
+        p shouldEqual Some("54321")
+        r shouldEqual None
+    }
+  }
+
+  it should "support change user role" in {
+    parsed("ALTER USER 'John' SET ROLE='read_write'") {
+      case AlterUser(u, p, r) =>
+        u shouldEqual "John"
+        p shouldEqual None
+        r shouldEqual Some("read_write")
+    }
+  }
+
+  it should "support change role and password at the same time" in {
+    parsed("ALTER USER 'John' SET ROLE='admin' SET PASSWORD='12345'") {
+      case AlterUser(u, p, r) =>
+        u shouldEqual "John"
+        p shouldEqual Some("12345")
+        r shouldEqual Some("admin")
+    }
+  }
+
+  it should "support change password and role at the same time" in {
+    parsed("ALTER USER 'John' SET PASSWORD='12345' SET ROLE='admin'") {
+      case AlterUser(u, p, r) =>
+        u shouldEqual "John"
+        p shouldEqual Some("12345")
+        r shouldEqual Some("admin")
+    }
+  }
+
+  it should "support drop user" in {
+    parsed("DROP USER 'test'") {
+      case DropUser(u) =>
+        u shouldEqual "test"
     }
   }
 
@@ -1330,7 +1466,9 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
   it should "produce error on unknown statements" in {
     errorMessage("INSERT 'foo' INTO table;") {
       case msg =>
-        msg should include("""Expect ("SELECT" | "UPSERT" | "SHOW" | "KILL" | "DELETE"), but got "INSERT""")
+        msg should include(
+          """Expect ("SELECT" | "UPSERT" | "SHOW" | "CREATE" | "ALTER" | "KILL" | "DELETE" | "DROP" | "SET"), but got "INSERT"""
+        )
     }
   }
 
@@ -1338,7 +1476,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
     errorMessage("SHOW cartoons") {
       case msg =>
         msg should include(
-          """Expect ("COLUMNS" | "TABLES" | "QUERIES" | "FUNCTIONS" | "UPDATES_INTERVALS"), but got "cartoons"""
+          """Expect ("COLUMNS" | "TABLES" | "VERSION" | "USERS" | "QUERIES" | "FUNCTIONS" | "UPDATES_INTERVALS"), but got "cartoons"""
         )
     }
   }

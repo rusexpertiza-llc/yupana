@@ -3,6 +3,7 @@ package org.yupana.core.sql
 import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.api.Time
 
 import java.time.{ LocalDate, LocalTime, OffsetDateTime, ZoneOffset }
 
@@ -20,7 +21,7 @@ class UpdatesIntervalsProviderTest extends AnyFlatSpec with Matchers with Either
 
   it should "handle table name filter" in {
     createFilter(
-      Some(Eq(FieldName("table"), Constant(StringValue("some_table"))))
+      Some(Eq(FieldName("table"), Constant(TypedValue("some_table"))))
     ).value shouldBe UpdatesIntervalsFilter.empty
       .withTableName("some_table")
   }
@@ -30,8 +31,8 @@ class UpdatesIntervalsProviderTest extends AnyFlatSpec with Matchers with Either
       Some(
         BetweenCondition(
           FieldName("updated_at"),
-          TimestampValue(startTime),
-          TimestampValue(endTime)
+          TypedValue(Time(startTime)),
+          TypedValue(Time(endTime))
         )
       )
     ).value shouldBe UpdatesIntervalsFilter.empty
@@ -41,7 +42,7 @@ class UpdatesIntervalsProviderTest extends AnyFlatSpec with Matchers with Either
 
   it should "support updater filter" in {
     createFilter(
-      Some(Eq(FieldName("updated_by"), Constant(StringValue("somebody"))))
+      Some(Eq(FieldName("updated_by"), Constant(TypedValue("somebody"))))
     ).value shouldBe UpdatesIntervalsFilter.empty
       .withBy("somebody")
   }
@@ -52,13 +53,13 @@ class UpdatesIntervalsProviderTest extends AnyFlatSpec with Matchers with Either
       Some(
         And(
           Seq(
-            Eq(FieldName("table"), Constant(StringValue("some_table"))),
+            Eq(FieldName("table"), Constant(TypedValue("some_table"))),
             BetweenCondition(
               FieldName("updated_at"),
-              TimestampValue(startTime),
-              TimestampValue(endTime)
+              TypedValue(Time(startTime)),
+              TypedValue(Time(endTime))
             ),
-            Eq(FieldName("updated_by"), Constant(StringValue("somebody")))
+            Eq(FieldName("updated_by"), Constant(TypedValue("somebody")))
           )
         )
       )
@@ -72,13 +73,13 @@ class UpdatesIntervalsProviderTest extends AnyFlatSpec with Matchers with Either
       Some(
         And(
           Seq(
-            Eq(FieldName("table"), Constant(StringValue("some_table"))),
+            Eq(FieldName("table"), Constant(TypedValue("some_table"))),
             BetweenCondition(
               FieldName("recalculated_at"),
-              TimestampValue(startTime),
-              TimestampValue(endTime)
+              TypedValue(Time(startTime)),
+              TypedValue(Time(endTime))
             ),
-            Eq(FieldName("updated_by"), Constant(StringValue("somebody")))
+            Eq(FieldName("updated_by"), Constant(TypedValue("somebody")))
           )
         )
       )
@@ -92,12 +93,12 @@ class UpdatesIntervalsProviderTest extends AnyFlatSpec with Matchers with Either
       Some(
         And(
           Seq(
-            Eq(FieldName("table"), Constant(StringValue("some_table"))),
+            Eq(FieldName("table"), Constant(TypedValue("some_table"))),
             Ge(
               FieldName("recalculated_at"),
-              Constant(TimestampValue(startTime))
+              Constant(TypedValue(Time(startTime)))
             ),
-            Eq(FieldName("updated_by"), Constant(StringValue("somebody")))
+            Eq(FieldName("updated_by"), Constant(TypedValue("somebody")))
           )
         )
       )
@@ -110,13 +111,13 @@ class UpdatesIntervalsProviderTest extends AnyFlatSpec with Matchers with Either
       Some(
         And(
           Seq(
-            Eq(FieldName("TABLE"), Constant(StringValue("some_table"))),
+            Eq(FieldName("TABLE"), Constant(TypedValue("some_table"))),
             BetweenCondition(
               FieldName("UpDated_at"),
-              TimestampValue(startTime),
-              TimestampValue(endTime)
+              TypedValue(Time(startTime)),
+              TypedValue(Time(endTime))
             ),
-            Eq(FieldName("updaTed_by"), Constant(StringValue("somebody")))
+            Eq(FieldName("updaTed_by"), Constant(TypedValue("somebody")))
           )
         )
       )
@@ -129,7 +130,7 @@ class UpdatesIntervalsProviderTest extends AnyFlatSpec with Matchers with Either
 
   it should "ignore unknown fields" in {
     createFilter(
-      Some(Eq(FieldName("unknown_field"), Constant(StringValue("unknown"))))
+      Some(Eq(FieldName("unknown_field"), Constant(TypedValue("unknown"))))
     ).left.value should startWith("Unsupported condition")
   }
 
@@ -143,7 +144,7 @@ class UpdatesIntervalsProviderTest extends AnyFlatSpec with Matchers with Either
           )
         )
       ),
-      Map(1 -> TimestampValue(startTime), 2 -> TimestampValue(endTime), 3 -> StringValue("the_table"))
+      Map(1 -> TypedParameter(Time(startTime)), 2 -> TypedParameter(Time(endTime)), 3 -> TypedParameter("the_table"))
     ).value shouldBe UpdatesIntervalsFilter.empty
       .withUpdatedAfter(startTime)
       .withUpdatedBefore(endTime)
@@ -158,7 +159,7 @@ class UpdatesIntervalsProviderTest extends AnyFlatSpec with Matchers with Either
           )
         )
       ),
-      Map(1 -> TimestampValue(startTime), 2 -> StringValue("the_table"))
+      Map(1 -> TypedParameter(Time(startTime)), 2 -> TypedParameter("the_table"))
     ).value shouldBe UpdatesIntervalsFilter.empty
       .withRecalculatedAfter(startTime)
       .withTableName("the_table")

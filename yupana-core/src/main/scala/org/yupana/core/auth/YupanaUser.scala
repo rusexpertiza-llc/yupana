@@ -16,9 +16,9 @@
 
 package org.yupana.core.auth
 
-case class YupanaUser(name: String)
+case class YupanaUser(name: String, password: Option[String], role: TsdbRole)
 
 object YupanaUser {
 
-  val ANONYMOUS: YupanaUser = YupanaUser("ANONYMOUS")
+  val ANONYMOUS: YupanaUser = YupanaUser("ANONYMOUS", None, TsdbRole.ReadOnly)
 }

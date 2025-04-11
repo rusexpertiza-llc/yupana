@@ -19,7 +19,8 @@ package org.yupana.externallinks.items
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.Schema
-import org.yupana.core.model.InternalRow
+import org.yupana.core.auth.YupanaUser
+import org.yupana.core.model.BatchDataset
 import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.core.utils.{ CollectionUtils, FlatAndCondition }
 import org.yupana.core.{ ExternalLinkService, TsdbBase }
@@ -37,9 +38,11 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
   private def includeTransform(
       fieldsValues: Seq[(SimpleCondition, String, Set[String])],
       from: Long,
-      to: Long
+      to: Long,
+      user: YupanaUser,
+      startTime: Time
   ): Seq[ConditionTransformation] = {
-    val info = createFilter(fieldsValues).map(c => getTransactions(c, from, to).toSet)
+    val info = createFilter(fieldsValues).map(c => getTransactions(c, from, to, user, startTime).toSet)
     val tuples = CollectionUtils.intersectAll(info)
     ConditionTransformation.replace(fieldsValues.map(_._1), in(tuple(time, dimension(Dimensions.KKM_ID)), tuples))
   }
@@ -47,14 +50,20 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
   private def excludeTransform(
       fieldsValues: Seq[(SimpleCondition, String, Set[String])],
       from: Long,
-      to: Long
+      to: Long,
+      user: YupanaUser,
+      startTime: Time
   ): Seq[ConditionTransformation] = {
-    val info = createFilter(fieldsValues).map(c => getTransactions(c, from, to).toSet)
+    val info = createFilter(fieldsValues).map(c => getTransactions(c, from, to, user, startTime).toSet)
     val tuples = info.fold(Set.empty)(_ union _)
     ConditionTransformation.replace(fieldsValues.map(_._1), notIn(tuple(time, dimension(Dimensions.KKM_ID)), tuples))
   }
 
-  override def transformCondition(tbc: FlatAndCondition): Seq[ConditionTransformation] = {
+  override def transformCondition(
+      tbc: FlatAndCondition,
+      startTime: Time,
+      user: YupanaUser
+  ): Seq[ConditionTransformation] = {
 
     // TODO: Here we can take KKM related conditions from other, to speed up transactions request
 
@@ -62,13 +71,13 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
       ExternalLinkUtils.extractCatalogFieldsT[String](tbc, externalLink.linkName)
 
     val include = if (includeExprValues.nonEmpty) {
-      includeTransform(includeExprValues, tbc.from, tbc.to)
+      includeTransform(includeExprValues, tbc.from, tbc.to, user, startTime)
     } else {
       Seq.empty
     }
 
     val exclude = if (excludeExprValues.nonEmpty) {
-      excludeTransform(excludeExprValues, tbc.from, tbc.to)
+      excludeTransform(excludeExprValues, tbc.from, tbc.to, user, startTime)
     } else {
       Seq.empty
     }
@@ -88,7 +97,13 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
     }
   }
 
-  private def getTransactions(filter: SimpleCondition, from: Long, to: Long): Seq[(Time, Int)] = {
+  private def getTransactions(
+      filter: SimpleCondition,
+      from: Long,
+      to: Long,
+      user: YupanaUser,
+      startTime: Time
+  ): Seq[(Time, Int)] = {
     val q = Query(
       table = Tables.itemsKkmTable,
       from = const(Time(from)),
@@ -97,25 +112,34 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
       filter = filter
     )
 
-    val result = tsdb.query(q)
+    val result = tsdb.query(q, startTime, IndexedSeq.empty, user)
 
-    val timeIdx = result.queryContext.exprsIndex(time)
-    val kkmIdIdx = result.queryContext.exprsIndex(dimension(Dimensions.KKM_ID))
+    val timeIdx = result.queryContext.datasetSchema.exprIndex(time)
+    val kkmIdIdx = result.queryContext.datasetSchema.exprIndex(dimension(Dimensions.KKM_ID))
 
-    val extracted = tsdb.mapReduceEngine(NoMetricCollector).map(result.rows) { a =>
-      val kkmId = a(kkmIdIdx)
-      val time = a(timeIdx)
-      Set((time.asInstanceOf[Time], kkmId.asInstanceOf[Int]))
+    val extracted = tsdb.mapReduceEngine(NoMetricCollector).map(result.data) { batch =>
+      var res = Set.empty[(Time, Dimensions.KKM_ID.T)]
+      var i = 0
+      while (i < batch.size) {
+        if (!batch.isDeleted(i)) {
+          val kkmId = batch.get[Dimensions.KKM_ID.T](i, kkmIdIdx)
+          val time = batch.get[Time](i, timeIdx)
+          res += (time -> kkmId)
+        }
+        i += 1
+      }
+      res
     }
 
     tsdb.mapReduceEngine(NoMetricCollector).fold(extracted)(Set.empty)(_ ++ _).toSeq
   }
 
   override def setLinkedValues(
-      exprIndex: scala.collection.Map[Expression[_], Int],
-      valueData: Seq[InternalRow],
+      batch: BatchDataset,
       exprs: Set[LinkExpr[_]]
-  ): Unit = {
-    // may be throw exception here?
-  }
+  ): Unit = {}
+
+  override def put(dataPoints: Seq[DataPoint]): Unit = {}
+
+  override def put(batchDataset: BatchDataset): Unit = {}
 }

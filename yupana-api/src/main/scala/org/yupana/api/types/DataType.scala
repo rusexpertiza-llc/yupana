@@ -18,7 +18,7 @@ package org.yupana.api.types
 
 import org.threeten.extra.PeriodDuration
 import org.yupana.api.types.DataType.TypeKind
-import org.yupana.api.{ Blob, Time }
+import org.yupana.api.{ Blob, Currency, Time }
 
 import scala.reflect.ClassTag
 
@@ -30,13 +30,12 @@ trait DataType extends Serializable {
   type T
   val meta: DataTypeMeta[T]
   val storable: Storable[T]
+  val internalStorable: InternalStorable[T]
   val classTag: ClassTag[T]
   val boxingTag: BoxingTag[T]
   val kind: TypeKind = TypeKind.Regular
   val ordering: Option[Ordering[T]]
-  val integral: Option[Integral[T]]
-  val fractional: Option[Fractional[T]]
-  def numeric: Option[Numeric[T]] = integral orElse fractional
+  def num: Option[Num[T]]
 
   def aux: DataType.Aux[T] = this.asInstanceOf[DataType.Aux[T]]
 
@@ -58,12 +57,13 @@ class ArrayDataType[TT](val valueType: DataType.Aux[TT]) extends DataType {
   override val kind: TypeKind = TypeKind.Array
   override val meta: DataTypeMeta[T] = DataTypeMeta.seqMeta(valueType.meta)
   override val storable: Storable[T] = Storable.seqStorable(valueType.storable, valueType.classTag)
+  override val internalStorable: InternalStorable[Seq[TT]] =
+    InternalStorable.seqStorable(valueType.internalStorable, valueType.classTag)
   override val classTag: ClassTag[T] = implicitly[ClassTag[Seq[TT]]]
   override val boxingTag: BoxingTag[Seq[TT]] = BoxingTag[Seq[TT]]
 
   override val ordering: Option[Ordering[Seq[TT]]] = None
-  override val integral: Option[Integral[Seq[TT]]] = None
-  override val fractional: Option[Fractional[Seq[TT]]] = None
+  override val num: Option[Num[Seq[TT]]] = None
 
   override def equals(obj: Any): Boolean = {
     obj match {
@@ -80,11 +80,21 @@ class TupleDataType[A, B](val aType: DataType.Aux[A], val bType: DataType.Aux[B]
   override val kind: TypeKind = TypeKind.Tuple
   override val meta: DataTypeMeta[T] = DataTypeMeta.tuple(aType.meta, bType.meta)
   override val storable: Storable[T] = Storable.noop
+  override val internalStorable: InternalStorable[(A, B)] =
+    InternalStorable.tupleStorable(aType.internalStorable, bType.internalStorable)
   override val classTag: ClassTag[T] = implicitly[ClassTag[(A, B)]]
   override val boxingTag: BoxingTag[T] = implicitly[BoxingTag[(A, B)]]
   override val ordering: Option[Ordering[(A, B)]] = None
-  override val integral: Option[Integral[(A, B)]] = None
-  override val fractional: Option[Fractional[(A, B)]] = None
+  override val num: Option[Num[(A, B)]] = None
+
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case that: TupleDataType[_, _] => this.aType == that.aType && this.bType == that.bType
+      case _                         => false
+    }
+  }
+
+  override def hashCode(): Int = aType.hashCode() * 41 + bType.hashCode()
 }
 
 object DataType {
@@ -105,6 +115,7 @@ object DataType {
     DataType[Byte],
     DataType[BigDecimal],
     DataType[Time],
+    DataType[Currency],
     DataType[Blob],
     DataType[Boolean],
     DataType[Null]
@@ -127,21 +138,21 @@ object DataType {
 
   def apply[T](implicit dt: DataType.Aux[T]): DataType.Aux[T] = dt
 
-  implicit val stringDt: DataType.Aux[String] = create[String](Some(Ordering[String]), None, None)
+  implicit val stringDt: DataType.Aux[String] = create[String](Some(Ordering[String]), None)
 
-  implicit val boolDt: DataType.Aux[Boolean] = create[Boolean](Some(Ordering[Boolean]), None, None)
+  implicit val boolDt: DataType.Aux[Boolean] = create[Boolean](Some(Ordering[Boolean]), None)
 
-  implicit val timeDt: DataType.Aux[Time] = create[Time](Some(Ordering[Time]), None, None)
+  implicit val timeDt: DataType.Aux[Time] = create[Time](Some(Ordering[Time]), None)
 
-  implicit val blobDt: DataType.Aux[Blob] = create[Blob](None, None, None)
+  implicit val blobDt: DataType.Aux[Blob] = create[Blob](None, None)
 
-  implicit val periodDt: DataType.Aux[PeriodDuration] = create[PeriodDuration](None, None, None)
+  implicit val periodDt: DataType.Aux[PeriodDuration] = create[PeriodDuration](None, None)
 
-  implicit def intDt[T: Storable: BoxingTag: DataTypeMeta: Integral: ClassTag]: DataType.Aux[T] =
-    create[T](Some(Ordering[T]), Some(implicitly[Integral[T]]), None)
+  implicit def numDt[T: Storable: InternalStorable: BoxingTag: DataTypeMeta: Num: Ordering: ClassTag]: DataType.Aux[T] =
+    create[T](Some(Ordering[T]), Some(implicitly[Num[T]]))
 
-  implicit def fracDt[T: Storable: BoxingTag: DataTypeMeta: Fractional: ClassTag]: DataType.Aux[T] =
-    create[T](Some(Ordering[T]), None, Some(implicitly[Fractional[T]]))
+  implicit val currencyDt: DataType.Aux[Currency] =
+    create[Currency](Some(Ordering[Currency]), Some(implicitly[Num[Currency]]))
 
   implicit def tupleDt[TT, UU](implicit dtt: DataType.Aux[TT], dtu: DataType.Aux[UU]): DataType.Aux[(TT, UU)] = {
     new TupleDataType(dtt, dtu).aux
@@ -155,15 +166,16 @@ object DataType {
     override type T = Null
     override val meta: DataTypeMeta[Null] = implicitly[DataTypeMeta[Null]]
     override val storable: Storable[Null] = Storable.noop
+    override val internalStorable: InternalStorable[Null] = InternalStorable.noop
     override val classTag: ClassTag[Null] = implicitly[ClassTag[Null]]
     override val boxingTag: BoxingTag[Null] = BoxingTag[Null]
     override val ordering: Option[Ordering[Null]] = None
-    override val integral: Option[Integral[Null]] = None
-    override val fractional: Option[Fractional[Null]] = None
+    override val num: Option[Num[Null]] = None
   }
 
-  private def create[TT](o: Option[Ordering[TT]], i: Option[Integral[TT]], f: Option[Fractional[TT]])(
+  private def create[TT](o: Option[Ordering[TT]], n: Option[Num[TT]])(
       implicit s: Storable[TT],
+      is: InternalStorable[TT],
       m: DataTypeMeta[TT],
       ct: ClassTag[TT],
       bt: BoxingTag[TT]
@@ -171,25 +183,26 @@ object DataType {
     override type T = TT
     override val meta: DataTypeMeta[T] = m
     override val storable: Storable[T] = s
+    override val internalStorable: InternalStorable[TT] = is
     override val classTag: ClassTag[T] = ct
     override val boxingTag: BoxingTag[T] = bt
     override val ordering: Option[Ordering[TT]] = o
-    override val integral: Option[Integral[TT]] = i
-    override val fractional: Option[Fractional[TT]] = f
+    override val num: Option[Num[TT]] = n
   }
 
   def scaledDecimalDt(scale: Int)(
       implicit s: Storable[BigDecimal],
+      is: InternalStorable[BigDecimal],
       ct: ClassTag[BigDecimal],
       bt: BoxingTag[BigDecimal]
   ): DataType.Aux[BigDecimal] = new DataType {
     override type T = BigDecimal
     override val meta: DataTypeMeta[T] = DataTypeMeta.scaledDecimalMeta(scale)
     override val storable: Storable[T] = s
+    override val internalStorable: InternalStorable[BigDecimal] = is
     override val classTag: ClassTag[T] = ct
     override val boxingTag: BoxingTag[T] = bt
     override val ordering: Option[Ordering[T]] = Some(implicitly[Ordering[BigDecimal]])
-    override val integral: Option[Integral[T]] = None
-    override val fractional: Option[Fractional[T]] = Some(implicitly[Fractional[BigDecimal]])
+    override val num: Option[Num[T]] = None
   }
 }

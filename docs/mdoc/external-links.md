@@ -16,7 +16,22 @@ title: Подключение внешних источников
 
 Например:
 
-![Пример внешней связи](/assets/images/external-link-example.svg)
+```mermaid
+flowchart LR
+    inn[ИНН организации]
+    cr1[Кассовый аппарат 1]
+    cr2[Кассовый аппарат 1]
+    cr3[Кассовый аппарат 1]
+    inn --> cr1
+    inn --> cr2
+    inn --> cr3
+
+    cig[Сигареты]
+    marl[Marlboro красные]
+    win[Winston синие]
+    cig --> marl
+    cig --> win
+```
 
 ## Стандартные внешние связи
 

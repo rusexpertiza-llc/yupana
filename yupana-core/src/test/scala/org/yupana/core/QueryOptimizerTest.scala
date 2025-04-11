@@ -5,6 +5,7 @@ import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
 import org.yupana.api.query.{ AndExpr, FalseExpr, OrExpr }
 import org.yupana.api.schema.{ DictionaryDimension, RawDimension }
+import org.yupana.testutils.{ TestDims, TestTableFields }
 import org.yupana.utils.RussianTokenizer
 
 class QueryOptimizerTest extends AnyFlatSpec with Matchers {
@@ -89,6 +90,7 @@ class QueryOptimizerTest extends AnyFlatSpec with Matchers {
   }
 
   it should "handle nested ANDs in OR" in {
+    // (A && B || C && D) && E => (A && B && E) || (C && D && E)
     val c =
       and(
         or(
@@ -149,7 +151,7 @@ class QueryOptimizerTest extends AnyFlatSpec with Matchers {
   }
 
   "QueryOptimizer" should "optimize simple conditions" in {
-    QueryOptimizer.optimizeExpr(calculator)(
+    QueryOptimizer.optimizeCondition(calculator)(
       gt(dimension(TestDims.DIM_Y), plus(const(6L), const(36L)))
     ) shouldEqual gt(dimension(TestDims.DIM_Y), const(42L))
   }
@@ -170,7 +172,7 @@ class QueryOptimizerTest extends AnyFlatSpec with Matchers {
   }
 
   it should "optimize constant conditions" in {
-    QueryOptimizer.optimizeExpr(calculator)(
+    QueryOptimizer.optimizeCondition(calculator)(
       and(gt(const(5), const(2)), equ(const(1), const(1)))
     ) shouldEqual const(true)
   }

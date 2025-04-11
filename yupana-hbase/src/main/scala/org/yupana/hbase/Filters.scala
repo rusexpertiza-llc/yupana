@@ -56,38 +56,38 @@ object Filters {
       private val incTime: Option[Set[Time]],
       private val excTime: Option[Set[Time]]
   ) {
-    def getIncValues[T](dimension: Dimension.Aux2[T, _]): Option[SortedSetIterator[T]] = {
+    def getIncValues[T](dimension: Dimension.Aux[T]): Option[SortedSetIterator[T]] = {
       incValues.get(dimension).asInstanceOf[Option[SortedSetIterator[dimension.T]]]
     }
 
-    def getIncIds[R](dimension: Dimension.Aux2[_, R]): Option[SortedSetIterator[R]] = {
+    def getIncIds[R](dimension: Dimension.AuxR[R]): Option[SortedSetIterator[R]] = {
       incIds.get(dimension).asInstanceOf[Option[SortedSetIterator[dimension.R]]]
     }
 
-    def getExcValues[T](dimension: Dimension.Aux2[T, _]): Option[SortedSetIterator[T]] = {
+    def getExcValues[T](dimension: Dimension.Aux[T]): Option[SortedSetIterator[T]] = {
       excValues.get(dimension).asInstanceOf[Option[SortedSetIterator[dimension.T]]]
     }
 
-    def getExcIds[R](dimension: Dimension.Aux2[_, R]): Option[SortedSetIterator[R]] = {
+    def getExcIds[R](dimension: Dimension.AuxR[R]): Option[SortedSetIterator[R]] = {
       excIds.get(dimension).asInstanceOf[Option[SortedSetIterator[dimension.R]]]
     }
 
-    def includeValues[T](dim: Dimension.Aux2[T, _], vs: SortedSetIterator[T]): Builder = {
+    def includeValues[T](dim: Dimension.Aux[T], vs: SortedSetIterator[T]): Builder = {
       val newValues = intersect(getIncValues(dim), vs)
       new Builder(incValues + (dim -> newValues), excValues, incIds, excIds, incTime, excTime)
     }
 
-    def excludeValues[T](dim: Dimension.Aux2[T, _], vs: SortedSetIterator[T]): Builder = {
+    def excludeValues[T](dim: Dimension.Aux[T], vs: SortedSetIterator[T]): Builder = {
       val newValues = union(getExcValues(dim), vs)
       new Builder(incValues, excValues + (dim -> newValues), incIds, excIds, incTime, excTime)
     }
 
-    def includeIds[R](dim: Dimension.Aux2[_, R], is: SortedSetIterator[R]): Builder = {
+    def includeIds[R](dim: Dimension.AuxR[R], is: SortedSetIterator[R]): Builder = {
       val newIds = intersect(getIncIds(dim), is)
       new Builder(incValues, excValues, incIds + (dim -> newIds), excIds, incTime, excTime)
     }
 
-    def excludeIds[R](dim: Dimension.Aux2[_, R], is: SortedSetIterator[R]): Builder = {
+    def excludeIds[R](dim: Dimension.AuxR[R], is: SortedSetIterator[R]): Builder = {
       val newIds = union(getExcIds(dim), is)
 
       new Builder(incValues, excValues, incIds, excIds + (dim -> newIds), incTime, excTime)
@@ -103,19 +103,19 @@ object Filters {
       new Builder(incValues, excValues, incIds, excIds, incTime, Some(newTime))
     }
 
-    def includeValue[T](dim: Dimension.Aux2[T, _], v: T): Builder = {
+    def includeValue[T](dim: Dimension.Aux[T], v: T): Builder = {
       includeValues(dim, SortedSetIterator(v)(dim.tOrdering))
     }
 
-    def includeValues[T](dim: Dimension.Aux2[T, _], vs: Set[T]): Builder = {
+    def includeValues[T](dim: Dimension.Aux[T], vs: Set[T]): Builder = {
       includeValues(dim, SortedSetIterator(vs.toList.sortWith(dim.tOrdering.lt).iterator)(dim.tOrdering))
     }
 
-    def excludeValue[T](dim: Dimension.Aux2[T, _], v: T): Builder = {
+    def excludeValue[T](dim: Dimension.Aux[T], v: T): Builder = {
       excludeValues(dim, SortedSetIterator(v)(dim.tOrdering))
     }
 
-    def excludeValues[T](dim: Dimension.Aux2[T, _], vs: Set[T]): Builder = {
+    def excludeValues[T](dim: Dimension.Aux[T], vs: Set[T]): Builder = {
       excludeValues(dim, SortedSetIterator(vs.toList.sortWith(dim.tOrdering.lt).iterator)(dim.tOrdering))
     }
 
@@ -127,11 +127,11 @@ object Filters {
       excludeTime(Set(t))
     }
 
-    def includeIds[R](dim: Dimension.Aux2[_, R], ids: Seq[R]): Builder = {
+    def includeIds[R](dim: Dimension.AuxR[R], ids: Seq[R]): Builder = {
       includeIds(dim, SortedSetIterator(ids.sortWith(dim.rOrdering.lt).iterator)(dim.rOrdering))
     }
 
-    def excludeIds[R](dim: Dimension.Aux2[_, R], ids: Seq[R]): Builder = {
+    def excludeIds[R](dim: Dimension.AuxR[R], ids: Seq[R]): Builder = {
       excludeIds(dim, SortedSetIterator(ids.sortWith(dim.rOrdering.lt).iterator)(dim.rOrdering))
     }
 

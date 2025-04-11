@@ -33,6 +33,13 @@ object CollectionUtils {
     }
   }
 
+  def traverseOpt[T, E, U](x: Option[T])(f: T => Either[E, U]): Either[E, Option[U]] = {
+    x match {
+      case Some(v) => f(v).map(Some.apply)
+      case None    => Right(None)
+    }
+  }
+
   def collectErrors[T](ls: Seq[Either[String, T]]): Either[String, Seq[T]] = {
     val errors = ls.collect { case Left(e) => e }
 

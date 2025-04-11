@@ -16,6 +16,7 @@
 
 package org.yupana.core.providers
 
+import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.Time
 import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.types.DataType
@@ -24,7 +25,7 @@ import org.yupana.core.dao.QueryMetricsFilter
 import org.yupana.core.sql.parser.MetricsFilter
 import org.yupana.metrics.{ MetricCollector, QueryStates }
 
-object QueryInfoProvider {
+object QueryInfoProvider extends StrictLogging {
 
   private def getFilter(sqlFilter: MetricsFilter): QueryMetricsFilter = {
     QueryMetricsFilter(
@@ -41,11 +42,13 @@ object QueryInfoProvider {
     import org.yupana.core.model.TsdbQueryMetrics._
 
     val filter = sqlFilter.map(getFilter)
+    logger.info(s"Handle SHOW QUERIES $filter")
     val metrics = flatQueryEngine.queriesByFilter(filter, limit)
     val data: Iterator[Array[Any]] = metrics.map { queryMetrics =>
       Array[Any](
         queryMetrics.queryId,
         queryMetrics.engine,
+        queryMetrics.user.orNull,
         queryMetrics.state.name,
         queryMetrics.query,
         Time(queryMetrics.startDate),
@@ -63,6 +66,7 @@ object QueryInfoProvider {
     val queryFieldNames = List(
       queryIdColumn,
       engineColumn,
+      userColumn,
       stateColumn,
       queryColumn,
       startDateColumn,
@@ -71,6 +75,7 @@ object QueryInfoProvider {
       qualifiers.flatMap(q => List(q + "_" + metricCount, q + "_" + metricTime, q + "_" + metricSpeed))
 
     val queryFieldTypes = List(
+      DataType[String],
       DataType[String],
       DataType[String],
       DataType[String],
@@ -85,11 +90,11 @@ object QueryInfoProvider {
 
   def handleKillQuery(flatQueryEngine: FlatQueryEngine, sqlFilter: MetricsFilter): Result = {
     flatQueryEngine.setQueryState(getFilter(sqlFilter), QueryStates.Cancelled)
-    SimpleResult("RESULT", List("RESULT"), List(DataType[String]), Iterator(Array("OK")))
+    SimpleResult("RESULT", List("RESULT"), List(DataType[String]), Iterator(Array[Any]("OK")))
   }
 
   def handleDeleteQueryMetrics(flatQueryEngine: FlatQueryEngine, sqlFilter: MetricsFilter): Result = {
     val deleted = flatQueryEngine.deleteMetrics(getFilter(sqlFilter))
-    SimpleResult("RESULT", List("DELETED"), List(DataType[Int]), Iterator(Array(deleted)))
+    SimpleResult("RESULT", List("DELETED"), List(DataType[Int]), Iterator(Array[Any](deleted)))
   }
 }

@@ -23,6 +23,7 @@ import scala.collection.mutable
 
 abstract class StandardMetricCollector(
     override val query: Query,
+    override val user: String,
     override val operationName: String,
     metricsUpdateInterval: Int,
     val isSparkQuery: Boolean,
@@ -42,6 +43,7 @@ abstract class StandardMetricCollector(
 
   private def createMetric(qualifier: String): MetricImpl = new MetricImpl(qualifier, this)
 
+  override val initQueryContext: MetricImpl = createMetric(initQueryContextQualifier)
   override val createDimensionFilters: MetricImpl = createMetric(createDimensionFiltersQualifier)
   override val createScans: MetricImpl = createMetric(createScansQualifier)
   override val scan: MetricImpl = createMetric(scanQualifier)
@@ -49,6 +51,9 @@ abstract class StandardMetricCollector(
   override val readExternalLinks: MetricImpl = createMetric(readExternalLinksQualifier)
   override val extractDataComputation: MetricImpl = createMetric(extractDataComputationQualifier)
   override val filterRows: MetricImpl = createMetric(filterRowsQualifier)
+  override val filter: MetricImpl = createMetric(filterQualifier)
+  override val evaluateExpressions: MetricImpl = createMetric(evaluateExpressionsQualifier)
+  override val extractKeyData: MetricImpl = createMetric(extractKeyDataQualifier)
   override val windowFunctions: MetricImpl = createMetric(windowFunctionsQualifier)
   override val reduceOperation: MetricImpl = createMetric(reduceOperationQualifier)
   override val postFilter: MetricImpl = createMetric(postFilterQualifier)
@@ -75,6 +80,7 @@ abstract class StandardMetricCollector(
 
   def allMetrics: Seq[MetricImpl] =
     Seq(
+      initQueryContext,
       createContext,
       createDimensionFilters,
       createScans,
@@ -82,6 +88,9 @@ abstract class StandardMetricCollector(
       readExternalLinks,
       extractDataComputation,
       filterRows,
+      filter,
+      evaluateExpressions,
+      extractKeyData,
       windowFunctions,
       reduceOperation,
       postFilter,

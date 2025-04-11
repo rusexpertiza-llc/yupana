@@ -16,6 +16,8 @@
 
 package org.yupana.core
 
+import org.yupana.core.model.{ BatchDataset, HashTableDataset }
+
 import scala.reflect.ClassTag
 
 /**
@@ -23,14 +25,28 @@ import scala.reflect.ClassTag
   * @tparam Collection collection for which operations are defined
   */
 trait MapReducible[Collection[_]] extends Serializable {
-  def empty[A: ClassTag]: Collection[A]
 
+  def empty[A: ClassTag]: Collection[A]
+  def fromSeq[A: ClassTag](seq: Seq[A]): Collection[A]
   def singleton[A: ClassTag](a: A): Collection[A]
+
   def filter[A: ClassTag](c: Collection[A])(f: A => Boolean): Collection[A]
 
   def aggregateByKey[K: ClassTag, A: ClassTag, B: ClassTag](
       c: Collection[(K, A)]
   )(createZero: A => B, seqOp: (B, A) => B, combOp: (B, B) => B): Collection[(K, B)]
+
+  def aggregate[A: ClassTag, B: ClassTag](
+      c: Collection[A]
+  )(createZero: A => B, seqOp: (B, A) => B, combOp: (B, B) => B): Collection[B]
+
+  def aggregateDatasets(
+      c: Collection[BatchDataset],
+      queryContext: QueryContext
+  )(
+      foldOp: (HashTableDataset, BatchDataset) => Unit,
+      combOp: (HashTableDataset, BatchDataset) => Unit
+  ): Collection[BatchDataset]
 
   def map[A: ClassTag, B: ClassTag](c: Collection[A])(f: A => B): Collection[B]
   def flatMap[A: ClassTag, B: ClassTag](mr: Collection[A])(f: A => Iterable[B]): Collection[B]
@@ -43,9 +59,10 @@ trait MapReducible[Collection[_]] extends Serializable {
 
   def distinct[A: ClassTag](c: Collection[A]): Collection[A]
 
-  def limit[A: ClassTag](c: Collection[A])(n: Int): Collection[A]
+  def limit(c: Collection[BatchDataset])(n: Int): Collection[BatchDataset]
 
   def concat[A: ClassTag](a: Collection[A], b: Collection[A]): Collection[A]
 
   def materialize[A: ClassTag](c: Collection[A]): Seq[A]
+
 }

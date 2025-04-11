@@ -16,14 +16,20 @@
 
 package org.yupana.core
 
+import org.yupana.api.query.Expression
+import org.yupana.core.model.BatchDataset
+
 trait TsdbResultBase[T[_]] {
 
   protected val nameIndex: Seq[(String, Int)] =
-    queryContext.query.fields.map(f => f.name -> queryContext.exprsIndex(f.expr))
+    queryContext.query.fields.map(f => f.name -> queryContext.datasetSchema.fieldIndex(f.expr))
   protected lazy val nameIndexMap: Map[String, Int] = nameIndex.toMap
   protected lazy val fieldIndex: Array[Int] = nameIndex.map(_._2).toArray
+  protected lazy val exprByIndex: Map[Int, Expression[_]] = queryContext.datasetSchema.exprIndex.map {
+    case (expr, idx) => idx -> expr
+  }
 
-  def rows: T[Array[Any]]
+  def data: T[BatchDataset]
 
   def queryContext: QueryContext
 

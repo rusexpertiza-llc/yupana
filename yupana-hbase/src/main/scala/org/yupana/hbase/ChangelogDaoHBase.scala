@@ -19,7 +19,7 @@ package org.yupana.hbase
 import java.nio.charset.StandardCharsets
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase._
-import org.apache.hadoop.hbase.client.{ Table => HTable, _ }
+import org.apache.hadoop.hbase.client._
 import org.apache.hadoop.hbase.filter.FilterList.Operator
 import org.apache.hadoop.hbase.filter.{ Filter, FilterList, SingleColumnValueFilter }
 import org.apache.hadoop.hbase.util.Bytes
@@ -214,26 +214,9 @@ class ChangelogDaoHBase(connection: Connection, namespace: String) extends Chang
   }
 
   def withTables[T](block: => T): T = {
-    checkTablesExistsElseCreate()
+    HBaseUtils.checkTableExistsElseCreate(connection, getTableName(namespace), Seq(FAMILY))
     block
   }
 
-  private def getTable: HTable = connection.getTable(getTableName(namespace))
-
-  private def checkTablesExistsElseCreate(): Unit = {
-    try {
-      val tableName = getTableName(namespace)
-      Using.resource(connection.getAdmin) { admin =>
-        if (!admin.tableExists(tableName)) {
-          val desc = TableDescriptorBuilder
-            .newBuilder(tableName)
-            .setColumnFamily(ColumnFamilyDescriptorBuilder.of(FAMILY))
-            .build()
-          admin.createTable(desc)
-        }
-      }
-    } catch {
-      case _: TableExistsException =>
-    }
-  }
+  private def getTable: Table = connection.getTable(getTableName(namespace))
 }

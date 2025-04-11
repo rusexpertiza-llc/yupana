@@ -16,22 +16,24 @@
 
 package org.yupana.jdbc
 
-import java.io.{ ByteArrayInputStream, ByteArrayOutputStream, CharArrayReader, InputStream, ObjectOutputStream, Reader }
+import org.yupana.api.query.Result
+import org.yupana.api.types.ArrayDataType
+import org.yupana.api.types.DataType
+import org.yupana.api.types.DataType.TypeKind
+import org.yupana.api.{ Currency, Time => ApiTime }
+
+import java.io._
 import java.math.BigDecimal
 import java.nio.charset.{ Charset, StandardCharsets }
 import java.sql.{ Array => SqlArray, _ }
+import java.time.ZonedDateTime
 import java.util
 import java.util.Calendar
-import org.yupana.api.query.{ DataRow, Result }
-import org.yupana.api.types.ArrayDataType
-import org.yupana.api.types.DataType.TypeKind
-import org.yupana.api.{ Time => ApiTime }
-
-import java.time.ZonedDateTime
 
 class YupanaResultSet protected[jdbc] (
-    statement: Statement,
-    result: Result
+    statement: YupanaStatement,
+    result: Result,
+    streamId: Option[Int] = None
 ) extends ResultSet
     with ResultSetMetaData {
 
@@ -40,11 +42,10 @@ class YupanaResultSet protected[jdbc] (
   private val dataTypes = result.dataTypes.toArray
 
   private var currentIdx = -1
-  private var it: Iterator[DataRow] = result
-  private var currentRow: DataRow = _
 
   private var wasNullValue = false
   private var closed = false
+  private var isInAfterLastPosition = false
 
   @throws[SQLException]
   override def getStatement: Statement = statement
@@ -52,15 +53,14 @@ class YupanaResultSet protected[jdbc] (
   @throws[SQLException]
   override def next: Boolean = {
     checkClosed()
-
-    if (it.hasNext) {
-      currentIdx += 1
-      currentRow = it.next()
-      true
-    } else {
-      currentRow = null
-      false
+    if (isLast) {
+      isInAfterLastPosition = true
     }
+    val r = result.next()
+    if (r) {
+      currentIdx += 1
+    }
+    r
   }
 
   private def onlyForwardException(): Boolean =
@@ -76,8 +76,7 @@ class YupanaResultSet protected[jdbc] (
   @throws[SQLException]
   override def isAfterLast: Boolean = {
     checkClosed()
-
-    !it.hasNext && currentRow == null
+    isInAfterLastPosition
   }
 
   @throws[SQLException]
@@ -89,7 +88,7 @@ class YupanaResultSet protected[jdbc] (
   @throws[SQLException]
   override def isLast: Boolean = {
     checkClosed()
-    !it.hasNext && currentRow != null
+    !isInAfterLastPosition && result.isLast()
   }
 
   @throws[SQLException]
@@ -124,9 +123,8 @@ class YupanaResultSet protected[jdbc] (
 
     if (isAfterLast) onlyForwardException()
 
-    while (it.hasNext) {
+    while (!isLast && result.next()) {
       currentIdx += 1
-      currentRow = it.next()
     }
     true
   }
@@ -143,9 +141,7 @@ class YupanaResultSet protected[jdbc] (
     checkClosed()
 
     if (row < currentIdx + 1) onlyForwardException()
-    it = result.drop(row - currentIdx - 2)
-    currentRow = it.next()
-    currentIdx = row - 1
+    while (currentIdx < row - 1 && next()) {}
     true
   }
 
@@ -154,9 +150,10 @@ class YupanaResultSet protected[jdbc] (
     checkClosed()
 
     if (rows < 0) onlyForwardException()
-    it = result.drop(rows - 1)
-    currentRow = it.next()
-    currentIdx = currentIdx + rows
+    var c = 0
+    while (c < rows && next()) {
+      c += 1
+    }
     true
   }
 
@@ -185,9 +182,10 @@ class YupanaResultSet protected[jdbc] (
 
   @throws[SQLException]
   override def close(): Unit = {
+    if (statement != null) {
+      streamId.foreach(statement.connection.cancelStream)
+    }
     closed = true
-    currentRow = null
-    it = Iterator.empty
     currentIdx = -1
   }
 
@@ -217,6 +215,177 @@ class YupanaResultSet protected[jdbc] (
   @throws[SQLException]
   override def findColumn(s: String): Int = columnNameIndex.getOrElse(s, throw new SQLException(s"Unknown column $s"))
 
+  private def booleanCasts(dt: DataType, value: Any): Boolean = {
+    dt.meta.sqlType match {
+      case Types.BOOLEAN => value.asInstanceOf[Boolean]
+      case _ => throw new YupanaException(s"Can not getBoolean from column with type=${dt.meta.sqlTypeName}")
+    }
+  }
+
+  private def checkBounds[S](s: S, min: S, max: S, targetType: String)(implicit n: Numeric[S]): Unit = {
+    if (n.lt(s, min) || n.gt(s, max)) {
+      throw new YupanaException(s"Numeric value out of range: $s does not suit $targetType")
+    }
+  }
+
+  private def checkBoundsForDecimal(
+      s: scala.math.BigDecimal,
+      min: scala.math.BigDecimal,
+      max: scala.math.BigDecimal,
+      targetType: String
+  ): Unit = {
+    if (s < min || s > max) {
+      throw new YupanaException(s"Numeric value out of range: $s does not suit $targetType")
+    }
+  }
+
+  private def byteCasts(dt: DataType, value: Any): Byte = {
+    dt.meta.sqlType match {
+      case Types.TINYINT => value.asInstanceOf[Byte]
+      case Types.SMALLINT =>
+        val short = value.asInstanceOf[Short]
+        checkBounds(short, Byte.MinValue.toShort, Byte.MaxValue.toShort, DataType[Byte].meta.javaTypeName)
+        short.toByte
+      case Types.INTEGER =>
+        val int = value.asInstanceOf[Int]
+        checkBounds(int, Byte.MinValue.toInt, Byte.MaxValue.toInt, DataType[Byte].meta.javaTypeName)
+        int.toByte
+      case Types.BIGINT =>
+        val long = value.asInstanceOf[Long]
+        checkBounds(long, Byte.MinValue.toLong, Byte.MaxValue.toLong, DataType[Byte].meta.javaTypeName)
+        long.toByte
+      case Types.DOUBLE =>
+        val double = value.asInstanceOf[Double]
+        checkBounds(double, Byte.MinValue.toDouble, Byte.MaxValue.toDouble, DataType[Byte].meta.javaTypeName)
+        double.toByte
+      case Types.DECIMAL if !dt.meta.isCurrency =>
+        val dec = value.asInstanceOf[scala.math.BigDecimal]
+        checkBoundsForDecimal(dec, Byte.MinValue, Byte.MaxValue, DataType[Byte].meta.javaTypeName)
+        dec.toByte
+      case Types.DECIMAL if dt.meta.isCurrency =>
+        val dec = value.asInstanceOf[Currency].toBigDecimal
+        checkBoundsForDecimal(dec, Byte.MinValue, Byte.MaxValue, DataType[Byte].meta.javaTypeName)
+        dec.toByte
+      case _ => throw new YupanaException(s"Can not getByte from column with type=${dt.meta.sqlTypeName}")
+    }
+  }
+
+  private def shortCasts(dt: DataType, value: Any): Short = {
+    dt.meta.sqlType match {
+      case Types.TINYINT  => value.asInstanceOf[Byte]
+      case Types.SMALLINT => value.asInstanceOf[Short]
+      case Types.INTEGER =>
+        val int = value.asInstanceOf[Int]
+        checkBounds(int, Short.MinValue.toInt, Short.MaxValue.toInt, DataType[Short].meta.javaTypeName)
+        int.toShort
+      case Types.BIGINT =>
+        val long = value.asInstanceOf[Long]
+        checkBounds(long, Short.MinValue.toLong, Short.MaxValue.toLong, DataType[Short].meta.javaTypeName)
+        long.toShort
+      case Types.DOUBLE =>
+        val double = value.asInstanceOf[Double]
+        checkBounds(double, Short.MinValue.toDouble, Short.MaxValue.toDouble, DataType[Short].meta.javaTypeName)
+        double.toShort
+      case Types.DECIMAL if !dt.meta.isCurrency =>
+        val dec = value.asInstanceOf[scala.math.BigDecimal]
+        checkBoundsForDecimal(dec, Short.MinValue, Short.MaxValue, DataType[Short].meta.javaTypeName)
+        dec.toShort
+      case Types.DECIMAL if dt.meta.isCurrency =>
+        val dec = value.asInstanceOf[Currency].toBigDecimal
+        checkBoundsForDecimal(dec, Short.MinValue, Short.MaxValue, DataType[Short].meta.javaTypeName)
+        dec.toShort
+      case _ => throw new YupanaException(s"Can not getShort from column with type=${dt.meta.sqlTypeName}")
+    }
+  }
+
+  private def intCasts(dt: DataType, value: Any): Int = {
+    dt.meta.sqlType match {
+      case Types.TINYINT  => value.asInstanceOf[Byte]
+      case Types.SMALLINT => value.asInstanceOf[Short]
+      case Types.INTEGER  => value.asInstanceOf[Int]
+      case Types.BIGINT =>
+        val long = value.asInstanceOf[Long]
+        checkBounds(long, Int.MinValue.toLong, Int.MaxValue.toLong, DataType[Int].meta.javaTypeName)
+        long.toInt
+      case Types.DOUBLE =>
+        val double = value.asInstanceOf[Double]
+        checkBounds(double, Int.MinValue.toDouble, Int.MaxValue.toDouble, DataType[Int].meta.javaTypeName)
+        double.toInt
+      case Types.DECIMAL if !dt.meta.isCurrency =>
+        val dec = value.asInstanceOf[scala.math.BigDecimal]
+        checkBoundsForDecimal(dec, Int.MinValue, Int.MaxValue, DataType[Int].meta.javaTypeName)
+        dec.toInt
+      case Types.DECIMAL if dt.meta.isCurrency =>
+        val long = value.asInstanceOf[Currency].value / Currency.SUB
+        checkBounds(long, Int.MinValue, Int.MaxValue, DataType[Int].meta.javaTypeName)
+        long.toInt
+
+      case _ => throw new YupanaException(s"Can not getInt from column with type=${dt.meta.sqlTypeName}")
+    }
+  }
+
+  private def longCasts(dt: DataType, value: Any): Long = {
+    dt.meta.sqlType match {
+      case Types.TINYINT  => value.asInstanceOf[Byte]
+      case Types.SMALLINT => value.asInstanceOf[Short]
+      case Types.INTEGER  => value.asInstanceOf[Int]
+      case Types.BIGINT   => value.asInstanceOf[Long]
+      case Types.DOUBLE =>
+        val double = value.asInstanceOf[Double]
+        checkBounds(double, Long.MinValue.toDouble, Long.MaxValue.toDouble, DataType[Long].meta.javaTypeName)
+        double.toLong
+      case Types.DECIMAL if !dt.meta.isCurrency =>
+        val dec = value.asInstanceOf[scala.math.BigDecimal]
+        checkBoundsForDecimal(dec, Long.MinValue, Long.MaxValue, DataType[Long].meta.javaTypeName)
+        dec.toLong
+      case Types.DECIMAL if dt.meta.isCurrency =>
+        value.asInstanceOf[Currency].value / Currency.SUB
+
+      case _ => throw new YupanaException(s"Can not getLong from column with type=${dt.meta.sqlTypeName}")
+    }
+  }
+
+  private def floatCasts(dt: DataType, value: Any): Float = {
+    dt.meta.sqlType match {
+      case Types.TINYINT  => value.asInstanceOf[Byte]
+      case Types.SMALLINT => value.asInstanceOf[Short]
+      case Types.INTEGER  => value.asInstanceOf[Int].toFloat
+      case Types.BIGINT   => value.asInstanceOf[Long].toFloat
+      case Types.DOUBLE =>
+        val double = value.asInstanceOf[Double]
+        checkBounds(double, Float.MinValue.toDouble, Float.MaxValue.toDouble, "java.lang.Float")
+        double.toFloat
+      case Types.DECIMAL if !dt.meta.isCurrency =>
+        val dec = value.asInstanceOf[scala.math.BigDecimal]
+        checkBoundsForDecimal(dec, Float.MinValue, Float.MaxValue, "java.lang.Float")
+        dec.toFloat
+      case Types.DECIMAL if dt.meta.isCurrency =>
+        val dec = value.asInstanceOf[Currency].toBigDecimal
+        checkBoundsForDecimal(dec, Float.MinValue, Float.MaxValue, "java.lang.Float")
+        dec.toFloat
+      case _ => throw new YupanaException(s"Can not getFloat from column with type=${dt.meta.sqlTypeName}")
+    }
+  }
+
+  private def doubleCasts(dt: DataType, value: Any): Double = {
+    dt.meta.sqlType match {
+      case Types.TINYINT  => value.asInstanceOf[Byte]
+      case Types.SMALLINT => value.asInstanceOf[Short]
+      case Types.INTEGER  => value.asInstanceOf[Int]
+      case Types.BIGINT   => value.asInstanceOf[Long].toDouble
+      case Types.DOUBLE   => value.asInstanceOf[Double]
+      case Types.DECIMAL if !dt.meta.isCurrency =>
+        val dec = value.asInstanceOf[scala.math.BigDecimal]
+        checkBoundsForDecimal(dec, Double.MinValue, Double.MaxValue, DataType[Double].meta.javaTypeName)
+        dec.toDouble
+      case Types.DECIMAL if dt.meta.isCurrency =>
+        val dec = value.asInstanceOf[Currency].toBigDecimal
+        checkBoundsForDecimal(dec, Double.MinValue, Double.MaxValue, DataType[Double].meta.javaTypeName)
+        dec.toDouble
+      case _ => throw new YupanaException(s"Can not getDouble from column with type=${dt.meta.sqlTypeName}")
+    }
+  }
+
   private def checkClosed(): Unit = {
     if (closed) throw new SQLException("ResultSet is already closed")
   }
@@ -224,33 +393,34 @@ class YupanaResultSet protected[jdbc] (
   private def checkRow(): Unit = {
     checkClosed()
 
-    if (currentRow == null) {
-      if (currentIdx == -1) {
-        throw new SQLException("Trying to read before next call")
-      } else {
-        throw new SQLException("Reading after the last row")
-      }
+    if (currentIdx == -1) {
+      throw new SQLException("Trying to read before next call")
+    }
+
+    if (isAfterLast) {
+      throw new SQLException("Reading after the last row")
     }
   }
 
-  private def getPrimitive[T <: AnyVal](i: Int, default: T): T = {
+  private def getPrimitive[T <: AnyVal](i: Int, default: T, cast: (DataType, Any) => T): T = {
     checkRow()
-    val cell = currentRow.get[T](i - 1)
+    val cell = result.get[T](i - 1)
+    val dt = dataTypes(i - 1)
     wasNullValue = cell == null
     if (cell == null) {
       default
     } else {
-      cell
+      cast(dt, cell)
     }
   }
 
-  private def getPrimitiveByName[T <: AnyVal](name: String, default: T): T = {
-    getPrimitive(columnNameIndex(name), default)
+  private def getPrimitiveByName[T <: AnyVal](name: String, default: T, cast: (DataType, Any) => T): T = {
+    getPrimitive(columnNameIndex(name), default, cast)
   }
 
-  private def getReference[T <: AnyRef](i: Int, f: AnyRef => T): T = {
+  private def getReference[T <: AnyRef](i: Int, f: Any => T): T = {
     checkRow()
-    val cell = currentRow.get[T](i - 1)
+    val cell = result.get[T](i - 1)
 
     wasNullValue = cell == null
     if (cell == null) {
@@ -260,27 +430,36 @@ class YupanaResultSet protected[jdbc] (
     }
   }
 
-  private def getReferenceByName[T <: AnyRef](name: String, f: AnyRef => T): T = {
+  private def getReferenceByName[T <: AnyRef](name: String, f: Any => T): T = {
     getReference(columnNameIndex(name), f)
   }
 
-  private def toBigDecimal(a: AnyRef): BigDecimal = a.asInstanceOf[scala.math.BigDecimal].underlying()
+  private def toBigDecimal(dt: DataType)(a: Any): BigDecimal = dt.meta.sqlType match {
+    case Types.TINYINT                        => BigDecimal.valueOf(a.asInstanceOf[Byte])
+    case Types.SMALLINT                       => BigDecimal.valueOf(a.asInstanceOf[Short])
+    case Types.INTEGER                        => BigDecimal.valueOf(a.asInstanceOf[Int])
+    case Types.BIGINT                         => BigDecimal.valueOf(a.asInstanceOf[Long])
+    case Types.DOUBLE                         => BigDecimal.valueOf(a.asInstanceOf[Double])
+    case Types.DECIMAL if !dt.meta.isCurrency => a.asInstanceOf[scala.math.BigDecimal].underlying()
+    case Types.DECIMAL if dt.meta.isCurrency  => BigDecimal.valueOf(a.asInstanceOf[Currency].value, Currency.SCALE)
+    case _ => throw new YupanaException(s"${dt.meta.sqlTypeName} can not be cast to BigDecimal")
+  }
 
-  private def toSQLDate(a: AnyRef): Date = {
+  private def toSQLDate(a: Any): Date = {
     a match {
       case t: ApiTime => Date.valueOf(t.toLocalDateTime.toLocalDate)
       case x          => throw new SQLException(s"Cannot cast $x to java.sql.Date")
     }
   }
 
-  private def toSQLTime(a: AnyRef): Time = {
+  private def toSQLTime(a: Any): Time = {
     a match {
       case t: ApiTime => Time.valueOf(t.toLocalDateTime.toLocalTime)
       case x          => throw new SQLException(s"Cannot cast $x to java.sql.Time")
     }
   }
 
-  private def toSQLTimestamp(a: AnyRef): Timestamp = {
+  private def toSQLTimestamp(a: Any): Timestamp = {
     a match {
       case t: ApiTime => Timestamp.valueOf(t.toLocalDateTime)
       case x          => throw new SQLException(s"Cannot cast $x to java.sql.Timestamp")
@@ -294,10 +473,13 @@ class YupanaResultSet protected[jdbc] (
     }
   }
 
-  private def fixTimestamp(a: AnyRef): AnyRef = {
+  private def fixObjects(a: Any): AnyRef = {
     a match {
-      case t: ApiTime => toSQLTimestamp(t)
-      case x          => x
+      case t: ApiTime               => toSQLTimestamp(t)
+      case d: scala.math.BigDecimal => d.bigDecimal
+      case c: Currency              => c.toBigDecimal.bigDecimal
+      case x: AnyRef                => x
+      case v                        => throw new IllegalStateException(s"Expected ref value, but got $v")
     }
   }
 
@@ -317,28 +499,31 @@ class YupanaResultSet protected[jdbc] (
   override def getString(i: Int): String = getReference(i, _.toString)
 
   @throws[SQLException]
-  override def getBoolean(i: Int): Boolean = getPrimitive(i, false)
+  override def getBoolean(i: Int): Boolean = getPrimitive(i, false, booleanCasts)
 
   @throws[SQLException]
-  override def getByte(i: Int): Byte = getPrimitive(i, 0)
+  override def getByte(i: Int): Byte = getPrimitive(i, 0, byteCasts)
 
   @throws[SQLException]
-  override def getShort(i: Int): Short = getPrimitive(i, 0)
+  override def getShort(i: Int): Short = getPrimitive(i, 0, shortCasts)
 
   @throws[SQLException]
-  override def getInt(i: Int): Int = getPrimitive(i, 0)
+  override def getInt(i: Int): Int = getPrimitive(i, 0, intCasts)
 
   @throws[SQLException]
-  override def getLong(i: Int): Long = getPrimitive(i, 0L)
+  override def getLong(i: Int): Long = getPrimitive(i, 0, longCasts)
 
   @throws[SQLException]
-  override def getFloat(i: Int): Float = getPrimitive(i, 0f)
+  override def getFloat(i: Int): Float = getPrimitive(i, 0, floatCasts)
 
   @throws[SQLException]
-  override def getDouble(i: Int): Double = getPrimitive(i, 0d)
+  override def getDouble(i: Int): Double = getPrimitive(i, 0, doubleCasts)
 
   @throws[SQLException]
-  override def getBigDecimal(i: Int, scale: Int): BigDecimal = getReference(i, x => toBigDecimal(x).setScale(scale))
+  override def getBigDecimal(i: Int, scale: Int): BigDecimal = {
+    val dt = dataTypes(i - 1)
+    getReference(i, x => toBigDecimal(dt)(x).setScale(scale))
+  }
 
   @throws[SQLException]
   override def getBytes(i: Int): Array[Byte] = getReference(i, toBytes)
@@ -395,29 +580,31 @@ class YupanaResultSet protected[jdbc] (
   override def getString(s: String): String = getReferenceByName(s, _.toString)
 
   @throws[SQLException]
-  override def getBoolean(s: String): Boolean = getPrimitiveByName(s, false)
+  override def getBoolean(s: String): Boolean = getPrimitiveByName(s, false, booleanCasts)
 
   @throws[SQLException]
-  override def getByte(s: String): Byte = getPrimitiveByName(s, 0)
+  override def getByte(s: String): Byte = getPrimitiveByName(s, 0, byteCasts)
 
   @throws[SQLException]
-  override def getShort(s: String): Short = getPrimitiveByName(s, 0)
+  override def getShort(s: String): Short = getPrimitiveByName(s, 0, shortCasts)
 
   @throws[SQLException]
-  override def getInt(s: String): Int = getPrimitiveByName(s, 0)
+  override def getInt(s: String): Int = getPrimitiveByName(s, 0, intCasts)
 
   @throws[SQLException]
-  override def getLong(s: String): Long = getPrimitiveByName(s, 0L)
+  override def getLong(s: String): Long = getPrimitiveByName(s, 0L, longCasts)
 
   @throws[SQLException]
-  override def getFloat(s: String): Float = getPrimitiveByName(s, 0f)
+  override def getFloat(s: String): Float = getPrimitiveByName(s, 0f, floatCasts)
 
   @throws[SQLException]
-  override def getDouble(s: String): Double = getPrimitiveByName(s, 0d)
+  override def getDouble(s: String): Double = getPrimitiveByName(s, 0d, doubleCasts)
 
   @throws[SQLException]
-  override def getBigDecimal(s: String, scale: Int): BigDecimal =
-    getReferenceByName(s, x => toBigDecimal(x).setScale(scale))
+  override def getBigDecimal(s: String, scale: Int): BigDecimal = {
+    val dt = dataTypes(columnNameIndex(s) - 1)
+    getReferenceByName(s, x => toBigDecimal(dt)(x).setScale(scale))
+  }
 
   @throws[SQLException]
   override def getDate(s: String): Date = getReferenceByName(s, a => toSQLDate(a))
@@ -429,16 +616,22 @@ class YupanaResultSet protected[jdbc] (
   override def getTimestamp(s: String): Timestamp = getReferenceByName(s, a => toSQLTimestamp(a))
 
   @throws[SQLException]
-  override def getObject(i: Int): AnyRef = getReference(i, fixTimestamp)
+  override def getObject(i: Int): AnyRef = getReference(i, fixObjects)
 
   @throws[SQLException]
-  override def getObject(s: String): AnyRef = getReferenceByName(s, fixTimestamp)
+  override def getObject(s: String): AnyRef = getReferenceByName(s, fixObjects)
 
   @throws[SQLException]
-  override def getBigDecimal(i: Int): BigDecimal = getReference(i, toBigDecimal)
+  override def getBigDecimal(i: Int): BigDecimal = {
+    val dt = dataTypes(i - 1)
+    getReference(i, x => toBigDecimal(dt)(x))
+  }
 
   @throws[SQLException]
-  override def getBigDecimal(s: String): BigDecimal = getReferenceByName(s, toBigDecimal)
+  override def getBigDecimal(s: String): BigDecimal = {
+    val dt = dataTypes(columnNameIndex(s) - 1)
+    getReferenceByName(s, x => toBigDecimal(dt)(x))
+  }
 
   @throws[SQLException]
   override def getWarnings: SQLWarning = null
@@ -999,7 +1192,7 @@ class YupanaResultSet protected[jdbc] (
 
   override def isReadOnly(column: Int) = true
 
-  override def isCurrency(column: Int) = false
+  override def isCurrency(column: Int): Boolean = dataTypes(column - 1).meta.isCurrency
 
   override def getColumnType(column: Int): Int = dataTypes(column - 1).meta.sqlType
 

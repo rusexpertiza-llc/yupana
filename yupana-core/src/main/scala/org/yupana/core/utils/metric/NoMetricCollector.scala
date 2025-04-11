@@ -20,6 +20,8 @@ import org.yupana.api.query.Query
 import org.yupana.metrics.{ Metric, NoMetric }
 
 object NoMetricCollector extends MetricQueryCollector {
+
+  override def initQueryContext: Metric = NoMetric
   override val createDimensionFilters: Metric = NoMetric
   override val createScans: Metric = NoMetric
   override val scan: Metric = NoMetric
@@ -27,6 +29,9 @@ object NoMetricCollector extends MetricQueryCollector {
   override val readExternalLinks: Metric = NoMetric
   override val extractDataComputation: Metric = NoMetric
   override val filterRows: Metric = NoMetric
+  override val filter: Metric = NoMetric
+  override val evaluateExpressions: Metric = NoMetric
+  override val extractKeyData: Metric = NoMetric
   override val windowFunctions: Metric = NoMetric
   override val reduceOperation: Metric = NoMetric
   override val postFilter: Metric = NoMetric
@@ -42,6 +47,8 @@ object NoMetricCollector extends MetricQueryCollector {
   override def finish(): Unit = {}
 
   override val query: Query = null
+
+  override val user: String = "NO USER"
 
   override val isEnabled: Boolean = false
   override def isSparkQuery: Boolean = false
