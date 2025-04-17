@@ -186,7 +186,7 @@ lazy val hbase = (project in file("yupana-hbase"))
       "io.circe"                    %% "circe-generic"                  % versions.circe,
       "org.scalatest"               %% "scalatest"                      % versions.scalaTest                % Test,
       "org.scalamock"               %% "scalamock"                      % versions.scalaMock                % Test,
-      "com.dimafeng"                %% "testcontainers-scala-scalatest" % "0.41.5"                          % Test
+      "com.dimafeng"                %% "testcontainers-scala-scalatest" % versions.testContainers           % Test
     ),
     excludeDependencies ++= Seq(
       // workaround for https://github.com/sbt/sbt/issues/3618
@@ -252,7 +252,7 @@ lazy val spark = (project in file("yupana-spark"))
       "org.scalatest"               %% "scalatest"                      % versions.scalaTest      % Test,
       "ch.qos.logback"              %  "logback-classic"                % versions.logback        % Test,
       "ch.qos.logback"              %  "logback-core"                   % versions.logback        % Test,
-      "com.dimafeng"                %% "testcontainers-scala-scalatest" % "0.41.5"                % Test
+      "com.dimafeng"                %% "testcontainers-scala-scalatest" % versions.testContainers % Test
     ),
     excludeDependencies ++= Seq(
       // workaround for https://github.com/sbt/sbt/issues/3618
@@ -518,7 +518,8 @@ lazy val versions = new {
 
   val scalaTest = "3.2.19"
   val scalaTestCheck = "3.2.19.0"
-  val scalaMock = "6.2.0"
+  val scalaMock = "7.3.0"
+  val testContainers = "0.43.0"
 }
 
 val commonSettings = Seq(
