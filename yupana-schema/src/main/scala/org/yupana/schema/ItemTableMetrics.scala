@@ -74,6 +74,7 @@ trait ItemTableMetrics {
   val acceptedAtField: Metric.Aux[Time] = Metric[Time]("acceptedAt", 53, rarelyQueried)
 
   val itemCountField: Metric.Aux[Long] = Metric[Long]("itemCount", 54)
+  val gtinTypeField: Metric.Aux[String] = Metric[String]("gtinType", 55, rarelyQueried)
 
   val metrics: Seq[Metric] = Seq(
     quantityField,
@@ -94,6 +95,7 @@ trait ItemTableMetrics {
     measureField,
     nomenclatureTypeField,
     gtinField,
+    gtinTypeField,
     shiftField,
     taxationTypeField,
     customerField,
