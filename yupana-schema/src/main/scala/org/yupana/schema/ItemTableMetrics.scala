@@ -95,6 +95,7 @@ trait ItemTableMetrics {
     measureField,
     nomenclatureTypeField,
     gtinField,
+    gtinTypeField,
     shiftField,
     taxationTypeField,
     customerField,
