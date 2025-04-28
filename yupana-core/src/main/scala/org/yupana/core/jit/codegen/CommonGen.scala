@@ -16,6 +16,7 @@
 
 package org.yupana.core.jit.codegen
 
+import org.yupana.api.Currency
 import org.yupana.api.query.{ AggregateExpr, Expression, Query, QueryField, WindowFunctionExpr }
 import org.yupana.api.types.DataType.TypeKind
 import org.yupana.api.types.{ ArrayDataType, DataType, InternalReaderWriter, TupleDataType }
@@ -41,6 +42,7 @@ object CommonGen {
       case Classes.FloatClass      => q"0.0f"
       case Classes.BooleanClass    => q"false"
       case Classes.BigDecimalClass => q"BigDecimal(0)"
+      case Classes.CurrencyClass   => q"Currency(0)"
       case _                       => q"null"
     }
   }
@@ -161,5 +163,6 @@ object CommonGen {
     val FloatClass = classOf[Float]
     val BooleanClass = classOf[Boolean]
     val BigDecimalClass = classOf[BigDecimal]
+    val CurrencyClass = classOf[Currency]
   }
 }

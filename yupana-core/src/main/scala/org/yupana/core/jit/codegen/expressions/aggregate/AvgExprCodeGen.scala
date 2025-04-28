@@ -16,14 +16,16 @@
 
 package org.yupana.core.jit.codegen.expressions.aggregate
 
+import org.yupana.api.Currency
 import org.yupana.api.query._
 import org.yupana.core.jit.codegen.CommonGen
+import org.yupana.core.jit.codegen.expressions.regular.CodegenUtils._
 import org.yupana.core.jit.{ CodeGenResult, State }
 
 import scala.reflect.runtime.universe._
 
 class AvgExprCodeGen(override val expression: AvgExpr[_]) extends AggregateExpressionCodeGen[AvgExpr[_]] {
-  private val sumExpr = avgSumAccumulatorExpr(expression.expr, expression.numeric)
+  private val sumExpr = avgSumAccumulatorExpr(expression.expr)
   private val countExpr = CountExpr(expression.expr)
 
   private val sumCodeGen = new SumExprCodeGen(sumExpr)
@@ -54,10 +56,19 @@ class AvgExprCodeGen(override val expression: AvgExpr[_]) extends AggregateExpre
     val count = sum.state.withReadFromRow(acc, countExpr)
 
     val validityTree = q"val ${avgVal.validityFlagName} = ${count.valueDeclaration.valueName} > 0"
+
+    val evaluateValue = if (isDecimal(expression.expr)) {
+      q"${sum.valueDeclaration.valueName} / BigDecimal(${count.valueDeclaration.valueName})"
+    } else if (isCurrency(expression.expr)) {
+      q"${sum.valueDeclaration.valueName}.toBigDecimal / BigDecimal(${count.valueDeclaration.valueName})"
+    } else {
+      q"BigDecimal(${sum.valueDeclaration.valueName}.toDouble / ${count.valueDeclaration.valueName})"
+    }
+
     val valueTree =
       q"""val ${avgVal.valueName} =
               if (${sum.valueDeclaration.validityFlagName} && ${count.valueDeclaration.valueName} > 0)
-                 BigDecimal(${sum.valueDeclaration.valueName}.toDouble / ${count.valueDeclaration.valueName})
+              $evaluateValue
               else null
           """
 
@@ -65,7 +76,7 @@ class AvgExprCodeGen(override val expression: AvgExpr[_]) extends AggregateExpre
     CodeGenResult(trees, avgVal, count.state)
   }
 
-  def avgSumAccumulatorExpr(expr: Expression[_], numeric: Numeric[_]): SumExpr[_, _] = {
+  private def avgSumAccumulatorExpr(expr: Expression[_]): SumExpr[_, _] = {
     CommonGen.className(expr.dataType) match {
       case "Byte"       => SumExpr[Byte, Int](expr.asInstanceOf[Expression[Byte]])
       case "Short"      => SumExpr[Short, Int](expr.asInstanceOf[Expression[Short]])
@@ -73,6 +84,7 @@ class AvgExprCodeGen(override val expression: AvgExpr[_]) extends AggregateExpre
       case "Long"       => SumExpr[Long, Long](expr.asInstanceOf[Expression[Long]])
       case "Double"     => SumExpr[Double, Double](expr.asInstanceOf[Expression[Double]])
       case "BigDecimal" => SumExpr[BigDecimal, BigDecimal](expr.asInstanceOf[Expression[BigDecimal]])
+      case "Currency"   => SumExpr[Currency, Currency](expr.asInstanceOf[Expression[Currency]])
       case x            => throw new IllegalStateException(s"$x type is not available for Avg expression")
     }
   }

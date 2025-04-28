@@ -35,7 +35,9 @@ class ProcessRowsMinBenchmark {
         state.queryContext,
         NoMetricCollector,
         IteratorMapReducible.iteratorMR,
-        state.dataset.iterator
+        state.dataset.iterator,
+        state.now,
+        IndexedSeq.empty
       )
     var i = 0
     while (res.next()) {
@@ -47,6 +49,8 @@ class ProcessRowsMinBenchmark {
 
 @State(Scope.Benchmark)
 class TsdbBaseBenchmarkStateMin extends TsdbBaseBenchmarkStateBase {
+  override val now: Time = Time(LocalDateTime.now())
+
   override val query: Query = Query(
     table = Tables.itemsKkmTable,
     from = const(Time(LocalDateTime.now().minusDays(1))),

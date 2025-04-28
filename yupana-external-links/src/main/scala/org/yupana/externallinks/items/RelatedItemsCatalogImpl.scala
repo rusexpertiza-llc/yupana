@@ -59,7 +59,11 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
     ConditionTransformation.replace(fieldsValues.map(_._1), notIn(tuple(time, dimension(Dimensions.KKM_ID)), tuples))
   }
 
-  override def transformCondition(tbc: FlatAndCondition): Seq[ConditionTransformation] = {
+  override def transformCondition(
+      tbc: FlatAndCondition,
+      startTime: Time,
+      user: YupanaUser
+  ): Seq[ConditionTransformation] = {
 
     // TODO: Here we can take KKM related conditions from other, to speed up transactions request
 
@@ -67,13 +71,13 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
       ExternalLinkUtils.extractCatalogFieldsT[String](tbc, externalLink.linkName)
 
     val include = if (includeExprValues.nonEmpty) {
-      includeTransform(includeExprValues, tbc.from, tbc.to, tbc.user, tbc.startTime)
+      includeTransform(includeExprValues, tbc.from, tbc.to, user, startTime)
     } else {
       Seq.empty
     }
 
     val exclude = if (excludeExprValues.nonEmpty) {
-      excludeTransform(excludeExprValues, tbc.from, tbc.to, tbc.user, tbc.startTime)
+      excludeTransform(excludeExprValues, tbc.from, tbc.to, user, startTime)
     } else {
       Seq.empty
     }
@@ -108,7 +112,7 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
       filter = filter
     )
 
-    val result = tsdb.query(q, startTime, user)
+    val result = tsdb.query(q, startTime, IndexedSeq.empty, user)
 
     val timeIdx = result.queryContext.datasetSchema.exprIndex(time)
     val kkmIdIdx = result.queryContext.datasetSchema.exprIndex(dimension(Dimensions.KKM_ID))

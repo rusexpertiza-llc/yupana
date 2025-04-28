@@ -22,7 +22,7 @@ import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
 import org.apache.spark.sql.{ DataFrame, Row, SparkSession }
 import org.apache.spark.sql.types._
 import org.apache.spark.{ Partition, TaskContext }
-import org.yupana.api.{ Blob, Time }
+import org.yupana.api.{ Blob, Currency, Time }
 import org.yupana.api.query.QueryField
 import org.yupana.api.types.ArrayDataType
 import org.yupana.api.types.DataType.TypeKind
@@ -51,11 +51,14 @@ class ResultRDD(override val data: RDD[BatchDataset], override val queryContext:
         val buf = ArrayBuffer.empty[Row]
         batch.foreach { rowNum =>
           val values = fields.map { f =>
-            batch.get(rowNum, f.expr) match {
-              case t @ Time(_) => new Timestamp(t.millis)
-              case Blob(bytes) => bytes
-              case x           => x
-            }
+            if (!batch.isNull(rowNum, f.expr)) {
+              batch.get(rowNum, f.expr) match {
+                case Time(millis)      => new Timestamp(millis)
+                case Currency(kopecks) => BigDecimal(kopecks, Currency.SCALE)
+                case Blob(bytes)       => bytes
+                case x                 => x
+              }
+            } else null
           }
           val row = new GenericRowWithSchema(values, schema)
           buf.append(row)

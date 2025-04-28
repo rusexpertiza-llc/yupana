@@ -20,7 +20,7 @@ import org.yupana.api.query.Result
 import org.yupana.api.types.ArrayDataType
 import org.yupana.api.types.DataType
 import org.yupana.api.types.DataType.TypeKind
-import org.yupana.api.{ Time => ApiTime }
+import org.yupana.api.{ Currency, Time => ApiTime }
 
 import java.io._
 import java.math.BigDecimal
@@ -258,8 +258,12 @@ class YupanaResultSet protected[jdbc] (
         val double = value.asInstanceOf[Double]
         checkBounds(double, Byte.MinValue.toDouble, Byte.MaxValue.toDouble, DataType[Byte].meta.javaTypeName)
         double.toByte
-      case Types.DECIMAL =>
+      case Types.DECIMAL if !dt.meta.isCurrency =>
         val dec = value.asInstanceOf[scala.math.BigDecimal]
+        checkBoundsForDecimal(dec, Byte.MinValue, Byte.MaxValue, DataType[Byte].meta.javaTypeName)
+        dec.toByte
+      case Types.DECIMAL if dt.meta.isCurrency =>
+        val dec = value.asInstanceOf[Currency].toBigDecimal
         checkBoundsForDecimal(dec, Byte.MinValue, Byte.MaxValue, DataType[Byte].meta.javaTypeName)
         dec.toByte
       case _ => throw new YupanaException(s"Can not getByte from column with type=${dt.meta.sqlTypeName}")
@@ -282,8 +286,12 @@ class YupanaResultSet protected[jdbc] (
         val double = value.asInstanceOf[Double]
         checkBounds(double, Short.MinValue.toDouble, Short.MaxValue.toDouble, DataType[Short].meta.javaTypeName)
         double.toShort
-      case Types.DECIMAL =>
+      case Types.DECIMAL if !dt.meta.isCurrency =>
         val dec = value.asInstanceOf[scala.math.BigDecimal]
+        checkBoundsForDecimal(dec, Short.MinValue, Short.MaxValue, DataType[Short].meta.javaTypeName)
+        dec.toShort
+      case Types.DECIMAL if dt.meta.isCurrency =>
+        val dec = value.asInstanceOf[Currency].toBigDecimal
         checkBoundsForDecimal(dec, Short.MinValue, Short.MaxValue, DataType[Short].meta.javaTypeName)
         dec.toShort
       case _ => throw new YupanaException(s"Can not getShort from column with type=${dt.meta.sqlTypeName}")
@@ -303,10 +311,15 @@ class YupanaResultSet protected[jdbc] (
         val double = value.asInstanceOf[Double]
         checkBounds(double, Int.MinValue.toDouble, Int.MaxValue.toDouble, DataType[Int].meta.javaTypeName)
         double.toInt
-      case Types.DECIMAL =>
+      case Types.DECIMAL if !dt.meta.isCurrency =>
         val dec = value.asInstanceOf[scala.math.BigDecimal]
         checkBoundsForDecimal(dec, Int.MinValue, Int.MaxValue, DataType[Int].meta.javaTypeName)
         dec.toInt
+      case Types.DECIMAL if dt.meta.isCurrency =>
+        val long = value.asInstanceOf[Currency].value / Currency.SUB
+        checkBounds(long, Int.MinValue, Int.MaxValue, DataType[Int].meta.javaTypeName)
+        long.toInt
+
       case _ => throw new YupanaException(s"Can not getInt from column with type=${dt.meta.sqlTypeName}")
     }
   }
@@ -321,10 +334,13 @@ class YupanaResultSet protected[jdbc] (
         val double = value.asInstanceOf[Double]
         checkBounds(double, Long.MinValue.toDouble, Long.MaxValue.toDouble, DataType[Long].meta.javaTypeName)
         double.toLong
-      case Types.DECIMAL =>
+      case Types.DECIMAL if !dt.meta.isCurrency =>
         val dec = value.asInstanceOf[scala.math.BigDecimal]
         checkBoundsForDecimal(dec, Long.MinValue, Long.MaxValue, DataType[Long].meta.javaTypeName)
         dec.toLong
+      case Types.DECIMAL if dt.meta.isCurrency =>
+        value.asInstanceOf[Currency].value / Currency.SUB
+
       case _ => throw new YupanaException(s"Can not getLong from column with type=${dt.meta.sqlTypeName}")
     }
   }
@@ -339,8 +355,12 @@ class YupanaResultSet protected[jdbc] (
         val double = value.asInstanceOf[Double]
         checkBounds(double, Float.MinValue.toDouble, Float.MaxValue.toDouble, "java.lang.Float")
         double.toFloat
-      case Types.DECIMAL =>
+      case Types.DECIMAL if !dt.meta.isCurrency =>
         val dec = value.asInstanceOf[scala.math.BigDecimal]
+        checkBoundsForDecimal(dec, Float.MinValue, Float.MaxValue, "java.lang.Float")
+        dec.toFloat
+      case Types.DECIMAL if dt.meta.isCurrency =>
+        val dec = value.asInstanceOf[Currency].toBigDecimal
         checkBoundsForDecimal(dec, Float.MinValue, Float.MaxValue, "java.lang.Float")
         dec.toFloat
       case _ => throw new YupanaException(s"Can not getFloat from column with type=${dt.meta.sqlTypeName}")
@@ -354,8 +374,12 @@ class YupanaResultSet protected[jdbc] (
       case Types.INTEGER  => value.asInstanceOf[Int]
       case Types.BIGINT   => value.asInstanceOf[Long].toDouble
       case Types.DOUBLE   => value.asInstanceOf[Double]
-      case Types.DECIMAL =>
+      case Types.DECIMAL if !dt.meta.isCurrency =>
         val dec = value.asInstanceOf[scala.math.BigDecimal]
+        checkBoundsForDecimal(dec, Double.MinValue, Double.MaxValue, DataType[Double].meta.javaTypeName)
+        dec.toDouble
+      case Types.DECIMAL if dt.meta.isCurrency =>
+        val dec = value.asInstanceOf[Currency].toBigDecimal
         checkBoundsForDecimal(dec, Double.MinValue, Double.MaxValue, DataType[Double].meta.javaTypeName)
         dec.toDouble
       case _ => throw new YupanaException(s"Can not getDouble from column with type=${dt.meta.sqlTypeName}")
@@ -394,7 +418,7 @@ class YupanaResultSet protected[jdbc] (
     getPrimitive(columnNameIndex(name), default, cast)
   }
 
-  private def getReference[T <: AnyRef](i: Int, f: AnyRef => T): T = {
+  private def getReference[T <: AnyRef](i: Int, f: Any => T): T = {
     checkRow()
     val cell = result.get[T](i - 1)
 
@@ -406,35 +430,36 @@ class YupanaResultSet protected[jdbc] (
     }
   }
 
-  private def getReferenceByName[T <: AnyRef](name: String, f: AnyRef => T): T = {
+  private def getReferenceByName[T <: AnyRef](name: String, f: Any => T): T = {
     getReference(columnNameIndex(name), f)
   }
 
-  private def toBigDecimal(dt: DataType)(a: AnyRef): BigDecimal = dt.meta.sqlType match {
-    case Types.TINYINT  => BigDecimal.valueOf(a.asInstanceOf[Byte])
-    case Types.SMALLINT => BigDecimal.valueOf(a.asInstanceOf[Short])
-    case Types.INTEGER  => BigDecimal.valueOf(a.asInstanceOf[Int])
-    case Types.BIGINT   => BigDecimal.valueOf(a.asInstanceOf[Long])
-    case Types.DOUBLE   => BigDecimal.valueOf(a.asInstanceOf[Double])
-    case Types.DECIMAL  => a.asInstanceOf[scala.math.BigDecimal].underlying()
-    case _              => throw new YupanaException(s"${dt.meta.sqlTypeName} can not be cast to BigDecimal")
+  private def toBigDecimal(dt: DataType)(a: Any): BigDecimal = dt.meta.sqlType match {
+    case Types.TINYINT                        => BigDecimal.valueOf(a.asInstanceOf[Byte])
+    case Types.SMALLINT                       => BigDecimal.valueOf(a.asInstanceOf[Short])
+    case Types.INTEGER                        => BigDecimal.valueOf(a.asInstanceOf[Int])
+    case Types.BIGINT                         => BigDecimal.valueOf(a.asInstanceOf[Long])
+    case Types.DOUBLE                         => BigDecimal.valueOf(a.asInstanceOf[Double])
+    case Types.DECIMAL if !dt.meta.isCurrency => a.asInstanceOf[scala.math.BigDecimal].underlying()
+    case Types.DECIMAL if dt.meta.isCurrency  => BigDecimal.valueOf(a.asInstanceOf[Currency].value, Currency.SCALE)
+    case _ => throw new YupanaException(s"${dt.meta.sqlTypeName} can not be cast to BigDecimal")
   }
 
-  private def toSQLDate(a: AnyRef): Date = {
+  private def toSQLDate(a: Any): Date = {
     a match {
       case t: ApiTime => Date.valueOf(t.toLocalDateTime.toLocalDate)
       case x          => throw new SQLException(s"Cannot cast $x to java.sql.Date")
     }
   }
 
-  private def toSQLTime(a: AnyRef): Time = {
+  private def toSQLTime(a: Any): Time = {
     a match {
       case t: ApiTime => Time.valueOf(t.toLocalDateTime.toLocalTime)
       case x          => throw new SQLException(s"Cannot cast $x to java.sql.Time")
     }
   }
 
-  private def toSQLTimestamp(a: AnyRef): Timestamp = {
+  private def toSQLTimestamp(a: Any): Timestamp = {
     a match {
       case t: ApiTime => Timestamp.valueOf(t.toLocalDateTime)
       case x          => throw new SQLException(s"Cannot cast $x to java.sql.Timestamp")
@@ -448,10 +473,13 @@ class YupanaResultSet protected[jdbc] (
     }
   }
 
-  private def fixTimestamp(a: AnyRef): AnyRef = {
+  private def fixObjects(a: Any): AnyRef = {
     a match {
-      case t: ApiTime => toSQLTimestamp(t)
-      case x          => x
+      case t: ApiTime               => toSQLTimestamp(t)
+      case d: scala.math.BigDecimal => d.bigDecimal
+      case c: Currency              => c.toBigDecimal.bigDecimal
+      case x: AnyRef                => x
+      case v                        => throw new IllegalStateException(s"Expected ref value, but got $v")
     }
   }
 
@@ -588,10 +616,10 @@ class YupanaResultSet protected[jdbc] (
   override def getTimestamp(s: String): Timestamp = getReferenceByName(s, a => toSQLTimestamp(a))
 
   @throws[SQLException]
-  override def getObject(i: Int): AnyRef = getReference(i, fixTimestamp)
+  override def getObject(i: Int): AnyRef = getReference(i, fixObjects)
 
   @throws[SQLException]
-  override def getObject(s: String): AnyRef = getReferenceByName(s, fixTimestamp)
+  override def getObject(s: String): AnyRef = getReferenceByName(s, fixObjects)
 
   @throws[SQLException]
   override def getBigDecimal(i: Int): BigDecimal = {
@@ -1164,7 +1192,7 @@ class YupanaResultSet protected[jdbc] (
 
   override def isReadOnly(column: Int) = true
 
-  override def isCurrency(column: Int) = false
+  override def isCurrency(column: Int): Boolean = dataTypes(column - 1).meta.isCurrency
 
   override def getColumnType(column: Int): Int = dataTypes(column - 1).meta.sqlType
 

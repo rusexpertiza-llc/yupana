@@ -19,17 +19,22 @@ package org.yupana.api.query.syntax
 import org.yupana.api.query._
 import org.yupana.api.schema.Metric
 import org.yupana.api.types.DataType
+import org.yupana.api.types.guards.PlusGuard
 
 trait AggregationSyntax {
 
-  def sum[In, Out](
-      e: Expression[In]
-  )(implicit guard: SumExpr.SumGuard[In, Out], n: Numeric[Out], dt: DataType.Aux[Out]): SumExpr[In, Out] = {
+  def sum[In, Out](e: Expression[In])(
+      implicit guard: SumExpr.SumGuard[In, Out],
+      plus: PlusGuard[Out, Out, Out],
+      dt: DataType.Aux[Out]
+  ): SumExpr[In, Out] = {
     SumExpr(e)
   }
-  def sum[In, Out](
-      m: Metric.Aux[In]
-  )(implicit guard: SumExpr.SumGuard[In, Out], n: Numeric[Out], dt: DataType.Aux[Out]): SumExpr[In, Out] = {
+  def sum[In, Out](m: Metric.Aux[In])(
+      implicit guard: SumExpr.SumGuard[In, Out],
+      plus: PlusGuard[Out, Out, Out],
+      dt: DataType.Aux[Out]
+  ): SumExpr[In, Out] = {
     sum[In, Out](MetricExpr(m))
   }
 

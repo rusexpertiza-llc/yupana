@@ -16,9 +16,11 @@
 
 package org.yupana.examples.externallinks
 
+import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, ExternalLink, LinkField, Schema }
 import org.yupana.core.ExternalLinkService
+import org.yupana.core.auth.YupanaUser
 import org.yupana.core.model.BatchDataset
 import org.yupana.core.utils.{ CollectionUtils, FlatAndCondition, SparseTable, Table }
 import org.yupana.externallinks.ExternalLinkUtils
@@ -74,7 +76,11 @@ class AddressCatalogImpl(override val schema: Schema, override val externalLink:
     )
   }
 
-  override def transformCondition(condition: FlatAndCondition): Seq[ConditionTransformation] = {
+  override def transformCondition(
+      condition: FlatAndCondition,
+      startTime: Time,
+      user: YupanaUser
+  ): Seq[ConditionTransformation] = {
     ExternalLinkUtils.transformCondition(
       externalLink.linkName,
       condition,

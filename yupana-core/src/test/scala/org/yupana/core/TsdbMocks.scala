@@ -13,6 +13,8 @@ import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
 import org.yupana.core.utils.Table
 import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
+import org.yupana.testutils.{ TestLinks, TestSchema }
+import org.yupana.utils.RussianTokenizer
 
 trait TSTestDao extends TSDao[Iterator, Long]
 
@@ -49,8 +51,8 @@ trait TsdbMocks extends MockFactory { self: TestSuite =>
           case GeTime(ConstantExpr(_), _: TimeExpr.type)                  => true
           case LeTime(_: TimeExpr.type, ConstantExpr(_))                  => true
           case LeTime(ConstantExpr(_), _: TimeExpr.type)                  => true
-          case _: DimIdInExpr[_, _]                                       => true
-          case _: DimIdNotInExpr[_, _]                                    => true
+          case _: DimIdInExpr[_]                                          => true
+          case _: DimIdNotInExpr[_]                                       => true
           case EqExpr(_: DimensionExpr[_], ConstantExpr(_))               => true
           case EqExpr(ConstantExpr(_), _: DimensionExpr[_])               => true
           case EqString(LowerExpr(_: DimensionExpr[_]), ConstantExpr(_))  => true
@@ -113,6 +115,7 @@ trait TsdbMocks extends MockFactory { self: TestSuite =>
 
   implicit val srw: StringReaderWriter = SimpleStringReaderWriter
   private val sqlQueryProcessor = new SqlQueryProcessor(TestSchema.schema)
+  private val calculator = new ConstantCalculator(RussianTokenizer)
 
   def createQuery(sql: String): Query = {
     SqlParser
@@ -121,7 +124,7 @@ trait TsdbMocks extends MockFactory { self: TestSuite =>
         case s: Select => sqlQueryProcessor.createQuery(s)
         case x         => Left(s"SELECT statement expected, but got $x")
       }
-      .map(QueryOptimizer.optimize)
+      .map(QueryOptimizer.optimize(calculator))
       .fold(fail(_), identity)
   }
 }

@@ -21,11 +21,15 @@ import org.yupana.api.query._
 
 object QueryOptimizer {
 
-  def optimize(query: Query): Query = {
+  def optimize(expressionCalculator: ConstantCalculator)(query: Query): Query = {
     query.copy(
-      filter = query.filter.map(simplifyCondition),
-      postFilter = query.postFilter.map(simplifyCondition)
+      filter = query.filter.map(optimizeCondition(expressionCalculator)),
+      postFilter = query.postFilter.map(optimizeCondition(expressionCalculator))
     )
+  }
+
+  def optimizeCondition(expressionCalculator: ConstantCalculator)(c: Condition): Condition = {
+    simplifyCondition(optimizeExpr(expressionCalculator)(c))
   }
 
   def simplifyCondition(condition: Condition): Condition = {
@@ -71,13 +75,32 @@ object QueryOptimizer {
     if (conditions.exists(c => c == ConstantExpr(true) || c == TrueExpr)) {
       TrueExpr
     } else {
-      val nonEmpty = conditions.filterNot(c => c == ConstantExpr(false) || c == FalseExpr)
-      if (nonEmpty.size == 1) {
-        nonEmpty.head
-      } else if (nonEmpty.nonEmpty) {
-        OrExpr(nonEmpty)
-      } else {
+      val (falses, notFalses) = conditions.partition(c => c == ConstantExpr(false) || c == FalseExpr)
+      if (notFalses.size == 1) {
+        notFalses.head
+      } else if (notFalses.nonEmpty) {
+        OrExpr(notFalses)
+      } else if (falses.isEmpty) {
         TrueExpr
+      } else {
+        FalseExpr
+      }
+    }
+  }
+
+  def optimizeExpr[T](expressionCalculator: ConstantCalculator)(expr: Expression[T]): Expression[T] = {
+    expr.transform {
+      new Expression.Transform {
+        override def apply[X](x: Expression[X]): Option[Expression[X]] = {
+          Option.when(x.kind == Const) {
+            val eval = expressionCalculator.evaluateConstant(x)
+            if (eval != null) {
+              ConstantExpr(eval)(
+                x.dataType
+              )
+            } else NullExpr[X](x.dataType)
+          }
+        }
       }
     }
   }

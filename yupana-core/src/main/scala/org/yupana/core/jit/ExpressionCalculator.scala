@@ -27,23 +27,19 @@ import scala.collection.AbstractIterator
 
 trait ExpressionCalculator {
 
-  def evaluateFilter(
-      batch: BatchDataset
-  ): Unit
+  def evaluateFilter(batch: BatchDataset, startTime: Time, params: IndexedSeq[Any]): Unit
 
-  def evaluateExpressions(
-      batch: BatchDataset
-  ): Unit
+  def evaluateExpressions(batch: BatchDataset, startTime: Time, params: IndexedSeq[Any]): Unit
 
   def createKey(batch: BatchDataset, rowNum: Int): AnyRef
-  def evaluateFold(acc: HashTableDataset, batch: BatchDataset): Unit
+  def evaluateFold(acc: HashTableDataset, batch: BatchDataset, startTime: Time, params: IndexedSeq[Any]): Unit
 
   def evaluateCombine(acc: HashTableDataset, batch: BatchDataset): Unit
 
   def evaluatePostCombine(batch: BatchDataset): Unit
 
   def evaluatePostAggregateExprs(batch4: BatchDataset): Unit
-  def evaluatePostFilter(batch: BatchDataset): Unit
+  def evaluatePostFilter(batch: BatchDataset, startTime: Time, params: IndexedSeq[Any]): Unit
 
   def evaluateReadRow(buf: MemoryBuffer, batch: BatchDataset, rowNum: Int): Unit
 

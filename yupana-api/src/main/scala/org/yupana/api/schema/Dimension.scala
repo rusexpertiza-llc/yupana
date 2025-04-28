@@ -39,6 +39,7 @@ sealed trait Dimension {
 
 object Dimension {
   type Aux[TT] = Dimension { type T = TT }
+  type AuxR[RR] = Dimension { type R = RR }
   type Aux2[TT, RR] = Dimension { type T = TT; type R = RR }
 }
 

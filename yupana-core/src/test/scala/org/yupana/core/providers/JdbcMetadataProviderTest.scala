@@ -4,7 +4,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{ EitherValues, Inspectors, OptionValues }
 import org.yupana.api.types.{ DataType, SimpleStringReaderWriter, StringReaderWriter }
-import org.yupana.core.TestSchema
+import org.yupana.testutils.TestSchema
 
 class JdbcMetadataProviderTest extends AnyFlatSpec with Inspectors with Matchers with OptionValues with EitherValues {
   implicit val srw: StringReaderWriter = SimpleStringReaderWriter

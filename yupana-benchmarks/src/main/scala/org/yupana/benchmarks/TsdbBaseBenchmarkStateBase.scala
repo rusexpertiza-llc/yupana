@@ -16,7 +16,7 @@
 
 package org.yupana.benchmarks
 
-import org.yupana.api.Time
+import org.yupana.api.{ Currency, Time }
 import org.yupana.api.query._
 import org.yupana.cache.CacheFactory
 import org.yupana.core.jit.JIT
@@ -33,15 +33,15 @@ import java.util.Properties
 abstract class TsdbBaseBenchmarkStateBase {
   def query: Query
   def daoExprs: Seq[Expression[_]]
+  def now: Time
 
-  lazy val queryContext: QueryContext =
-    new QueryContext(query, Time(LocalDateTime.now()), None, RussianTokenizer, JIT, NoMetricCollector)
+  lazy val queryContext: QueryContext = new QueryContext(query, None, RussianTokenizer, JIT, NoMetricCollector)
 
   val qtime = LocalDateTime.of(2021, 5, 24, 22, 40, 0)
 
   private val EXPR_CALC: Map[Expression[_], Int => Any] = Map(
     TimeExpr -> (i => Time(qtime.minusHours(i % 100))),
-    MetricExpr(ItemTableMetrics.sumField) -> (i => BigDecimal(i.toDouble / 1000)),
+    MetricExpr(ItemTableMetrics.sumField) -> (i => Currency(i)),
     MetricExpr(ItemTableMetrics.quantityField) -> (i => math.abs(101d - i.toDouble / 10000)),
     DimensionExpr(Dimensions.ITEM) -> (i => s"#${i % 1000}"),
     DimensionExpr(Dimensions.KKM_ID) -> (i => i % 500)

@@ -3,7 +3,7 @@ package org.yupana.jdbc
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.yupana.api.Time
+import org.yupana.api.{ Currency, Time }
 import org.yupana.api.query.SimpleResult
 import org.yupana.api.types.{ DataType, DataTypeMeta }
 
@@ -167,15 +167,15 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
     val statement = mock[YupanaStatement]
     val result = SimpleResult(
       "test",
-      Seq("age", "name", "salary", "birthday"),
-      Seq(DataType[Int], DataType[String], DataType[BigDecimal], DataType[Time]),
+      Seq("age", "name", "salary", "birthday", "weight"),
+      Seq(DataType[Int], DataType[String], DataType[Currency], DataType[Time], DataType[BigDecimal]),
       Iterator.empty
     )
 
     val resultSet = new YupanaResultSet(statement, result)
     val meta = resultSet.getMetaData
 
-    meta.getColumnCount shouldEqual 4
+    meta.getColumnCount shouldEqual 5
 
     meta.getColumnName(1) shouldEqual "age"
     meta.getColumnLabel(1) shouldEqual "age"
@@ -220,17 +220,17 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
     meta.getColumnName(3) shouldEqual "salary"
     meta.getColumnLabel(3) shouldEqual "salary"
     meta.isSigned(3) shouldBe true
-    meta.isCurrency(3) shouldBe false
+    meta.isCurrency(3) shouldBe true
     meta.isNullable(3) shouldBe ResultSetMetaData.columnNullable
     meta.isCaseSensitive(3) shouldBe false
-    meta.getColumnClassName(3) shouldEqual "java.math.BigDecimal"
-    meta.getColumnTypeName(3) shouldEqual "DECIMAL"
+    meta.getColumnClassName(3) shouldEqual "java.lang.Long"
+    meta.getColumnTypeName(3) shouldEqual "CURRENCY"
     meta.getColumnType(3) shouldEqual Types.DECIMAL
     meta.getTableName(3) shouldEqual "test"
     meta.getSchemaName(3) shouldEqual "test"
-    meta.getPrecision(3) shouldEqual 0
+    meta.getPrecision(3) shouldEqual 19
     meta.getScale(3) shouldEqual DataTypeMeta.MONEY_SCALE
-    meta.getColumnDisplaySize(3) shouldEqual 131089
+    meta.getColumnDisplaySize(3) shouldEqual 20
     meta.isSearchable(3) shouldBe true
     meta.isReadOnly(3) shouldBe true
     meta.isAutoIncrement(3) shouldBe false
@@ -256,6 +256,26 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
     meta.isAutoIncrement(4) shouldBe false
     meta.isWritable(4) shouldBe false
     meta.isDefinitelyWritable(4) shouldBe false
+
+    meta.getColumnName(5) shouldEqual "weight"
+    meta.getColumnLabel(5) shouldEqual "weight"
+    meta.isSigned(5) shouldBe true
+    meta.isCurrency(5) shouldBe false
+    meta.isNullable(5) shouldBe ResultSetMetaData.columnNullable
+    meta.isCaseSensitive(5) shouldBe false
+    meta.getColumnClassName(5) shouldEqual "java.math.BigDecimal"
+    meta.getColumnTypeName(5) shouldEqual "DECIMAL"
+    meta.getColumnType(5) shouldEqual Types.DECIMAL
+    meta.getTableName(5) shouldEqual "test"
+    meta.getSchemaName(5) shouldEqual "test"
+    meta.getPrecision(5) shouldEqual DataTypeMeta.MAX_PRECISION
+    meta.getScale(5) shouldEqual DataTypeMeta.MONEY_SCALE
+    meta.getColumnDisplaySize(5) shouldEqual 131089
+    meta.isSearchable(5) shouldBe true
+    meta.isReadOnly(5) shouldBe true
+    meta.isAutoIncrement(5) shouldBe false
+    meta.isWritable(5) shouldBe false
+    meta.isDefinitelyWritable(5) shouldBe false
   }
 
   it should "extract data rows of different types" in {
@@ -263,7 +283,7 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
     val time = LocalDateTime.now()
     val result = SimpleResult(
       "test",
-      Seq("time", "bool", "int", "string", "double", "long", "decimal"),
+      Seq("time", "bool", "int", "string", "double", "long", "decimal", "currency"),
       Seq(
         DataType[Time],
         DataType[Boolean],
@@ -271,7 +291,8 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
         DataType[String],
         DataType[Double],
         DataType[Long],
-        DataType[BigDecimal]
+        DataType[BigDecimal],
+        DataType[Currency]
       ),
       Iterator(
         Array[Any](
@@ -281,9 +302,10 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
           "foo",
           55.5d,
           10L,
-          BigDecimal(1234.321)
+          BigDecimal(1234.321),
+          Currency(123432)
         ),
-        Array[Any](null, null, null, null, null, null)
+        Array[Any](null, null, null, null, null, null, null)
       )
     )
 
@@ -354,7 +376,13 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
     resultSet.getBigDecimal(7) shouldEqual jm.BigDecimal.valueOf(1234.321)
     resultSet.getBigDecimal("decimal") shouldEqual jm.BigDecimal.valueOf(1234.321)
     resultSet.getBigDecimal(7, 6) shouldEqual jm.BigDecimal.valueOf(1234.321).setScale(6)
+    resultSet.getObject(7) shouldEqual jm.BigDecimal.valueOf(1234.321)
     an[ArithmeticException] should be thrownBy resultSet.getBigDecimal("decimal", 1)
+
+    resultSet.getBigDecimal(8) shouldEqual jm.BigDecimal.valueOf(1234.32)
+    resultSet.getBigDecimal("currency") shouldEqual jm.BigDecimal.valueOf(1234.32)
+    resultSet.getLong(8) shouldEqual 1234L
+    resultSet.getObject(8) shouldEqual jm.BigDecimal.valueOf(1234.32)
 
     resultSet.next
 
@@ -803,7 +831,7 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
       val statement = mock[YupanaStatement]
       val result = SimpleResult(
         "test",
-        Seq("bool", "byte", "short", "int", "long", "double", "decimal"),
+        Seq("bool", "byte", "short", "int", "long", "double", "decimal", "currency"),
         Seq(
           DataType[Boolean],
           DataType[Byte],
@@ -811,10 +839,11 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
           DataType[Int],
           DataType[Long],
           DataType[Double],
-          DataType[BigDecimal]
+          DataType[BigDecimal],
+          DataType[Currency]
         ),
         Iterator(
-          Array[Any](true, 42.toByte, 43.toShort, 44, 45L, 46.1, BigDecimal(47))
+          Array[Any](true, 42.toByte, 43.toShort, 44, 45L, 46.1, BigDecimal(47), Currency.of(32.5))
         )
       )
 
@@ -885,6 +914,15 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
     rs.getFloat(7) shouldBe 47.0
     rs.getDouble(7) shouldBe 47.0
     rs.getBigDecimal(7) shouldBe BigDecimal(47).underlying()
+
+    a[YupanaException] should be thrownBy rs.getBoolean(8)
+    rs.getByte(8) shouldBe 32.toByte
+    rs.getShort(8) shouldBe 32.toShort
+    rs.getInt(8) shouldBe 32
+    rs.getLong(8) shouldBe 32L
+    rs.getFloat(8) shouldBe 32.5f
+    rs.getDouble(8) shouldBe 32.5d
+    rs.getBigDecimal(8) shouldBe BigDecimal(32.5).bigDecimal.setScale(2)
   }
 
   it should "report overflows" in {

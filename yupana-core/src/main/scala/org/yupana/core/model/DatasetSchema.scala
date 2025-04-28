@@ -22,7 +22,7 @@ import org.yupana.api.schema.{ Dimension, Table }
 final class DatasetSchema(
     valueExprIndex: Map[Expression[_], Int],
     refExprIndex: Map[Expression[_], Int],
-    nameMapping: Map[String, Int],
+    val nameMapping: Map[String, Int],
     table: Option[Table]
 ) extends Serializable {
 
@@ -202,12 +202,12 @@ final class DatasetSchema(
 }
 
 object DatasetSchema {
-  def apply(table: Table) = {
+  def apply(table: Table): DatasetSchema = {
 
-    val dimExprs = table.dimensionSeq.map { dim =>
+    val dimExprs: Seq[(String, Expression[_])] = table.dimensionSeq.map { dim =>
       dim.name -> DimensionExpr(dim.aux)
     }
-    val metricExprs = table.metrics.map { metric =>
+    val metricExprs: Seq[(String, Expression[_])] = table.metrics.map { metric =>
       metric.name -> MetricExpr(metric.aux)
     }
 
@@ -223,5 +223,10 @@ object DatasetSchema {
     }.toMap
 
     new DatasetSchema(valueExprIndex, refExprIndex, nameMapping, Some(table))
+  }
+
+  def fromTables(tables: Seq[Table]): DatasetSchema = {
+    // TODO: Check if schema is the same
+    DatasetSchema(tables.head)
   }
 }

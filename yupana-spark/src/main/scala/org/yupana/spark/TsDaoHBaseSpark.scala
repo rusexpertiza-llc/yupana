@@ -82,20 +82,26 @@ class TsDaoHBaseSpark(
       username: String
   ): RDD[UpdateInterval] = {
     mr.batchFlatMap(dataPoints, putsBatchSize) { dataPointsBatch =>
-      doPutBatch(connection, dictionaryProvider, config.hbaseNamespace, username, putsBatchSize, dataPointsBatch)
+      doPutBatch(connection, dictionaryProvider, config.hbaseNamespace, username, dataPointsBatch)
     }
 
   }
 
   override def putDataset(
       mr: MapReducible[RDD],
-      table: Table,
+      tables: Seq[Table],
       dataset: RDD[BatchDataset],
       username: String
   ): RDD[UpdateInterval] = {
     mr.flatMap(dataset) { batch =>
-      doPutBatchDataset(connection, dictionaryProvider, config.hbaseNamespace, username, batch, table)
+      tables.flatMap(table =>
+        doPutBatchDataset(connection, dictionaryProvider, config.hbaseNamespace, username, batch, table)
+      )
     }
+  }
+
+  override def putBatch(table: Table, batch: BatchDataset, username: String): Seq[UpdateInterval] = {
+    doPutBatchDataset(connection, dictionaryProvider, config.hbaseNamespace, username, batch, table)
   }
 
   @transient lazy val connection: Connection = {

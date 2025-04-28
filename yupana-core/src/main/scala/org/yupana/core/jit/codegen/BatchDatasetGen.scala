@@ -188,7 +188,7 @@ object BatchDatasetGen {
     if (expr.dataType.internalStorable.isRefType) {
       mkGetRef(schema, expr, dataset, rowId, valueDeclaration, CommonGen.mkType(expr))
     } else {
-      mkGetValue(schema, expr, dataset, rowId, valueDeclaration)
+      mkGetValue(schema, expr, dataset, rowId, valueDeclaration, CommonGen.mkType(expr))
     }
   }
 
@@ -216,14 +216,15 @@ object BatchDatasetGen {
       expr: Expression[_],
       dataset: TermName,
       rowId: Tree,
-      valueDeclaration: ValueDeclaration
+      valueDeclaration: ValueDeclaration,
+      exprType: Tree
   ): Seq[Tree] = {
     if (expr.isNullable) {
       val index = schema.fieldIndex(expr)
       val validityFlagTree = mkReadValidityFlag(dataset, rowId, index, valueDeclaration)
       val valueTree =
         q"""
-          val ${valueDeclaration.valueName} = if (${valueDeclaration.validityFlagName}) {
+          val ${valueDeclaration.valueName}: $exprType = if (${valueDeclaration.validityFlagName}) {
             ${mkReadValueFromRow(schema, expr)(dataset, rowId)}
           } else {
             ${CommonGen.initVal(expr)}

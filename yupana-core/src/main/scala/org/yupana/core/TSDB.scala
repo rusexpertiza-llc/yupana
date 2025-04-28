@@ -19,9 +19,9 @@ package org.yupana.core
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.Time
 import org.yupana.api.query._
-import org.yupana.api.schema.{ ExternalLink, Schema, Table }
+import org.yupana.api.schema.{ ExternalLink, Schema }
 import org.yupana.api.utils.CloseableIterator
-import org.yupana.core.auth.YupanaUser
+import org.yupana.core.auth.{ PermissionService, YupanaUser }
 import org.yupana.core.dao.{ ChangelogDao, TSDao }
 import org.yupana.core.jit.{ CachingExpressionCalculatorFactory, ExpressionCalculatorFactory }
 import org.yupana.core.model.BatchDataset
@@ -49,27 +49,13 @@ class TSDB(
 
   private var externalLinks = Map.empty[ExternalLink, ExternalLinkService[_ <: ExternalLink]]
 
+  override val permissionService: PermissionService = new PermissionService(config.putEnabled)
+
   def registerExternalLink(
       externalLink: ExternalLink,
       externalLinkService: ExternalLinkService[_ <: ExternalLink]
   ): Unit = {
     externalLinks += (externalLink -> externalLinkService)
-  }
-
-  override def put(dataPoints: Collection[DataPoint], user: YupanaUser = YupanaUser.ANONYMOUS): Unit = {
-    if (config.putEnabled) {
-      super.put(dataPoints, user)
-    } else throw new IllegalAccessException("Put is disabled")
-  }
-
-  override def putDataset(
-      table: Table,
-      dataset: Collection[BatchDataset],
-      user: YupanaUser
-  ): Unit = {
-    if (config.putEnabled) {
-      super.putDataset(table, dataset, user)
-    } else throw new IllegalAccessException("Put is disabled")
   }
 
   override def createMetricCollector(query: Query, user: YupanaUser): MetricQueryCollector =
@@ -91,7 +77,7 @@ class TSDB(
   ): Iterator[BatchDataset] = {
     val batchesArray = batches.toArray
 
-    val groups = mutable.AnyRefMap.empty[AnyRef, mutable.ArrayBuffer[Long]]
+    val groups = mutable.HashMap.empty[AnyRef, mutable.ArrayBuffer[Long]]
 
     val keyDataRowIdSeq = mutable.ArrayBuffer.empty[(AnyRef, Long)]
 
@@ -110,7 +96,7 @@ class TSDB(
         }
     }
 
-    val sortedGroups = groups.mapValuesNow { rowIds =>
+    val sortedGroups = groups.view.mapValues { rowIds =>
       rowIds.sortInPlaceBy { rowId =>
         val batchIdx = (rowId >> 32).toInt
         val rowNum = (rowId & 0xFFFFFFFFL).toInt
@@ -123,7 +109,7 @@ class TSDB(
 
     val winExprGroupsWithValues = queryContext.query.fields.map(_.expr).collect {
       case winFuncExpr: WindowFunctionExpr[_, _] =>
-        val values = sortedGroups.mapValuesNow { rowIdToPosMap =>
+        val values = sortedGroups.mapValues { rowIdToPosMap =>
           val funcValues = winFuncExpr.expr.dataType.classTag.newArray(rowIdToPosMap.size)
           rowIdToPosMap.foreachEntry { (rowId, _) =>
             val batchIdx = (rowId >> 32).toInt

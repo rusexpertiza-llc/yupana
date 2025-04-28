@@ -17,7 +17,6 @@
 package org.yupana.core.jit
 
 import com.typesafe.scalalogging.StrictLogging
-import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.utils.Tokenizer
@@ -40,22 +39,21 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
 
   def makeCalculator(
       query: Query,
-      startTime: Time,
       condition: Option[Condition],
       tokenizer: Tokenizer
   ): (ExpressionCalculator, DatasetSchema) = {
     val (tree, refs, schema) = generateCalculator(query, condition)
 
-    val res = compile(tree)(refs, query.params, startTime, tokenizer)
+    val res = compile(tree)(refs, tokenizer)
 
     (res, schema)
   }
 
-  def compile(tree: Tree): (Array[Any], IndexedSeq[Any], Time, Tokenizer) => ExpressionCalculator = {
-    toolBox.eval(tree).asInstanceOf[(Array[Any], IndexedSeq[Any], Time, Tokenizer) => ExpressionCalculator]
+  private[jit] def compile(tree: Tree): (Array[Any], Tokenizer) => ExpressionCalculator = {
+    toolBox.eval(tree).asInstanceOf[(Array[Any], Tokenizer) => ExpressionCalculator]
   }
 
-  def generateCalculator(
+  private[jit] def generateCalculator(
       query: Query,
       condition: Option[Condition]
   ): (Tree, Array[Any], DatasetSchema) = {
@@ -114,10 +112,9 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
     val readRow = ReadFromStorageRowStage.mkReadRow(query, buf, schema, batch, rowNum)
     val tree =
       q"""
-    import _root_.java.nio.ByteBuffer
     import _root_.org.yupana.serialization.MemoryBuffer
-    import _root_.org.yupana.api.{ Time, Blob }
-    import _root_.org.yupana.api.types.DataType
+    import _root_.org.yupana.api.{ Time, Blob, Currency }
+    import _root_.org.yupana.api.types.{ DataType, Num }
     import _root_.org.yupana.api.utils.Tokenizer
     import _root_.org.yupana.api.schema.Table
     import _root_.org.yupana.core.model.{ BatchDataset, HashTableDataset }
@@ -125,7 +122,7 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
     import _root_.org.threeten.extra.PeriodDuration
     import _root_.org.yupana.core.utils.Hash128Utils.timeHash
 
-    ($REFS: Array[Any], $PARAMS: IndexedSeq[Any], $NOW: Time, $tokenizer: Tokenizer) =>
+    ($REFS: Array[Any], $tokenizer: Tokenizer) =>
       new _root_.org.yupana.core.jit.ExpressionCalculator {
 
         ..$defs
@@ -178,7 +175,7 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
            }
         }
 
-        override def evaluateFilter($batch: BatchDataset): Unit = {
+        override def evaluateFilter($batch: BatchDataset, $NOW: Time, $PARAMS: IndexedSeq[Any]): Unit = {
           var rowNum = 0
           while (rowNum < $batch.size) {
             ..${BatchDatasetGen.mkGetValues(filteredState, schema, q"rowNum")}
@@ -190,7 +187,7 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
           }
         }
 
-        override def evaluateExpressions($batch: BatchDataset): Unit = {
+        override def evaluateExpressions($batch: BatchDataset, $NOW: Time, $PARAMS: IndexedSeq[Any]): Unit = {
           ${if (projectionState.hasWriteOps) {
           q"""
                var rowNum = 0
@@ -203,14 +200,16 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
                   rowNum += 1
                }
             """
-        } else { q"()" }}
+        } else {
+          q"()"
+        }}
         }
 
        override def createKey($batch: BatchDataset, rowNum: Int): AnyRef = {
           new Key($batch, rowNum)
        }
 
-       override def evaluateFold($acc: HashTableDataset, $batch: BatchDataset): Unit = {
+       override def evaluateFold($acc: HashTableDataset, $batch: BatchDataset, $NOW: Time, $PARAMS: IndexedSeq[Any]): Unit = {
 
            var rowNum = 0
            while (rowNum < $batch.size) {
@@ -293,7 +292,7 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
            }
         }
 
-        override def evaluatePostFilter(batch: BatchDataset): Unit = {
+        override def evaluatePostFilter(batch: BatchDataset, $NOW: Time, $PARAMS: IndexedSeq[Any]): Unit = {
            var rowNum = 0
            while (rowNum < $batch.size) {
               if (!$batch.isDeleted(rowNum)) {
@@ -340,6 +339,7 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
       .replaceAll("\\$plus", "+")
       .replaceAll("\\.\\$minus", " - ")
       .replaceAll("\\.\\$div", " / ")
+      .replaceAll("\\.\\$times", " * ")
       .replaceAll("\\.\\$greater\\$eq", " >= ")
       .replaceAll("\\.\\$greater", " > ")
       .replaceAll("\\.\\$less\\$eq", " <= ")

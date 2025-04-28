@@ -17,7 +17,7 @@
 package org.yupana.benchmarks
 
 import org.openjdk.jmh.annotations.{ Benchmark, Scope, State }
-import org.yupana.api.Time
+import org.yupana.api.{ Currency, Time }
 import org.yupana.api.query._
 import org.yupana.api.query.syntax.All._
 import org.yupana.core.IteratorMapReducible
@@ -37,7 +37,9 @@ class ProcessRowsBenchmark {
         state.queryContext,
         mc,
         IteratorMapReducible.iteratorMR,
-        state.dataset.iterator
+        state.dataset.iterator,
+        state.now,
+        IndexedSeq.empty
       )
     var i = 0
     while (res.next()) {
@@ -52,7 +54,9 @@ class ProcessRowsBenchmark {
 
 @State(Scope.Benchmark)
 class TsdbBaseBenchmarkState extends TsdbBaseBenchmarkStateBase {
-  val query: Query = Query(
+  override val now: Time = Time(LocalDateTime.now())
+
+  override val query: Query = Query(
     table = Tables.itemsKkmTable,
     from = const(Time(LocalDateTime.now().minusDays(1))),
     to = const(Time(LocalDateTime.now())),
@@ -60,17 +64,17 @@ class TsdbBaseBenchmarkState extends TsdbBaseBenchmarkStateBase {
       time as "time",
       truncDay(time) as "day",
       dimension(Dimensions.ITEM) as "item",
-      divInt(dimension(Dimensions.KKM_ID), const(2)) as "half_of_kkm",
+      div(dimension(Dimensions.KKM_ID), const(2)) as "half_of_kkm",
       metric(ItemTableMetrics.quantityField) as "quantity",
       metric(ItemTableMetrics.sumField) as "sum",
       plus(metric(ItemTableMetrics.quantityField), const(1.11)) as "tt",
-      plus(metric(ItemTableMetrics.sumField), const(BigDecimal(1))) as "sum"
+      plus(metric(ItemTableMetrics.sumField), const(Currency(1))) as "sum"
     ),
-    filter = Some(gt(divInt(dimension(Dimensions.KKM_ID), const(2)), const(100))),
+    filter = Some(gt(div(dimension(Dimensions.KKM_ID), const(2)), const(100))),
     groupBy = Seq.empty
   )
 
-  val daoExprs: Seq[Expression[_]] =
+  override val daoExprs: Seq[Expression[_]] =
     Seq(
       time,
       dimension(Dimensions.ITEM),

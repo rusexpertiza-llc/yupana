@@ -23,15 +23,17 @@ sealed trait Value {
   def asString: String
 }
 
+sealed trait Literal extends Value
+
 case class Placeholder(id: Int) extends Value {
   override def asString: String = s"param#$id"
 }
 
-case class TypedValue[T](value: T)(implicit val dataType: DataType.Aux[T]) extends Value {
+case class TypedValue[T](value: T)(implicit val dataType: DataType.Aux[T]) extends Literal {
   override def asString: String = value.toString
 }
 
-case class PeriodValue(value: PeriodDuration) extends Value {
+case class PeriodValue(value: PeriodDuration) extends Literal {
   override def asString: String = value.toString
 }
 
@@ -39,6 +41,6 @@ case class TupleValue(a: Value, b: Value) extends Value {
   override def asString: String = s"${a.asString}_${b.asString}"
 }
 
-case object NullValue extends Value {
+case object NullValue extends Literal {
   override def asString: String = "null"
 }

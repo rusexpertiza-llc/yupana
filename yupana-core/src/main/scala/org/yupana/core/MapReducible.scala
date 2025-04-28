@@ -25,9 +25,11 @@ import scala.reflect.ClassTag
   * @tparam Collection collection for which operations are defined
   */
 trait MapReducible[Collection[_]] extends Serializable {
-  def empty[A: ClassTag]: Collection[A]
 
+  def empty[A: ClassTag]: Collection[A]
+  def fromSeq[A: ClassTag](seq: Seq[A]): Collection[A]
   def singleton[A: ClassTag](a: A): Collection[A]
+
   def filter[A: ClassTag](c: Collection[A])(f: A => Boolean): Collection[A]
 
   def aggregateByKey[K: ClassTag, A: ClassTag, B: ClassTag](

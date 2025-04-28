@@ -16,9 +16,11 @@
 
 package org.yupana.externallinks.universal
 
+import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
 import org.yupana.core.ExternalLinkService
+import org.yupana.core.auth.YupanaUser
 import org.yupana.core.model.BatchDataset
 import org.yupana.core.utils.FlatAndCondition
 import org.yupana.externallinks.ExternalLinkUtils
@@ -81,7 +83,11 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
     }
   }
 
-  override def transformCondition(condition: FlatAndCondition): Seq[ConditionTransformation] = {
+  override def transformCondition(
+      condition: FlatAndCondition,
+      startTime: Time,
+      user: YupanaUser
+  ): Seq[ConditionTransformation] = {
     ExternalLinkUtils.transformConditionT[String](
       externalLink.linkName,
       condition,

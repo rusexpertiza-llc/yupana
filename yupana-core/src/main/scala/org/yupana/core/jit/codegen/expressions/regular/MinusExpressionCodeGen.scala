@@ -16,25 +16,31 @@
 
 package org.yupana.core.jit.codegen.expressions.regular
 
-import org.yupana.api.query.DivFracExpr
+import org.yupana.api.query.MinusExpr
 import org.yupana.core.jit.codegen.expressions.ExpressionCodeGen
+import org.yupana.core.jit.codegen.expressions.regular.CodegenUtils.{ isCurrency, isTime }
 import org.yupana.core.jit.{ CodeGenResult, State }
 
-import java.sql.Types
 import scala.reflect.runtime.universe._
 
-class DivFracExpressionCodeGen(override val expression: DivFracExpr[_]) extends ExpressionCodeGen[DivFracExpr[_]] {
+class MinusExpressionCodeGen(override val expression: MinusExpr[_, _, _])
+    extends ExpressionCodeGen[MinusExpr[_, _, _]] {
 
   override def generateEvalCode(state: State, row: TermName): CodeGenResult = {
-    if (expression.dataType.meta.sqlType != Types.DECIMAL) {
-      BinaryExpressionCodeGen(expression, (x, y) => q"$x / $y").generateEvalCode(state, row)
-    } else {
-      val scale = expression.dataType.meta.scale
-      BinaryExpressionCodeGen(
-        expression,
-        (x, y) =>
-          q"new BigDecimal($x.bigDecimal.divide($y.bigDecimal, $scale, _root_.java.math.RoundingMode.HALF_EVEN))"
-      ).generateEvalCode(state, row)
+    val f: (Tree, Tree) => Tree = {
+      if (isCurrency(expression.a)) { (x, y) =>
+        q"Currency($x.value - $y.value)"
+      } else if (!isTime(expression.a)) { (x, y) =>
+        q"$x - $y"
+      } else {
+        if (isTime(expression.b)) { (x, y) =>
+          q"_root_.scala.math.abs($x.millis - $y.millis)"
+        } else { (t, p) =>
+          q"Time($t.toDateTime.minus($p))"
+        }
+      }
     }
+
+    BinaryExpressionCodeGen(expression, f).generateEvalCode(state, row)
   }
 }

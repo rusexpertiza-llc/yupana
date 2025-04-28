@@ -53,8 +53,7 @@ class QueryEngineRouter(
       case select: Select =>
         sqlQueryProcessor
           .createQuery(select)
-          .flatMap(q => sqlQueryProcessor.bindParameters(q, params))
-          .map(PreparedSelect)
+          .flatMap(q => sqlQueryProcessor.bindParameters(q, params).map(PreparedSelect(q, _)))
       case ShowTables =>
         val meta = metadataProvider.listTablesMeta
         Right(PreparedCommand(ShowTables, params, meta._1, meta._2))
@@ -69,7 +68,7 @@ class QueryEngineRouter(
       case select: PreparedSelect =>
         for {
           _ <- hasPermission(user, Object.Table(select.query.table.map(_.name)), Action.Read)
-        } yield tsdb.query(select.query, user = user)
+        } yield tsdb.query(select.query, params = select.params, user = user)
 
       case EmptyQuery => Right(SimpleResult("", Nil, Nil, Iterator.empty))
 

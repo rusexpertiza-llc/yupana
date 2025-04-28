@@ -65,18 +65,22 @@ class TSDaoHBase(
       username: String
   ): Iterator[UpdateInterval] = {
     mr.batchFlatMap(dataPoints, putsBatchSize) { dataPointsBatch =>
-      doPutBatch(connection, dictionaryProvider, namespace, username, putsBatchSize, dataPointsBatch)
+      doPutBatch(connection, dictionaryProvider, namespace, username, dataPointsBatch)
     }
   }
 
   override def putDataset(
       mr: MapReducible[Iterator],
-      table: Table,
+      tables: Seq[Table],
       dataset: Iterator[BatchDataset],
       username: String
   ): Iterator[UpdateInterval] = {
     mr.flatMap(dataset) { batch =>
-      doPutBatchDataset(connection, dictionaryProvider, namespace, username, batch, table)
+      tables.flatMap(table => doPutBatchDataset(connection, dictionaryProvider, namespace, username, batch, table))
     }
+  }
+
+  override def putBatch(table: Table, batch: BatchDataset, username: String): Seq[UpdateInterval] = {
+    doPutBatchDataset(connection, dictionaryProvider, namespace, username, batch, table)
   }
 }

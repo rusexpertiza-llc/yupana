@@ -29,6 +29,22 @@ class PermissionServiceTest extends AnyFlatSpec with Matchers {
 
     service.hasPermission(user2, Object.Queries, Action.Read) shouldBe true
     service.hasPermission(user2, Object.Queries, Action.Write) shouldBe false
+
+    service.hasPermission(user2, Object.Metadata, Action.Read) shouldBe true
+    service.hasPermission(user2, Object.Metadata, Action.Write) shouldBe true
+
+    val user3 = YupanaUser("admin", Some("12345"), TsdbRole.Admin)
+    service.hasPermission(user3, Object.Table(Some("items_kkm")), Action.Read) shouldBe true
+    service.hasPermission(user3, Object.Table(Some("items_kkm")), Action.Write) shouldBe true
+
+    service.hasPermission(user3, Object.User, Action.Read) shouldBe true
+    service.hasPermission(user3, Object.User, Action.Write) shouldBe true
+
+    service.hasPermission(user3, Object.Queries, Action.Read) shouldBe true
+    service.hasPermission(user3, Object.Queries, Action.Write) shouldBe true
+
+    service.hasPermission(user3, Object.Metadata, Action.Read) shouldBe true
+    service.hasPermission(user3, Object.Metadata, Action.Write) shouldBe true
   }
 
   it should "not allow write when put disabled" in {

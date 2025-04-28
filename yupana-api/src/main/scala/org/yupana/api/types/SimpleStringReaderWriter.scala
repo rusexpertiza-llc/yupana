@@ -17,7 +17,7 @@
 package org.yupana.api.types
 
 import org.threeten.extra.PeriodDuration
-import org.yupana.api.{ Blob, Time }
+import org.yupana.api.{ Blob, Currency, Time }
 
 import java.time.LocalDateTime
 
@@ -45,7 +45,6 @@ object SimpleStringReaderWriter extends StringReaderWriter {
   override def writeLong(v: Long): String = v.toString
 
   override def readString(s: String): String = s
-
   override def writeString(v: String): String = v
 
   override def readTime(s: String): Time = Time(LocalDateTime.parse(s))
@@ -53,6 +52,9 @@ object SimpleStringReaderWriter extends StringReaderWriter {
 
   override def readPeriodDuration(s: String): PeriodDuration = PeriodDuration.parse(s)
   override def writePeriodDuration(v: PeriodDuration): String = v.toString
+
+  override def readCurrency(s: String): Currency = Currency(s.toLong)
+  override def writeCurrency(v: Currency): String = v.value.toString
 
   override def readBlob(s: String): Blob = ???
   override def writeBlob(v: Blob): String = ???

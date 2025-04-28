@@ -16,8 +16,10 @@
 
 package org.yupana.core
 
+import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.{ ExternalLink, Schema }
+import org.yupana.core.auth.YupanaUser
 import org.yupana.core.model.BatchDataset
 import org.yupana.core.utils.FlatAndCondition
 
@@ -64,9 +66,11 @@ trait ExternalLinkService[T <: ExternalLink] {
     * as a context for catalog).
     *
     * @param condition condition to be transformed
+    * @param startTime query start time. This might be used to produce nested queries
+    * @param user yupana user performing the query
     * @return sequence of transformations applied to the initial condition, basically each transformation is a mapping from one expression to another. It should preserve time bounds even if there no conditions supported by this catalog.
     */
-  def transformCondition(condition: FlatAndCondition): Seq[ConditionTransformation]
+  def transformCondition(condition: FlatAndCondition, startTime: Time, user: YupanaUser): Seq[ConditionTransformation]
 
   def put(dataPoints: Seq[DataPoint]): Unit
 

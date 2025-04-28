@@ -3,7 +3,7 @@ package org.yupana.netty
 import io.netty.buffer.{ ByteBuf, Unpooled }
 import io.netty.channel.embedded.EmbeddedChannel
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.GivenWhenThen
+import org.scalatest.{ GivenWhenThen, OptionValues }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
@@ -14,7 +14,9 @@ import org.yupana.core.auth.{ NonEmptyUserAuthorizer, TsdbRole, YupanaUser }
 import org.yupana.core.sql.{ Parameter, TypedParameter }
 import org.yupana.protocol._
 
-class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen with MockFactory {
+import scala.collection.AbstractIterator
+
+class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen with MockFactory with OptionValues {
 
   implicit val rw: ByteReaderWriter[ByteBuf] = ByteBufEvalReaderWriter
   implicit val srw: StringReaderWriter = SimpleStringReaderWriter
@@ -154,9 +156,9 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     val row = readMessage(ch, ResultRow)
     row.id shouldEqual 11
     row.values should contain theSameElementsInOrderAs List(
-      Array(5),
-      Array(0, 0, 0, 3) ++ "abc".getBytes(),
-      Array(0)
+      Array[Byte](5),
+      Array[Byte](0, 0, 0, 3) ++ "abc".getBytes(),
+      Array[Byte](0)
     )
 
     Then("reply with footer")
@@ -302,7 +304,7 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     header.tableName shouldEqual "result 1"
 
     ch.writeInbound(Cancel(1).toFrame(Unpooled.buffer()))
-    readMessage(ch, Canceled).id shouldEqual 1
+    readMessage(ch, Cancelled).id shouldEqual 1
 
     ch.writeInbound(NextBatch(1, 10).toFrame(Unpooled.buffer()))
     val err = readMessage(ch, ErrorMessage)
@@ -324,6 +326,43 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
 
     val err = readMessage(ch, ErrorMessage)
     err.message should include("Something wrong")
+    err.streamId.value
+  }
+
+  it should "handle errors on next command" in {
+    val queryEngine = mock[QueryEngineRouter]
+    val user = YupanaUser("test", None, TsdbRole.Admin)
+    val ch = new EmbeddedChannel(new QueryHandler(ServerContext(queryEngine, NonEmptyUserAuthorizer), user))
+
+    def calculate(): Iterator[Array[Any]] = {
+      new AbstractIterator[Array[Any]] {
+        override def hasNext: Boolean = true
+
+        override def next(): Array[Any] = {
+          val a = 2
+          val b = 0
+          Array(a / b)
+        }
+      }
+
+    }
+
+    (queryEngine
+      .query(_: YupanaUser, _: String, _: Map[Int, Parameter])(_: StringReaderWriter))
+      .expects(user, "SELECT 2 / 0", Map.empty[Int, Parameter], *)
+      .returning(Right(SimpleResult("result 1", Seq("1"), Seq(DataType[Int]), calculate())))
+
+    ch.writeInbound(SqlQuery(1, "SELECT 2 / 0", Map.empty).toFrame(Unpooled.buffer()))
+
+    val header = readMessage(ch, ResultHeader)
+    header.id shouldEqual 1
+    header.tableName shouldEqual "result 1"
+
+    ch.writeInbound(NextBatch(1, 10).toFrame(Unpooled.buffer()))
+
+    val err = readMessage(ch, ErrorMessage)
+    err.message should include("Query process failed, / by zero")
+    err.streamId.value
   }
 
   private def readMessage[T <: Message[T]](ch: EmbeddedChannel, messageHelper: MessageHelper[T]): T = {

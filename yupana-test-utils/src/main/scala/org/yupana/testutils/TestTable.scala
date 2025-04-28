@@ -1,6 +1,22 @@
-package org.yupana.core
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-import org.yupana.api.{ Blob, Time }
+package org.yupana.testutils
+
+import org.yupana.api.{ Blob, Currency, Time }
 
 import java.nio.charset.StandardCharsets
 import java.util.UUID
@@ -28,6 +44,8 @@ object TestTableFields {
   val TEST_TIME_FIELD: Metric.Aux[Time] = Metric[Time]("testTimeField", 6)
   val TEST_BYTE_FIELD: Metric.Aux[Byte] = Metric[Byte]("testByteField", 7)
   val TEST_BLOB_FIELD: Metric.Aux[Blob] = Metric[Blob]("testBlobField", 8)
+  val TEST_CURRENCY_FIELD: Metric.Aux[Currency] = Metric[Currency]("testCurrencyField", 9)
+  val TEST_CURRENCY_FIELD2: Metric.Aux[Currency] = Metric[Currency]("testCurrencyField2", 10)
 }
 
 object TestTable2Fields {
@@ -98,6 +116,8 @@ object TestSchema {
       TestTableFields.TEST_FIELD2,
       TestTableFields.TEST_LONG_FIELD,
       TestTableFields.TEST_BIGDECIMAL_FIELD,
+      TestTableFields.TEST_CURRENCY_FIELD,
+      TestTableFields.TEST_CURRENCY_FIELD2,
       TestTableFields.TEST_TIME_FIELD,
       TestTableFields.TEST_BYTE_FIELD,
       TestTableFields.TEST_BLOB_FIELD

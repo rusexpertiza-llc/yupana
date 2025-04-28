@@ -598,6 +598,47 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
     }
   }
 
+  it should "support spark sql nested select" in {
+    val statement =
+      """SELECT * from(
+        |  SELECT one, two, three FROM table WHERE four <> 4
+        |) spark_gen_subq_5""".stripMargin
+
+    parsed(statement) {
+      case Select(Some(table), SqlFieldList(fields), Some(condition), Nil, None, None) =>
+        table shouldEqual "table"
+        fields should contain theSameElementsInOrderAs List(
+          SqlField(FieldName("one")),
+          SqlField(FieldName("two")),
+          SqlField(FieldName("three"))
+        )
+        condition shouldEqual Ne(FieldName("four"), Constant(TypedValue(4)))
+    }
+  }
+
+  it should "support spark sql nested select with condition" in {
+    val statement =
+      """SELECT * from(
+        |  SELECT one, two, three FROM table WHERE four <> 4
+        |) spark_gen_subq_5 WHERE 1=0""".stripMargin
+
+    parsed(statement) {
+      case Select(Some(table), SqlFieldList(fields), Some(condition), Nil, None, None) =>
+        table shouldEqual "table"
+        fields should contain theSameElementsInOrderAs List(
+          SqlField(FieldName("one")),
+          SqlField(FieldName("two")),
+          SqlField(FieldName("three"))
+        )
+        condition shouldEqual And(
+          Seq(
+            Ne(FieldName("four"), Constant(TypedValue(4))),
+            Eq(Constant(TypedValue(1)), Constant(TypedValue(0)))
+          )
+        )
+    }
+  }
+
   it should "support nested select with alias" in {
     val statement =
       """
@@ -1387,6 +1428,24 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         u shouldEqual "John"
         p shouldEqual None
         r shouldEqual Some("read_write")
+    }
+  }
+
+  it should "support change role and password at the same time" in {
+    parsed("ALTER USER 'John' SET ROLE='admin' SET PASSWORD='12345'") {
+      case AlterUser(u, p, r) =>
+        u shouldEqual "John"
+        p shouldEqual Some("12345")
+        r shouldEqual Some("admin")
+    }
+  }
+
+  it should "support change password and role at the same time" in {
+    parsed("ALTER USER 'John' SET PASSWORD='12345' SET ROLE='admin'") {
+      case AlterUser(u, p, r) =>
+        u shouldEqual "John"
+        p shouldEqual Some("12345")
+        r shouldEqual Some("admin")
     }
   }
 

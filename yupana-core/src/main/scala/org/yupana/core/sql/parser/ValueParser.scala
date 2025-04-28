@@ -40,7 +40,7 @@ object ValueParser {
   private def falseConst[$: P]: P[Boolean] = P(IgnoreCase("FALSE")).map(_ => false)
 
   def placeholder[$: P]: P[Placeholder] = {
-    val p = P("?" | ("$" ~ intNumber))
+    val p: P[Any] = P("?" | ("$" ~ intNumber))
     val idx = p.misc.getOrElse(PLACEHOLDER_ID, 1).asInstanceOf[Int]
 
     if (p.isSuccess) {
@@ -157,11 +157,15 @@ object ValueParser {
     P(intervalWord ~/ wsp ~ (duration | singleFieldDuration)).map(PeriodValue)
   }
 
-  def tupleValue[$: P]: P[TupleValue] =
+  def tuple[$: P]: P[TupleValue] =
     P("(" ~ wsp ~ value ~ wsp ~ "," ~/ wsp ~ value ~/ wsp ~ ")").map(TupleValue.tupled)
 
+  def literal[$: P]: P[Literal] = P(
+    numericValue | timestampValue | periodValue | stringValue | booleanValue | nullValue
+  )
+
   def value[$: P]: P[Value] = P(
-    numericValue | timestampValue | periodValue | stringValue | booleanValue | nullValue | placeholder | tupleValue
+    literal | tuple | placeholder
   )
 
   case class IntervalPart(name: String, parser: () => P[PeriodDuration], separator: () => P[Unit])

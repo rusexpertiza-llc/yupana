@@ -3,8 +3,8 @@ package org.yupana.khipu
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.api.utils.SortedSetIterator
-import org.yupana.core.TestSchema
 import org.yupana.khipu.storage.{ KTable, Prefix }
+import org.yupana.testutils.TestSchema
 
 import java.nio.charset.StandardCharsets
 
