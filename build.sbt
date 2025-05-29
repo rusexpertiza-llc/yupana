@@ -508,7 +508,7 @@ lazy val versions = new {
   val ehcache = "3.9.7"
   val caffeine = "3.1.8"
 
-  val circe = "0.14.10" // To have same cats version with Spark
+  val circe = "0.14.13" // To have same cats version with Spark
 
   val flyway = "7.4.0"
   val hikariCP = "4.0.3"
