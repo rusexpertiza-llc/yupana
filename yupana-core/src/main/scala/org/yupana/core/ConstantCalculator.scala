@@ -46,7 +46,7 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
           evaluateConstant(negative)
         }
 
-      case TruncYearExpr(e) => evaluateUnary(e)(truncateTime(TemporalAdjusters.firstDayOfYear))
+      case TruncYearExpr(e)    => evaluateUnary(e)(truncateTime(TemporalAdjusters.firstDayOfYear))
       case TruncQuarterExpr(e) =>
         evaluateUnary(e)(
           truncateTimeBy(dTime =>
@@ -54,14 +54,14 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
           )
         )
       case TruncMonthExpr(e) => evaluateUnary(e)(truncateTime(TemporalAdjusters.firstDayOfMonth))
-      case TruncWeekExpr(e) =>
+      case TruncWeekExpr(e)  =>
         evaluateUnary(e)(truncateTime(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)))
       case TruncDayExpr(e)    => evaluateUnary(e)(truncateTime(ChronoUnit.DAYS))
       case TruncHourExpr(e)   => evaluateUnary(e)(truncateTime(ChronoUnit.HOURS))
       case TruncMinuteExpr(e) => evaluateUnary(e)(truncateTime(ChronoUnit.MINUTES))
       case TruncSecondExpr(e) => evaluateUnary(e)(truncateTime(ChronoUnit.SECONDS))
 
-      case ExtractYearExpr(e) => evaluateUnary(e)(_.toLocalDateTime.getYear)
+      case ExtractYearExpr(e)    => evaluateUnary(e)(_.toLocalDateTime.getYear)
       case ExtractQuarterExpr(e) =>
         evaluateUnary(e)(t => 1 + (t.toLocalDateTime.getMonth.getValue - 1) / 3)
       case ExtractMonthExpr(e)  => evaluateUnary(e)(_.toLocalDateTime.getMonthValue)
@@ -129,7 +129,7 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
       case LowerExpr(e)  => evaluateUnary(e)(_.toLowerCase)
       case UpperExpr(e)  => evaluateUnary(e)(_.toUpperCase)
       case LengthExpr(e) => evaluateUnary(e)(_.length)
-      case SplitExpr(e) =>
+      case SplitExpr(e)  =>
         evaluateUnary(e)(s => ExpressionCalculator.splitBy(s, !_.isLetterOrDigit).toSeq)
       case TokensExpr(e) => evaluateUnary(e)(s => tokenizer.transliteratedTokens(s))
 
@@ -143,9 +143,9 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
       case ArrayLengthExpr(e)   => evaluateUnary(e)(_.length)
       case ArrayToStringExpr(e) => evaluateUnary(e)(_.mkString(", "))
 
-      case ContainsExpr(a, b)    => evaluateBinary(a, b)(_ contains _)
-      case ContainsAllExpr(a, b) => evaluateBinary(a, b)((x, y) => y.forall(x.contains))
-      case ContainsAnyExpr(a, b) => evaluateBinary(a, b)((x, y) => y.exists(x.contains))
+      case ContainsExpr(a, b)     => evaluateBinary(a, b)(_ contains _)
+      case ContainsAllExpr(a, b)  => evaluateBinary(a, b)((x, y) => y.forall(x.contains))
+      case ContainsAnyExpr(a, b)  => evaluateBinary(a, b)((x, y) => y.exists(x.contains))
       case ContainsSameExpr(a, b) =>
         evaluateBinary(a, b)((x, y) => x.size == y.size && x.toSet == y.toSet)
 

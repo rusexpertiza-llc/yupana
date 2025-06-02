@@ -52,7 +52,7 @@ object CollectionUtils {
     @tailrec
     def crossJoin(acc: List[List[T]], rest: List[List[T]]): List[List[T]] = {
       rest match {
-        case Nil => acc
+        case Nil     => acc
         case x :: xs =>
           val next = for {
             i <- x

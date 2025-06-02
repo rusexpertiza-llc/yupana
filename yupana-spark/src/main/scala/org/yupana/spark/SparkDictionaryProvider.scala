@@ -27,7 +27,7 @@ class SparkDictionaryProvider(config: Config) extends DictionaryProvider with Se
   override def dictionary(dimension: DictionaryDimension): Dictionary = {
     SparkDictionaryProvider.dictionaries.get(dimension) match {
       case Some(d) => d
-      case None =>
+      case None    =>
         CacheFactory.init(config.settings)
         val d = new Dictionary(dimension, localDictionaryDao)
         SparkDictionaryProvider.dictionaries += dimension -> d
@@ -38,7 +38,7 @@ class SparkDictionaryProvider(config: Config) extends DictionaryProvider with Se
   @transient private lazy val localDictionaryDao: DictionaryDao = {
     SparkDictionaryProvider.dictionaryDao match {
       case Some(dao) => dao
-      case None =>
+      case None      =>
         val dao = new DictionaryDaoHBase(
           ConnectionFactory.createConnection(TsDaoHBaseSpark.hbaseConfiguration(config)),
           config.hbaseNamespace

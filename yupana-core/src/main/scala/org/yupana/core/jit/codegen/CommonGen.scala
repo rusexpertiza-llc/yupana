@@ -57,7 +57,7 @@ object CommonGen {
   def mkType(dataType: DataType): Tree = {
     dataType.kind match {
       case TypeKind.Regular => Ident(TypeName(className(dataType)))
-      case TypeKind.Tuple =>
+      case TypeKind.Tuple   =>
         val tt = dataType.asInstanceOf[TupleDataType[_, _]]
         AppliedTypeTree(
           Ident(TypeName("Tuple2")),

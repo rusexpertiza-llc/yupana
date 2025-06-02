@@ -33,7 +33,7 @@ class ConnectingHandler(context: PgContext) extends SimpleChannelInboundHandler[
   override def channelRead0(ctx: ChannelHandlerContext, msg: ClientMessage): Unit = {
     logger.info(s"GOT A MESSAGE $msg")
     msg match {
-      case SSLRequest => ctx.writeAndFlush(No)
+      case SSLRequest                        => ctx.writeAndFlush(No)
       case StartupMessage(user, charsetName) =>
         setup(ctx, user, charsetName)
 

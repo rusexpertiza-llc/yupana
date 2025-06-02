@@ -31,7 +31,7 @@ object PostFilterStageGen {
     }
 
     query.postFilter match {
-      case None => Seq(q"true") -> readExprsState
+      case None       => Seq(q"true") -> readExprsState
       case Some(cond) =>
         val res = ExpressionCodeGenFactory.codeGenerator(cond).generateEvalCode(readExprsState, row)
         val tree = q"${res.valueDeclaration.validityFlagName} && ${res.valueDeclaration.valueName}"

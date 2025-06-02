@@ -43,7 +43,7 @@ class QueryHandler(serverContext: ServerContext, user: YupanaUser) extends Frame
       case Tags.NEXT.value        => processMessage(ctx, frame, NextBatch)(n => handleNext(ctx, n))
       case Tags.CANCEL.value      => processMessage(ctx, frame, Cancel)(c => cancelStream(ctx, c))
       case Tags.HEARTBEAT.value   => processMessage(ctx, frame, Heartbeat)(h => logger.debug(s"Got heartbeat $h"))
-      case Tags.QUIT.value =>
+      case Tags.QUIT.value        =>
         logger.info("Got quit message")
         ctx.close()
       case x => writeResponse(ctx, ErrorMessage(s"Unexpected command '${x.toChar}'"))

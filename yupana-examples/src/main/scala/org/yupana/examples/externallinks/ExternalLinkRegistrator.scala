@@ -62,7 +62,7 @@ class ExternalLinkRegistrator(
       case ItemsInvertedIndex    => invertedIndex
       case RelatedItemsCatalog   => new RelatedItemsCatalogImpl(tsdb, RelatedItemsCatalog)
       case AddressCatalog        => new AddressCatalogImpl(tsdb.schema, AddressCatalog)
-      case OrganisationCatalog =>
+      case OrganisationCatalog   =>
         val dataSource = createConnection(OrganisationCatalogImpl.connection(settings))
         new OrganisationCatalogImpl(tsdb.schema, dataSource)
       case _ => throw new IllegalArgumentException(s"Unknown external link ${link.linkName}")

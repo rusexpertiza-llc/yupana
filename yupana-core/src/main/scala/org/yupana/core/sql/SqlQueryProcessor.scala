@@ -311,7 +311,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
     }
 
     e.map {
-      case die: DimensionIdExpr => die
+      case die: DimensionIdExpr                                                                  => die
       case ex if exprType == ExprType.Cmp && ex.dataType == DataType[String] && ex.kind != Const =>
         LowerExpr(ex.asInstanceOf[Expression[String]])
       case ex => ex
@@ -407,7 +407,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
   ): Either[String, ValueExpr[T]] = {
     v match {
       case parser.Placeholder(id) => Right(PlaceholderExpr(id, tpe))
-      case l: parser.Literal =>
+      case l: parser.Literal      =>
         val v = convertLiteral(l, exprType)
         v.flatMap(vv => DataTypeUtils.valueCast(vv, tpe, calculator))
 
@@ -570,7 +570,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
     val vs = values.map {
       case (v, t) =>
         convertValue(v, ExprType.Math, Some(t)).flatMap {
-          case c @ ConstantExpr(_) => Right(c)
+          case c @ ConstantExpr(_)     => Right(c)
           case PlaceholderExpr(id, dt) =>
             parameters
               .get(id)

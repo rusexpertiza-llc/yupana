@@ -290,7 +290,7 @@ class YupanaConnectionImpl(override val url: String, properties: Properties, exe
     chanelReader.readFrame().flatMap { frame =>
       frame.frameType match {
         case x if x == helper.tag.value => Future.successful(helper.readFrame[ByteBuffer](frame))
-        case Tags.ERROR_MESSAGE.value =>
+        case Tags.ERROR_MESSAGE.value   =>
           val msg = ErrorMessage.readFrame(frame).message
           logger.warning(s"Got error response on '${helper.tag.value.toChar}', '$msg'")
           Future.failed(new YupanaException(msg))
