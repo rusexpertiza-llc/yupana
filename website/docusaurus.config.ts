@@ -99,6 +99,10 @@ const config: Config = {
     },
   } satisfies Preset.ThemeConfig,
   future: {
+    v4: {
+      removeLegacyPostBuildHeadAttribute: true,
+      useCssCascadeLayers: true,
+    },
     experimental_faster: true
   }
 };
