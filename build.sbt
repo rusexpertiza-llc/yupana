@@ -365,8 +365,12 @@ lazy val examples = (project in file("yupana-examples"))
       case PathList("META-INF", "io.netty.versions.properties") => MergeStrategy.discard
       case PathList("META-INF", "native-image", "io.netty", "common", "native-image.properties") => MergeStrategy.first
       case PathList("org", "slf4j", "impl", _*)     => MergeStrategy.first
-      case "module-info.class"                      => MergeStrategy.first
-      case PathList("META-INF", "versions", xs @ _, "module-info.class") => MergeStrategy.discard
+      case x if x.endsWith("module-info.class")     => MergeStrategy.discard
+      case x if x.endsWith("package-info.class")    => MergeStrategy.discard
+      case x if x.endsWith("reflect-config.json")   => MergeStrategy.discard
+      case x if x.endsWith("native-image.properties") => MergeStrategy.discard
+      case PathList("META-INF", x@ _*) if x.lastOption.exists(_.endsWith("jnilib")) => MergeStrategy.first
+      case PathList("META-INF", "web-fragment.xml") => MergeStrategy.discard
       case x                                        => (assembly / assemblyMergeStrategy).value(x)
     },
     writeAssemblyName := {
@@ -489,7 +493,7 @@ def minMaj(v: String, default: String): String = {
 lazy val versions = new {
   val scala213 = "2.13.16"
 
-  val spark = "3.5.4"
+  val spark = "4.0.0"
 
   val threeTenExtra = "1.8.0"
 
@@ -498,8 +502,8 @@ lazy val versions = new {
   val scopt = "4.1.0"
   val prometheus = "0.16.0"
 
-  val hbase = "2.5.7"
-  val hadoop = "3.3.6"
+  val hbase = "2.5.11"
+  val hadoop = "3.4.1"
 
   val netty = "4.1.118.Final"
 
