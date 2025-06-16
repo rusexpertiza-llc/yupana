@@ -75,7 +75,13 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
   }
 
   private def preprocess(sql: String): String = {
-    if (sql.startsWith("SELECT NULL AS TABLE_CAT, n.nspname AS TABLE_SCHEM, c.relname AS TABLE_NAME")) {
+    val lSql = sql.toLowerCase()
+    if (lSql == "select current_catalog") {
+      "SELECT database()"
+    } else if (
+      sql.startsWith("SELECT NULL AS TABLE_CAT, n.nspname AS TABLE_SCHEM, c.relname AS TABLE_NAME") ||
+      sql.startsWith("SELECT current_database() AS \"TABLE_CAT\", n.nspname AS \"TABLE_SCHEM\"")
+    ) {
       "SHOW TABLES"
 //    } else if (sql.startsWith("SELECT * FROM (SELECT n.nspname,c.relname,a.attname,a.atttypid,a.attnotnull")) {
 //      val condIndex = sql.indexOf("WHERE")
@@ -250,16 +256,18 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
   }
 
   private def simpleQuery(ctx: ChannelHandlerContext, sql: String): Unit = {
-    context.queryEngineRouter.parse(preprocess(sql)).flatMap(context.queryEngineRouter.bind(_, Map.empty)) match {
-      case Right(PreparedCommand(SetValue(_, _), _, _, _)) => ctx.write(CommandComplete("SET"))
-      case Right(x) =>
-        context.queryEngineRouter.execute(user, x) match {
-          case Right(result) =>
-            ctx.write(makeDescription(result))
-            writeResult(ctx, result, IndexedSeq.empty, 0)
-          case Left(error) => writeError(ctx, error)
-        }
-      case Left(error) => writeError(ctx, error)
+    if (sql.nonEmpty) {
+      context.queryEngineRouter.parse(preprocess(sql)).flatMap(context.queryEngineRouter.bind(_, Map.empty)) match {
+        case Right(PreparedCommand(SetValue(_, _), _, _, _)) => ctx.write(CommandComplete("SET"))
+        case Right(x) =>
+          context.queryEngineRouter.execute(user, x) match {
+            case Right(result) =>
+              ctx.write(makeDescription(result))
+              writeResult(ctx, result, IndexedSeq.empty, 0)
+            case Left(error) => writeError(ctx, error)
+          }
+        case Left(error) => writeError(ctx, error)
+      }
     }
     ctx.write(ReadyForQuery)
     ctx.flush()
