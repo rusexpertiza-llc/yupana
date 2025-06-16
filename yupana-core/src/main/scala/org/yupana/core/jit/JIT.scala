@@ -308,7 +308,7 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
 
         override def evaluateReadRow($buf: MemoryBuffer, $batch: BatchDataset, $rowNum: Int): Unit = {
           $readRow
-         }
+        }
       }
   """
 
