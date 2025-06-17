@@ -67,7 +67,8 @@ object FunctionRegistry {
   }
 
   val nullaryFunctions: Map[String, Expression[_]] = Map(
-    "now" -> NowExpr
+    "now" -> NowExpr,
+    "database" -> ConstantExpr("Yupana")
   )
 
   private val unaryFunctions: List[FunctionDesc] = List(
