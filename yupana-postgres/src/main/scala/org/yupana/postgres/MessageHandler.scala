@@ -83,16 +83,6 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
       sql.startsWith("SELECT current_database() AS \"TABLE_CAT\", n.nspname AS \"TABLE_SCHEM\"")
     ) {
       "SHOW TABLES"
-//    } else if (sql.startsWith("SELECT * FROM (SELECT n.nspname,c.relname,a.attname,a.atttypid,a.attnotnull")) {
-//      val condIndex = sql.indexOf("WHERE")
-//      if (condIndex != -1) {
-//        val tablePattern = "relname LIKE E'([^']+)'".r
-//        val cond = sql.substring(condIndex)
-//        tablePattern.findFirstMatchIn(cond).map(_.group(1)) match {
-//          case Some(table) => s"SHOW COLUMNS from $table"
-//          case _           => sql
-//        }
-//      } else sql
     } else sql
   }
 
@@ -268,6 +258,8 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
           }
         case Left(error) => writeError(ctx, error)
       }
+    } else {
+      ctx.write(EmptyQueryResponse)
     }
     ctx.write(ReadyForQuery)
     ctx.flush()
