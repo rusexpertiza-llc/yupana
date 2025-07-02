@@ -576,7 +576,7 @@ val publishSettings = Seq(
     if (isSnapshot.value)
       Some("nexus common snapshots" at "https://nexus.esc-hq.ru/nexus/content/repositories/common-snapshots/")
     else
-      sonatypePublishToBundle.value
+      localStaging.value
   },
   Test / publishArtifact := false,
   pomIncludeRepository := { _ =>
