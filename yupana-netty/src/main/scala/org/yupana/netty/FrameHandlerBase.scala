@@ -49,4 +49,19 @@ abstract class FrameHandlerBase extends SimpleChannelInboundHandler[Frame[ByteBu
     }
     ctx.flush()
   }
+
+  def writeError(
+      ctx: ChannelHandlerContext,
+      msg: String,
+      streamId: Option[Int] = None,
+      severity: Byte = ErrorMessage.SEVERITY_ERROR
+  ): Unit = {
+    val error = if (severity == ErrorMessage.SEVERITY_ERROR) "Error" else "Fatal error"
+    streamId match {
+      case Some(id) => logger.warn(s"$error '$msg' in stream $id'")
+      case None     => logger.warn(s"$error '$msg'")
+    }
+    val response = ErrorMessage(msg, streamId, severity)
+    ctx.writeAndFlush(response.toFrame(Unpooled.buffer()))
+  }
 }
