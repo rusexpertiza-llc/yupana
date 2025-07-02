@@ -220,23 +220,23 @@ class YupanaConnectionImpl(override val url: String, properties: Properties, exe
     p.future
   }
 
-  private def readBatch(id: Int, read: Int): Future[Int] = {
+  private def readBatch(queryId: Int, read: Int): Future[Int] = {
     chanelReader.readFrame().flatMap { frame =>
       frame.frameType match {
         case Tags.RESULT_ROW.value =>
           val row = ResultRow.readFrame(frame)
-          if (row.id == id) {
+          if (row.queryId == queryId) {
             val newRead = read + 1
-            iterators(id).addResult(row)
-            if (newRead < batchSize) readBatch(id, newRead) else Future.successful(newRead)
+            iterators(queryId).addResult(row)
+            if (newRead < batchSize) readBatch(queryId, newRead) else Future.successful(newRead)
           } else {
-            Future.failed(new YupanaException(s"Unexpected row id ${row.id}"))
+            Future.failed(new YupanaException(s"Unexpected row for query id ${row.queryId}"))
           }
 
         case Tags.RESULT_FOOTER.value =>
-          iterators(id).setDone()
           iterators.synchronized {
-            iterators -= id
+            iterators(queryId).setDone()
+            iterators -= queryId
           }
           Future.successful(read)
 
@@ -248,11 +248,11 @@ class YupanaConnectionImpl(override val url: String, properties: Properties, exe
             case Some(sId) =>
               logger.info(s"Got error message $em")
               failIterator(sId, ex)
-              if (sId == id) {
+              if (sId == queryId) {
                 Future.failed(ex)
               } else {
                 logger.severe(s"Unexpected error message '${em.message}'")
-                readBatch(id, read)
+                readBatch(queryId, read)
               }
 
             case None =>

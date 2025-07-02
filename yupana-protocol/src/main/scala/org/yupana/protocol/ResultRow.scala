@@ -19,15 +19,15 @@ package org.yupana.protocol
 /**
   * Query result row
   *
-  * @param id request id
+  * @param queryId query id
   * @param values result values serialized into arrays of bytes
   */
-case class ResultRow(id: Int, values: Seq[Array[Byte]]) extends Response[ResultRow](ResultRow) {
-  override def toString: String = s"ResultRow(id: $id, values.size: ${values.size})"
+case class ResultRow(queryId: Int, values: Seq[Array[Byte]]) extends Response[ResultRow](ResultRow) {
+  override def toString: String = s"ResultRow(id: $queryId, values.size: ${values.size})"
 }
 
 object ResultRow extends MessageHelper[ResultRow] {
   override val tag: Tags.Tags = Tags.RESULT_ROW
   override val readWrite: ReadWrite[ResultRow] =
-    ReadWrite.product2[ResultRow, Int, Seq[Array[Byte]]](ResultRow.apply)(r => (r.id, r.values))
+    ReadWrite.product2[ResultRow, Int, Seq[Array[Byte]]](ResultRow.apply)(r => (r.queryId, r.values))
 }

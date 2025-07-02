@@ -154,7 +154,7 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
 
     Then("reply with actual data")
     val row = readMessage(ch, ResultRow)
-    row.id shouldEqual 11
+    row.queryId shouldEqual 11
     row.values should contain theSameElementsInOrderAs List(
       Array[Byte](5),
       Array[Byte](0, 0, 0, 3) ++ "abc".getBytes(),
@@ -201,7 +201,7 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
 
     ch.writeInbound(NextBatch(2, 10).toFrame(Unpooled.buffer()))
     val data2 = readMessage(ch, ResultRow)
-    data2.id shouldEqual 2
+    data2.queryId shouldEqual 2
     data2.values should contain theSameElementsInOrderAs List(Array(2))
 
     val footer2 = readMessage(ch, ResultFooter)
@@ -209,7 +209,7 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
 
     ch.writeInbound(NextBatch(1, 10).toFrame(Unpooled.buffer()))
     val data1 = readMessage(ch, ResultRow)
-    data1.id shouldEqual 1
+    data1.queryId shouldEqual 1
     data1.values should contain theSameElementsInOrderAs List(Array(1))
 
     val footer1 = readMessage(ch, ResultFooter)
@@ -239,7 +239,7 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     ch.writeInbound(NextBatch(1, 10).toFrame(Unpooled.buffer()))
     (1 to 10).foreach { e =>
       val row = readMessage(ch, ResultRow)
-      row.id shouldEqual 1
+      row.queryId shouldEqual 1
       row.values(0) shouldEqual Array(e)
     }
     ch.readOutbound[Frame[ByteBuf]]() shouldBe null
@@ -247,7 +247,7 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     ch.writeInbound(NextBatch(1, 10).toFrame(Unpooled.buffer()))
     (11 to 15).foreach { e =>
       val row = readMessage(ch, ResultRow)
-      row.id shouldEqual 1
+      row.queryId shouldEqual 1
       row.values(0) shouldEqual Array(e)
     }
     val ftr = readMessage(ch, ResultFooter)
