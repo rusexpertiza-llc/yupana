@@ -217,7 +217,7 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
 
     ch.writeInbound(NextBatch(1, 10).toFrame(Unpooled.buffer()))
     val err = readMessage(ch, ErrorMessage)
-    err.message shouldEqual "Unknown stream id 1"
+    err.message shouldEqual "Next for unknown stream id 1"
     err.streamId shouldEqual Some(1)
   }
 
@@ -308,7 +308,7 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
 
     ch.writeInbound(NextBatch(1, 10).toFrame(Unpooled.buffer()))
     val err = readMessage(ch, ErrorMessage)
-    err.message shouldEqual "Unknown stream id 1"
+    err.message shouldEqual "Next for unknown stream id 1"
     err.streamId shouldEqual Some(1)
   }
 
