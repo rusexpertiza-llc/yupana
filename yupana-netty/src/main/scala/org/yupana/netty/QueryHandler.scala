@@ -60,7 +60,7 @@ class QueryHandler(serverContext: ServerContext, user: YupanaUser) extends Frame
         case Left(msg)     => writeError(ctx, msg, Some(pq.id))
       }
     } catch {
-      case t: Throwable => failStream(ctx, pq.id, t.getMessage)
+      case t: Throwable => failStream(ctx, pq.id, t)
     }
   }
 
@@ -73,7 +73,7 @@ class QueryHandler(serverContext: ServerContext, user: YupanaUser) extends Frame
         case Left(msg)     => writeError(ctx, msg, Some(bq.id))
       }
     } catch {
-      case t: Throwable => failStream(ctx, bq.id, t.getMessage)
+      case t: Throwable => failStream(ctx, bq.id, t)
     }
   }
 
@@ -97,14 +97,14 @@ class QueryHandler(serverContext: ServerContext, user: YupanaUser) extends Frame
             streams -= next.queryId
           }
         } catch {
-          case e: Throwable => failStream(ctx, next.queryId, e.getMessage)
+          case e: Throwable => failStream(ctx, next.queryId, e)
         }
       case None => writeError(ctx, s"Next for unknown stream id ${next.queryId}", Some(next.queryId))
     }
   }
 
-  private def failStream(ctx: ChannelHandlerContext, queryId: Int, msg: String): Unit = {
-    writeError(ctx, s"Query process failed, $msg", Some(queryId))
+  private def failStream(ctx: ChannelHandlerContext, queryId: Int, throwable: Throwable): Unit = {
+    writeError(ctx, s"Query process failed, ${throwable.getMessage}", Some(queryId), throwable = Some(throwable))
     streams -= queryId
   }
 
