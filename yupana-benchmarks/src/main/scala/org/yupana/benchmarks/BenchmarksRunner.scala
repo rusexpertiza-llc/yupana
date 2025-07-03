@@ -16,8 +16,8 @@
 
 package org.yupana.benchmarks
 
-import io.prometheus.client.{ CollectorRegistry, Summary }
-import io.prometheus.client.exporter.PushGateway
+import io.prometheus.metrics.core.metrics.Summary
+import io.prometheus.metrics.exporter.pushgateway.PushGateway
 import org.openjdk.jmh.runner.Runner
 import org.openjdk.jmh.runner.options.CommandLineOptions
 
@@ -35,7 +35,7 @@ object BenchmarksRunner {
     val opts = new CommandLineOptions(args.filterNot(_.startsWith("--")): _*)
     val runner = new Runner(opts)
     val results = runner.run()
-    val gateway = new PushGateway(params.pushGatewayUrl)
+    val gateway = PushGateway.builder().address(params.pushGatewayUrl).job("yupana_benchmarks_job").build()
 
     results.asScala.foreach { result =>
       val benchmark = result.getParams.getBenchmark.split("\\.").takeRight(2).mkString("_")
@@ -51,14 +51,13 @@ object BenchmarksRunner {
         )
       }
     }
-    gateway.pushAdd(CollectorRegistry.defaultRegistry, "yupana_benchmarks_job")
+    gateway.push()
   }
 
   private def observe(benchmark: String, name: String, value: Double): Unit = {
     val summary = Summary
-      .build()
-      .namespace("yupana_benchmarks")
-      .name(benchmark + "_" + name)
+      .builder()
+      .name("yupana_benchmarks_" + benchmark + "_" + name)
       .help("Yupana benchmark summary")
       .register()
     summary.observe(value)
