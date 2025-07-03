@@ -21,6 +21,7 @@ import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.{ ExternalLink, Schema, Table }
+import org.yupana.api.types.DataType
 import org.yupana.core.auth.Action.Write
 import org.yupana.core.auth.{ PermissionService, YupanaUser }
 import org.yupana.core.dao.{ ChangelogDao, TSDao }
@@ -297,8 +298,11 @@ trait TsdbBase extends StrictLogging {
       override def apply[T](x: Expression[T]): Option[Expression[T]] = {
         x match {
           case PlaceholderExpr(id, t) =>
-            if (id < params.length + 1) Some(ConstantExpr(params(id - 1).asInstanceOf[T])(t))
-            else throw new IllegalStateException(s"Parameter #$id value is not defined")
+            if (id < params.length + 1) {
+              if (t == DataType[String]) {
+                Some(ConstantExpr(params(id - 1).asInstanceOf[String].toLowerCase.asInstanceOf[T])(t))
+              } else Some(ConstantExpr(params(id - 1).asInstanceOf[T])(t))
+            } else throw new IllegalStateException(s"Parameter #$id value is not defined")
 
           case NowExpr => Some(ConstantExpr(startTime))
           case _       => None
