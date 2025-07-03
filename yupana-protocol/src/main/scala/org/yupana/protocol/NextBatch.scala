@@ -19,13 +19,13 @@ package org.yupana.protocol
 /**
   * Request for next batch of data
   *
-  * @param id request id
+  * @param queryId query id
   * @param batchSize size of requested batch
   */
-case class NextBatch(id: Int, batchSize: Int) extends Command[NextBatch](NextBatch)
+case class NextBatch(queryId: Int, batchSize: Int) extends Command[NextBatch](NextBatch)
 
 object NextBatch extends MessageHelper[NextBatch] {
   override val tag: Tags.Tags = Tags.NEXT
   override val readWrite: ReadWrite[NextBatch] =
-    ReadWrite.product2[NextBatch, Int, Int](NextBatch.apply)(x => (x.id, x.batchSize))
+    ReadWrite.product2[NextBatch, Int, Int](NextBatch.apply)(x => (x.queryId, x.batchSize))
 }
