@@ -467,7 +467,7 @@ lazy val versions = new {
   val scalaLogging = "3.9.5"
   val fastparse = "3.1.1"
   val scopt = "4.1.0"
-  val prometheus = "1.3.5"
+  val prometheus = "1.3.8"
 
   val hbase = "2.5.7"
   val hadoop = "3.3.6"
