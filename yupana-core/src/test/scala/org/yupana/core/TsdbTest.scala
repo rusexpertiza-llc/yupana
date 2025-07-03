@@ -285,7 +285,7 @@ class TsdbTest
 
     (() => testCatalogServiceMock.externalLink).expects().returning(TestLinks.TEST_LINK).anyNumberOfTimes()
 
-    val c = equ(link(TestLinks.TEST_LINK, "testField"), const[String](params(1).asInstanceOf[String]))
+    val c = equ(link(TestLinks.TEST_LINK, "testField"), const[String](params(1).asInstanceOf[String].toLowerCase))
 
     (testCatalogServiceMock.transformCondition _)
       .expects(
