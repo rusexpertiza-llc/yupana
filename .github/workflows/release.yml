@@ -45,7 +45,7 @@ jobs:
         PGP_SECRET: ${{ secrets.PGP_SECRET }}
 
     - name: Build and publish
-      run: sbt +clean +publishSigned sonatypeBundleRelease
+      run: sbt +clean +publishSigned sonaRelease
       env:
         PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
         SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}

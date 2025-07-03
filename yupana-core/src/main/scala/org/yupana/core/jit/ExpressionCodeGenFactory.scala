@@ -67,6 +67,19 @@ object ExpressionCodeGenFactory {
     }
   }
 
+  def needEvaluateForGroupBy(expr: Expression[_]): Boolean = {
+    expr match {
+      case TimeExpr             => false
+      case DimensionExpr(_)     => false
+      case DimensionIdExpr(_)   => false
+      case MetricExpr(_)        => false
+      case DimIdInExpr(_, _)    => false
+      case DimIdNotInExpr(_, _) => false
+      case LinkExpr(_, _)       => false
+      case _                    => true
+    }
+  }
+
   private def createCodeGenerator(expr: Expression[_]): ExpressionCodeGen[_] = {
     expr match {
       case ConstantExpr(c)            => new ConstantExpressionCodeGen(expr, c)

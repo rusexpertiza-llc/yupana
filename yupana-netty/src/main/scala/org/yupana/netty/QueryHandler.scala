@@ -46,7 +46,7 @@ class QueryHandler(serverContext: ServerContext, user: YupanaUser) extends Frame
       case Tags.QUIT.value        =>
         logger.info("Got quit message")
         ctx.close()
-      case x => writeResponse(ctx, ErrorMessage(s"Unexpected command '${x.toChar}'"))
+      case x => writeError(ctx, s"Unexpected command '${x.toChar}'")
     }
     frame.payload.release()
   }
@@ -57,10 +57,10 @@ class QueryHandler(serverContext: ServerContext, user: YupanaUser) extends Frame
     try {
       serverContext.queryEngineRouter.query(user, pq.query, params) match {
         case Right(result) => addStream(ctx, pq.id, result)
-        case Left(msg)     => writeResponse(ctx, ErrorMessage(msg, Some(pq.id)))
+        case Left(msg)     => writeError(ctx, msg, Some(pq.id))
       }
     } catch {
-      case t: Throwable => failStream(ctx, pq.id, t.getMessage)
+      case t: Throwable => failStream(ctx, pq.id, t)
     }
   }
 
@@ -70,60 +70,52 @@ class QueryHandler(serverContext: ServerContext, user: YupanaUser) extends Frame
     try {
       serverContext.queryEngineRouter.batchQuery(user, bq.query, params) match {
         case Right(result) => addStream(ctx, bq.id, result)
-        case Left(msg)     => writeResponse(ctx, ErrorMessage(msg, Some(bq.id)))
+        case Left(msg)     => writeError(ctx, msg, Some(bq.id))
       }
     } catch {
-      case t: Throwable => failStream(ctx, bq.id, t.getMessage)
+      case t: Throwable => failStream(ctx, bq.id, t)
     }
   }
 
   private def addStream(ctx: ChannelHandlerContext, id: Int, result: Result): Unit = {
-    synchronized {
-      if (!streams.contains(id)) {
-        streams += id -> new Stream(id, result)
-        writeResponse(ctx, makeHeader(id, result))
-      } else {
-        writeResponse(ctx, ErrorMessage(s"ID $id already used"))
-      }
+    if (!streams.contains(id)) {
+      streams += id -> new Stream(id, result)
+      writeResponse(ctx, makeHeader(id, result))
+    } else {
+      writeError(ctx, s"ID $id already used")
     }
   }
 
   private def handleNext(ctx: ChannelHandlerContext, next: NextBatch): Unit = {
     logger.debug(s"Next acquired $next")
-    streams.get(next.id) match {
+    streams.get(next.queryId) match {
       case Some(stream) =>
         try {
           val batch = stream.next(next.batchSize)
           writeResponses(ctx, batch)
           if (!stream.hasNext) {
-            streams.synchronized {
-              streams -= next.id
-            }
+            streams -= next.queryId
           }
         } catch {
-          case e: Throwable => failStream(ctx, next.id, e.getMessage)
+          case e: Throwable => failStream(ctx, next.queryId, e)
         }
-      case None => writeResponse(ctx, ErrorMessage(s"Unknown stream id ${next.id}", Some(next.id)))
+      case None => writeError(ctx, s"Next for unknown stream id ${next.queryId}", Some(next.queryId))
     }
   }
 
-  private def failStream(ctx: ChannelHandlerContext, id: Int, msg: String): Unit = {
-    writeResponse(ctx, ErrorMessage(s"Query process failed, $msg", Some(id)))
-    streams.synchronized {
-      streams -= id
-    }
+  private def failStream(ctx: ChannelHandlerContext, queryId: Int, throwable: Throwable): Unit = {
+    writeError(ctx, s"Query process failed, ${throwable.getMessage}", Some(queryId), throwable = Some(throwable))
+    streams -= queryId
   }
 
   private def cancelStream(ctx: ChannelHandlerContext, cancel: Cancel): Unit = {
     logger.debug(s"Cancel stream $cancel")
-    synchronized {
-      streams.get(cancel.id) match {
-        case Some(s) =>
-          streams -= cancel.id
-          s.close()
-          writeResponse(ctx, Cancelled(cancel.id))
-        case None => writeResponse(ctx, ErrorMessage(s"Unknown stream id ${cancel.id}", Some(cancel.id)))
-      }
+    streams.get(cancel.queryId) match {
+      case Some(s) =>
+        streams -= cancel.queryId
+        s.close()
+        writeResponse(ctx, Cancelled(cancel.queryId))
+      case None => writeError(ctx, s"Cancel for unknown stream id ${cancel.queryId}", Some(cancel.queryId))
     }
   }
 
@@ -144,9 +136,6 @@ class QueryHandler(serverContext: ServerContext, user: YupanaUser) extends Frame
 
   override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable): Unit = {
     logger.error("Exception caught", cause)
-    writeResponse(
-      ctx,
-      ErrorMessage(s"Cannot handle the request, '${cause.getMessage}'", None, ErrorMessage.SEVERITY_FATAL)
-    )
+    writeError(ctx, s"Cannot handle the request, '${cause.getMessage}'", None, ErrorMessage.SEVERITY_FATAL)
   }
 }

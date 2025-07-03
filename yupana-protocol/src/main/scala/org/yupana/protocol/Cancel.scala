@@ -16,10 +16,14 @@
 
 package org.yupana.protocol
 
-/** Cancels query execution without reading to the end. */
-case class Cancel(id: Int) extends Command[Cancel](Cancel)
+/**
+  * Cancels query execution without reading to the end.
+  *
+  * @param queryId query id to be canceled
+  */
+case class Cancel(queryId: Int) extends Command[Cancel](Cancel)
 
 object Cancel extends MessageHelper[Cancel] {
   override val tag: Tags.Tags = Tags.CANCEL
-  override val readWrite: ReadWrite[Cancel] = ReadWrite[Int].imap(Cancel.apply)(_.id)
+  override val readWrite: ReadWrite[Cancel] = ReadWrite[Int].imap(Cancel.apply)(_.queryId)
 }
