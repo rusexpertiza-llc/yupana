@@ -421,7 +421,7 @@ object BatchDataset {
 
   implicit val readerWriter: InternalReaderWriter[MemoryBuffer, ID, Int, Int] = MemoryBufferEvalReaderWriter
 
-  val MAX_MUM_OF_ROWS = 100000
+  val MAX_MUM_OF_ROWS = 1000//00
   val TMP_BUF_SIZE = 2_000_000
   val SIZE_OF_FIXED_PART_OF_VARIABLE_LENGHT_FIELDS = 16
   val INIT_VAR_LEN_FIELDS_AREA_SIZE_CAPAITY_FACTOR = 2

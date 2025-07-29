@@ -51,6 +51,10 @@ class TsDaoHBaseSpark(
       intervals: Seq[(Long, Long)],
       rangeScanDims: Iterator[Map[Dimension, Seq[_]]]
   ): RDD[HResult] = {
+
+    println("WTF THIS VERSION")
+    logger.info("WTF THIS VERSION")
+
     val progressFile = queryContext.hints.collectFirst { case ProgressHint(fileName) => fileName }
     if (rangeScanDims.nonEmpty) {
       val rdds = rangeScanDims.zipWithIndex.flatMap {

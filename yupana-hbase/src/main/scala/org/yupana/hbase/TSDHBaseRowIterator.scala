@@ -60,9 +60,10 @@ class TSDHBaseRowIterator(
       throw new IllegalStateException("Next on empty iterator")
     }
 
+    logger.info("WTF CREATING NEW BATCH DATASET")
     val batch = new BatchDataset(schema)
     var rowNum = 0
-    while (rowNum < BatchDataset.MAX_MUM_OF_ROWS && (rows.hasNext || currentTime != Long.MaxValue)) {
+    while (rowNum < batch.capacity && (rows.hasNext || currentTime != Long.MaxValue)) {
 
       if (rows.hasNext && currentTime == Long.MaxValue) {
         nextHBaseRow()
@@ -75,6 +76,7 @@ class TSDHBaseRowIterator(
   }
 
   private def nextHBaseRow(): Unit = {
+    logger.info("WTF CALLING .next ON ROWS ITERATOR")
     val result = rows.next()
     currentRowKey = result.getRow
     cells = result.rawCells()
