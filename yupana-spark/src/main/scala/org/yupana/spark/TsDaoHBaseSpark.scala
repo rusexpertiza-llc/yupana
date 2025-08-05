@@ -33,11 +33,13 @@ class TsDaoHBaseSpark(
     @transient val sparkContext: SparkContext,
     override val schema: Schema,
     config: Config,
-    override val dictionaryProvider: DictionaryProvider,
-    putsBatchSize: Int = 10000
+    override val dictionaryProvider: DictionaryProvider
 ) extends TSDaoHBaseBase[RDD]
     with TSDao[RDD, Long]
     with Serializable {
+
+  override val putBatchSize: Int = config.putBatchSize
+  override val extractBatchSize: Int = config.extractBatchSize
 
   private val sparkListener = new ProgressListener[HBaseScanPartition]
   sparkContext.addSparkListener(sparkListener)
@@ -85,7 +87,7 @@ class TsDaoHBaseSpark(
       dataPoints: RDD[DataPoint],
       username: String
   ): RDD[UpdateInterval] = {
-    mr.batchFlatMap(dataPoints, putsBatchSize) { dataPointsBatch =>
+    mr.batchFlatMap(dataPoints, putBatchSize) { dataPointsBatch =>
       doPutBatch(connection, dictionaryProvider, config.hbaseNamespace, username, dataPointsBatch)
     }
 

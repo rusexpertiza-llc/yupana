@@ -76,7 +76,6 @@ class TSDHBaseRowIterator(
   }
 
   private def nextHBaseRow(): Unit = {
-    logger.info("WTF CALLING .next ON ROWS ITERATOR")
     val result = rows.next()
     currentRowKey = result.getRow
     cells = result.rawCells()

@@ -64,7 +64,15 @@ object TSDBHBase {
     val dictDao = new DictionaryDaoHBase(connection, namespace)
     val dictProvider = new DictionaryProviderImpl(dictDao)
     val dao =
-      new TSDaoHBase(schema, connection, namespace, dictProvider, tsdbConfig.putBatchSize, tsdbConfig.reduceLimit)
+      new TSDaoHBase(
+        schema,
+        connection,
+        namespace,
+        dictProvider,
+        tsdbConfig.putBatchSize,
+        tsdbConfig.extractBatchSize,
+        tsdbConfig.reduceLimit
+      )
     val changelogDao = new ChangelogDaoHBase(connection, namespace)
 
     new TSDB(schema, dao, changelogDao, prepareQuery, tsdbConfig, metricCollectorCreator)

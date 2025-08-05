@@ -59,10 +59,10 @@ trait TsdbBase extends StrictLogging {
 
   private lazy val constantCalculator: ConstantCalculator = new ConstantCalculator(schema.tokenizer)
 
-  /** Batch size for reading values from external links */
+  /** Batch size for reading from underlying storage */
   val extractBatchSize: Int
 
-  /** Batch size for writing values to external links */
+  /** Batch size for writing to underlying storage */
   val putBatchSize: Int
 
   def registerExternalLink(catalog: ExternalLink, catalogService: ExternalLinkService[_ <: ExternalLink]): Unit
