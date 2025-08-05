@@ -60,7 +60,6 @@ class TSDHBaseRowIterator(
       throw new IllegalStateException("Next on empty iterator")
     }
 
-    logger.info("WTF CREATING NEW BATCH DATASET")
     val batch = new BatchDataset(schema)
     var rowNum = 0
     while (rowNum < batch.capacity && (rows.hasNext || currentTime != Long.MaxValue)) {
