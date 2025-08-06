@@ -86,8 +86,7 @@ abstract class TsdbSparkBase(
   override type Collection[X] = RDD[X]
   override type Result = ResultRDD
 
-  override val extractBatchSize: Int = conf.extractBatchSize
-  override val putBatchSize: Int = conf.putBatchSize
+  override val externalLinksPutBatchSize: Int = conf.putBatchSize
 
   override val calculatorFactory: ExpressionCalculatorFactory = JIT
 
