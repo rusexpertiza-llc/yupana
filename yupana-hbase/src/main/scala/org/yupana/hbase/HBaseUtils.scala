@@ -625,7 +625,7 @@ object HBaseUtils extends StrictLogging {
   ): MemoryBuffer = {
     val time = dataset.get[Time](rowNum, "time")
     val bt = HBaseUtils.baseTime(time.millis, table)
-    val buffer = MemoryBuffer.allocateNative(keySize)
+    val buffer = MemoryBuffer.allocateHeap(keySize)
     buffer.putLong(bt)
 
     table.dimensionSeq.foreach {
