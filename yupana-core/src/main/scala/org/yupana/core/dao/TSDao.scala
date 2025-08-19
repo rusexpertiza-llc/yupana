@@ -23,6 +23,8 @@ import org.yupana.core.model.{ BatchDataset, UpdateInterval }
 
 trait TSDao[Collection[_], IdType] extends TSReadingDao[Collection, IdType] {
 
+  val putBatchSize: Int
+
   def put(
       mr: MapReducible[Collection],
       dataPoints: Collection[DataPoint],
