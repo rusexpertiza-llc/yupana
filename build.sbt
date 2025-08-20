@@ -496,7 +496,7 @@ lazy val versions = new {
   val scalaLogging = "3.9.5"
   val fastparse = "3.1.1"
   val scopt = "4.1.0"
-  val prometheus = "1.3.8"
+  val prometheus = "1.4.1"
 
   val hbase = "2.5.7"
   val hadoop = "3.3.6"
@@ -505,10 +505,10 @@ lazy val versions = new {
 
   val lucene = "6.6.0"
   val ignite = "2.8.1"
-  val ehcache = "3.9.7"
-  val caffeine = "3.1.8"
+  val ehcache = "3.10.8"
+  val caffeine = "3.2.2"
 
-  val circe = "0.14.13" // To have same cats version with Spark
+  val circe = "0.14.14" // To have same cats version with Spark
 
   val flyway = "7.4.0"
   val hikariCP = "4.0.3"
@@ -518,7 +518,7 @@ lazy val versions = new {
 
   val scalaTest = "3.2.19"
   val scalaTestCheck = "3.2.19.0"
-  val scalaMock = "7.3.2"
+  val scalaMock = "7.4.1"
   val testContainers = "0.43.0"
 }
 
