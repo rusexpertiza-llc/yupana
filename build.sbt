@@ -489,7 +489,7 @@ def minMaj(v: String, default: String): String = {
 lazy val versions = new {
   val scala213 = "2.13.16"
 
-  val spark = "3.5.4"
+  val spark = "4.0.1"
 
   val threeTenExtra = "1.8.0"
 
@@ -499,13 +499,13 @@ lazy val versions = new {
   val prometheus = "1.4.1"
 
   val hbase = "2.5.7"
-  val hadoop = "3.3.6"
+  val hadoop = "3.4.1"
 
   val netty = "4.1.118.Final"
 
   val lucene = "6.6.0"
-  val ignite = "2.8.1"
-  val ehcache = "3.10.8"
+  val ignite = "2.17.0"
+  val ehcache = "3.10.9"
   val caffeine = "3.2.2"
 
   val circe = "0.14.14" // To have same cats version with Spark
@@ -572,7 +572,6 @@ val noPublishSettings = Seq(
 
 val publishSettings = Seq(
   publishMavenStyle := true,
-  credentials += Credentials(Path.userHome / ".ivy2" / ".credentials_nexus"),
   publishTo := {
     if (isSnapshot.value)
       Some("nexus common snapshots" at "https://nexus.esc-hq.ru/nexus/content/repositories/common-snapshots/")
@@ -615,7 +614,35 @@ val releaseSettings = Seq(
 
 val allSettings = commonSettings ++ publishSettings ++ releaseSettings
 
+ThisBuild / credentials += makeCredentials(
+  "nexus.esc-hq.ru",
+  "Sonatype Nexus Repository Manager",
+  "REPO_USER",
+  "REPO_PASSWORD",
+  Path.userHome / ".ivy2" / ".credentials_nexus",
+  sLog.value
+)
+
 ThisBuild / credentials ++= (for {
   username <- Option(System.getenv().get("SONATYPE_USERNAME"))
   password <- Option(System.getenv().get("SONATYPE_PASSWORD"))
 } yield Credentials("Sonatype Nexus Repository Manager", "oss.sonatype.org", username, password)).toSeq
+
+def makeCredentials(
+    host: String,
+    realm: String,
+    userNameVar: String,
+    passwordVar: String,
+    path: File,
+    logger: Logger
+): Credentials = {
+  (sys.env.get(userNameVar), sys.env.get(passwordVar)) match {
+    case (Some(u), Some(p)) =>
+      logger.info(s"Have username '$u' in $userNameVar and some password in $passwordVar")
+      Credentials(realm, host, u, p)
+
+    case _ =>
+      logger.info(s"Reading credentials from file $path")
+      Credentials(path)
+  }
+}
