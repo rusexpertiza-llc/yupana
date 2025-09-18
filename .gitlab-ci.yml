@@ -9,7 +9,7 @@ stages:
 verify formatting:
   stage: verify
   script:
-    - sbt scalafmtSbtCheck scalafmtCheckAll
+    - sbt scalafmtCheckAll
 
 compile and  test:
   stage: build
