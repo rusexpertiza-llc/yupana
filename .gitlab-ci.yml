@@ -15,10 +15,15 @@ verify formatting:
   script:
     - sbt scalafmtCheckAll
 
-compile and  test:
+compile and test:
   stage: build
   script:
     - sbt compile test
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - "**/target/test-reports/TEST-*.xml"
 
 publish artifacts:
   stage: publish
