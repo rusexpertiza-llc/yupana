@@ -358,6 +358,7 @@ class TsdbArithmeticTest
   it should "calculate math with currency fields" in withTsdbMock { (tsdb, tsDaoMock) =>
     val sql = """SELECT testCurrencyField + testCurrencyField2 as plus,
                  |      testCurrencyField - testCurrencyField2 as minus,
+                 |      testCurrencyField * testField as times,
                  |      testCurrencyField * 2 as twice,
                  |      testCurrencyField / 2 as half,
                  |      testCurrencyField / testCurrencyField2 as ratio
@@ -375,6 +376,7 @@ class TsdbArithmeticTest
           Set[Expression[_]](
             metric(TestTableFields.TEST_CURRENCY_FIELD),
             metric(TestTableFields.TEST_CURRENCY_FIELD2),
+            metric(TestTableFields.TEST_FIELD),
             time
           ),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
@@ -390,6 +392,7 @@ class TsdbArithmeticTest
         batch.set(0, pointTime)
         batch.set(0, metric(TestTableFields.TEST_CURRENCY_FIELD), Currency.of(100))
         batch.set(0, metric(TestTableFields.TEST_CURRENCY_FIELD2), Currency.of(50))
+        batch.set(0, metric(TestTableFields.TEST_FIELD), 3.5d)
         Iterator(batch)
       }
 
@@ -400,7 +403,8 @@ class TsdbArithmeticTest
     res.get[Currency]("minus") shouldEqual Currency.of(50)
     res.get[Currency]("twice") shouldEqual Currency.of(200)
     res.get[Currency]("half") shouldEqual Currency.of(50)
-    res.get[Long]("ratio") shouldEqual 2L
+    res.get[Currency]("times") shouldEqual Currency.of(350)
+    res.get[Double]("ratio") shouldEqual 2d
   }
 
   it should "calculate count and distinct_count for metric fields when evaluating each data row including null values" in withTsdbMock {
