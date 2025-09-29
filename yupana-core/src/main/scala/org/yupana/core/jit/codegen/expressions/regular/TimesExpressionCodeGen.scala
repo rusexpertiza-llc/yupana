@@ -28,9 +28,9 @@ class TimesExpressionCodeGen(override val expression: TimesExpr[_, _, _])
 
   override def generateEvalCode(state: State, row: TermName): CodeGenResult = {
     val f: (Tree, Tree) => Tree = if (isCurrency(expression.a)) { (x, y) =>
-      q"Currency($x.value * $y)"
+      q"Currency(($x.value * $y).toLong)"
     } else if (isCurrency(expression.b)) { (x, y) =>
-      q"Currency($x * $y.value)"
+      q"Currency(($x * $y.value).toLong)"
     } else { (x, y) =>
       q"$x * $y"
     }
