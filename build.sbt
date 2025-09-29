@@ -499,7 +499,7 @@ lazy val versions = new {
   val prometheus = "1.4.1"
 
   val hbase = "2.5.7"
-  val hadoop = "3.4.1"
+  val hadoop = "3.3.6"
 
   val netty = "4.1.118.Final"
 
