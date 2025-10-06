@@ -449,7 +449,7 @@ lazy val docs = project
   .settings(
     scalaVersion := versions.scala213,
     moduleName := "yupana-docs",
-    noPublishSettings,
+    publishSettings,
     ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(api, core, protocol),
     ScalaUnidoc / unidoc / target := (LocalRootProject / baseDirectory).value / "website" / "static" / "api",
     cleanFiles += (ScalaUnidoc / unidoc / target).value,
@@ -457,6 +457,10 @@ lazy val docs = project
     docusaurusPublishGhpages := docusaurusPublishGhpages.dependsOn(Compile / unidoc).value,
     mdocIn := (LocalRootProject / baseDirectory).value / "docs" / "mdoc",
     mdocOut := (LocalRootProject / baseDirectory).value / "website" / "target" / "docs",
+    doc := {
+      mdoc.toTask("").value
+      mdocOut.value
+    },
     Compile / resourceGenerators += Def.task {
       val imagesPath =  (LocalRootProject / baseDirectory).value / "docs" / "assets" / "images"
       val images = (imagesPath * "*").get()
@@ -468,6 +472,14 @@ lazy val docs = project
 
       pairs.map(_._2)
     }.taskValue,
+    Compile / packageDoc := {
+      val sb = (LocalRootProject / baseDirectory).value / "website" / "sidebars.json"
+      val directory = doc.value
+      val jar = target.value / "docusaurus.jar"
+      val files = DocusaurusPlugin.listJarFiles(directory.toPath) :+ (sb -> sb.getName)
+      IO.jar(files, jar, new java.util.jar.Manifest(), None)
+      jar
+    },
     mdocVariables := Map(
       "SCALA_VERSION" -> minMaj(scalaVersion.value, "2.12"),
       "HBASE_VERSION" -> minMaj(versions.hbase, "1.3"),
@@ -523,7 +535,6 @@ lazy val versions = new {
 }
 
 val commonSettings = Seq(
-  organization := "org.yupana",
   scalaVersion := versions.scala213,
   scalacOptions ++= Seq(
     "-release:17",
@@ -582,6 +593,7 @@ val publishSettings = Seq(
   pomIncludeRepository := { _ =>
     false
   },
+  organization := "org.yupana",
   licenses += ("Apache 2.0 License", url("http://www.apache.org/licenses/LICENSE-2.0")),
   homepage := Some(url("https://github.com/rusexpertiza-llc/yupana")),
   scmInfo := Some(
