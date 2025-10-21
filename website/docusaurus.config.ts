@@ -12,7 +12,6 @@ const config: Config = {
   baseUrl: '/', // Base URL for your project */
   favicon: 'img/favicon.ico',
   onBrokenLinks: 'throw',
-  onBrokenMarkdownLinks: 'warn',
   customFields: {
     repoUrl: 'https://github.com/rusexpertiza-llc/yupana',
     cname: 'docs.yupana.org',
@@ -27,6 +26,9 @@ const config: Config = {
 
   markdown: {
     mermaid: true,
+    hooks: {
+      onBrokenMarkdownLinks: 'warn'
+    }
   },
   themes: ['@docusaurus/theme-mermaid'],
 
