@@ -45,6 +45,7 @@ class YupanaConnectionImpl(override val url: String, properties: Properties, exe
   private val logger = Logger.getLogger(classOf[YupanaConnectionImpl].getName)
 
   private var channel: AsynchronousSocketChannel = _
+  private var isWriting: Boolean = false
   private var chanelReader: FramingChannelReader = _
   private val nextId: AtomicInteger = new AtomicInteger(0)
   private var iterators: Map[Int, ResultIterator] = Map.empty
@@ -189,7 +190,9 @@ class YupanaConnectionImpl(override val url: String, properties: Properties, exe
   private def sendHeartbeat(startTime: Long): Unit = {
     val time = (System.currentTimeMillis() - startTime) / 1000
     if (channel.isOpen) {
-      Await.result(write(Heartbeat(time.toInt)), Duration.Inf)
+      if (!isWriting) {
+        Await.result(write(Heartbeat(time.toInt)), Duration.Inf)
+      }
     } else {
       cancelHeartbeats()
     }
@@ -322,6 +325,7 @@ class YupanaConnectionImpl(override val url: String, properties: Properties, exe
 
   private def write(request: Command[_]): Future[Unit] = {
     logger.fine(s"Writing command ${request.helper.tag.value.toChar}")
+    isWriting = true
     val f = request.toFrame[ByteBuffer](ByteBuffer.allocate(Frame.MAX_FRAME_SIZE))
     val bb = ByteBuffer.allocate(f.payload.position() + 4 + 1)
     bb.put(f.frameType)
@@ -332,8 +336,14 @@ class YupanaConnectionImpl(override val url: String, properties: Properties, exe
 
     JdbcUtils.wrapHandler[Unit](
       new CompletionHandler[Integer, Promise[Unit]] {
-        override def completed(result: Integer, p: Promise[Unit]): Unit = p.success(())
-        override def failed(exc: Throwable, p: Promise[Unit]): Unit = p.failure(exc)
+        override def completed(result: Integer, p: Promise[Unit]): Unit = {
+          isWriting = false
+          p.success(())
+        }
+        override def failed(exc: Throwable, p: Promise[Unit]): Unit = {
+          isWriting = false
+          p.failure(exc)
+        }
       },
       (p, h) => channel.write(bb, 10, TimeUnit.SECONDS, p, h)
     )
