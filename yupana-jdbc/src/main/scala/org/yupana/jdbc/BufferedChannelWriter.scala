@@ -34,34 +34,49 @@ class BufferedChannelWriter(channel: AsynchronousSocketChannel)(implicit writer:
 
   def write(command: Command[_]): Future[Unit] = {
     logger.fine(s"Writing command ${command.helper.tag.value.toChar}")
+    val p = Promise[Unit]()
     if (!isWriting) {
-      isWriting = true
-      val f = command.toFrame[ByteBuffer](ByteBuffer.allocate(Frame.MAX_FRAME_SIZE))
-      val bb = ByteBuffer.allocate(f.payload.position() + 4 + 1)
-      bb.put(f.frameType)
-      bb.putInt(f.payload.position())
-      f.payload.flip()
-      bb.put(f.payload)
-      bb.flip()
-
-      JdbcUtils.wrapHandler[Unit](
-        new CompletionHandler[Integer, Promise[Unit]] {
-          override def completed(result: Integer, p: Promise[Unit]): Unit = {
-            isWriting = false
-            p.success(())
-          }
-
-          override def failed(exc: Throwable, p: Promise[Unit]): Unit = {
-            isWriting = false
-            p.failure(exc)
-          }
-        },
-        (p, h) => channel.write(bb, 10, TimeUnit.SECONDS, p, h)
-      )
+      writeCommand(command, p)
     } else {
-      val p = Promise[Unit]()
       commandQueue.enqueue((command, p))
-      p.future
+    }
+    p.future
+  }
+
+  private def writeCommand(command: Command[_], p: Promise[Unit]): Unit = {
+    isWriting = true
+    val f = command.toFrame[ByteBuffer](ByteBuffer.allocate(Frame.MAX_FRAME_SIZE))
+    val bb = ByteBuffer.allocate(f.payload.position() + 4 + 1)
+    bb.put(f.frameType)
+    bb.putInt(f.payload.position())
+    f.payload.flip()
+    bb.put(f.payload)
+    bb.flip()
+
+    channel.write(
+      bb,
+      10,
+      TimeUnit.SECONDS,
+      p,
+      new CompletionHandler[Integer, Promise[Unit]] {
+        override def completed(result: Integer, p: Promise[Unit]): Unit = {
+          isWriting = false
+          p.success(())
+          writeNext()
+        }
+
+        override def failed(exc: Throwable, p: Promise[Unit]): Unit = {
+          isWriting = false
+          p.failure(exc)
+          writeNext()
+        }
+      }
+    )
+  }
+
+  private def writeNext(): Unit = {
+    if (commandQueue.nonEmpty) {
+      (writeCommand _).tupled(commandQueue.dequeue())
     }
   }
 }
