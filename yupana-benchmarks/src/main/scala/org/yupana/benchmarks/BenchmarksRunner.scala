@@ -77,7 +77,7 @@ object RunnerParams {
       opt[String]("pushGatewayUrl")
         .action((v, p) => p.copy(pushGatewayUrl = v))
         .required()
-        .text("Prometeus pushgateaway url")
+        .text("Prometheus push gateway url")
 
     }
     parser.parse(args, RunnerParams())
