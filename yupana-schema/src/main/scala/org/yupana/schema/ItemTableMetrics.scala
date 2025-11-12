@@ -40,7 +40,8 @@ trait ItemTableMetrics {
   val tax16667Field: Metric.Aux[Currency] = Metric[Currency]("tax16667", 24, rarelyQueried)
   val tax20000Field: Metric.Aux[Currency] = Metric[Currency]("tax20000", 25, rarelyQueried)
   val nomenclatureTypeField: Metric.Aux[String] = Metric[String]("nomenclatureType", tag = 26)
-  val gtinField: Metric.Aux[String] = Metric[String](name = "GTIN", tag = 27)
+  val gtinField: Metric.Aux[String] = Metric[String](name = "GTIN", tag = 18)
+  val gtinTypeField: Metric.Aux[String] = Metric[String]("gtinType", 19, rarelyQueried)
   val shiftField: Metric.Aux[Int] = Metric[Int](name = "shift", tag = 28, rarelyQueried)
 
   val taxationTypeField: Metric.Aux[Int] = Metric[Int](name = "taxationType", tag = 29, rarelyQueried)
@@ -74,7 +75,6 @@ trait ItemTableMetrics {
   val acceptedAtField: Metric.Aux[Time] = Metric[Time]("acceptedAt", 53, rarelyQueried)
 
   val itemCountField: Metric.Aux[Long] = Metric[Long]("itemCount", 54)
-  val gtinTypeField: Metric.Aux[String] = Metric[String]("gtinType", 55, rarelyQueried)
 
   val metrics: Seq[Metric] = Seq(
     quantityField,
