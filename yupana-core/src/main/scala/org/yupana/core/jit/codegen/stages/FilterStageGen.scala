@@ -22,11 +22,13 @@ import org.yupana.core.jit.{ ExpressionCodeGenFactory, State }
 import scala.reflect.runtime.universe._
 
 object FilterStageGen {
-  def mkFilter(state: State, row: TermName, condition: Option[Condition]): Option[(Seq[Tree], State)] = {
-    condition map { cond =>
-      val res = ExpressionCodeGenFactory.codeGenerator(cond).generateEvalCode(state, row)
-      val tree = q"${res.valueDeclaration.validityFlagName} && ${res.valueDeclaration.valueName}"
-      (res.trees :+ tree) -> res.state
+  def mkFilter(state: State, row: TermName, condition: Option[Condition]): (Seq[Tree], State) = {
+    condition match {
+      case None       => Nil -> state
+      case Some(cond) =>
+        val res = ExpressionCodeGenFactory.codeGenerator(cond).generateEvalCode(state, row)
+        val tree = q"${res.valueDeclaration.validityFlagName} && ${res.valueDeclaration.valueName}"
+        (res.trees :+ tree) -> res.state
     }
   }
 }
