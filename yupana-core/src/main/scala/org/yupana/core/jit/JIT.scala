@@ -68,7 +68,11 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
         Map.empty
       ).withExpression(TimeExpr)
 
-    val (filter, filteredState) = FilterStageGen.mkFilter(initialState, batch, condition)
+    val (filter, filteredState) =
+      FilterStageGen
+        .mkFilter(initialState, batch, condition)
+        .map { case (f, s) => (Some(f), s) }
+        .getOrElse((None, initialState))
 
     val (projection, projectionState) = ProjectionStageGen.mkProjection(query, batch, filteredState.fresh())
 
@@ -87,7 +91,11 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
     val (postAggregate, postAggregateState) =
       PostAgrregateStageGen.mkPostAggregate(query, batch, postCombineState.fresh())
 
-    val (postFilter, postFilterState) = PostFilterStageGen.mkPostFilter(postAggregateState.fresh(), batch, query)
+    val (postFilter, postFilterState) =
+      PostFilterStageGen
+        .mkPostFilter(postAggregateState.fresh(), batch, query)
+        .map { case (f, s) => (Some(f), s) }
+        .getOrElse((None, postAggregateState))
 
     val defs = postFilterState.globalDecls.map { case (_, d) => q"private val ${d.name}: ${d.tpe} = ${d.value}" } ++
       postFilterState.refs.map { case (_, d) => q"private val ${d.name}: ${d.tpe} = ${d.value}.asInstanceOf[${d.tpe}]" }
@@ -176,15 +184,7 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
         }
 
         override def evaluateFilter($batch: BatchDataset, $NOW: Time, $PARAMS: IndexedSeq[Any]): Unit = {
-          var rowNum = 0
-          while (rowNum < $batch.size) {
-            ..${BatchDatasetGen.mkGetValues(filteredState, schema, q"rowNum")}
-            val fl = {..$filter}
-            if (!fl) {
-               $batch.setDeleted(rowNum)
-            }
-            rowNum += 1
-          }
+          ${filterBody(filter, filteredState, schema, batch)}
         }
 
         override def evaluateExpressions($batch: BatchDataset, $NOW: Time, $PARAMS: IndexedSeq[Any]): Unit = {
@@ -269,15 +269,7 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
         }
 
         override def evaluatePostCombine($batch: BatchDataset): Unit = {
-           var rowNum = 0
-           while (rowNum < $batch.size) {
-              if (!$batch.isDeleted(rowNum)) {
-               ..${BatchDatasetGen.mkGetValues(postCombineState, schema, q"rowNum")}
-               ..$postCombine
-               ..${BatchDatasetGen.mkSetValues(postCombineState, schema, q"rowNum")}
-             }
-             rowNum += 1
-           }
+          ${postCombineBody()}
         }
 
         def evaluatePostAggregateExprs($batch: BatchDataset): Unit = {
@@ -293,17 +285,7 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
         }
 
         override def evaluatePostFilter(batch: BatchDataset, $NOW: Time, $PARAMS: IndexedSeq[Any]): Unit = {
-           var rowNum = 0
-           while (rowNum < $batch.size) {
-              if (!$batch.isDeleted(rowNum)) {
-               ..${BatchDatasetGen.mkGetValues(postFilterState, schema, q"rowNum")}
-               val fl = {..$postFilter}
-               if (!fl) {
-                 $batch.setDeleted(rowNum)
-               }
-             }
-             rowNum += 1
-           }
+          ${filterBody(postFilter, postFilterState, schema, batch)}
         }
 
         override def evaluateReadRow($buf: MemoryBuffer, $batch: BatchDataset, $rowNum: Int): Unit = {
@@ -321,6 +303,45 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
     }
 
     (tree, refsArray, schema)
+  }
+
+  private def filterBody(filter: Option[Seq[Tree]], state: State, schema: DatasetSchema, batch: TermName): Tree = {
+    filter match {
+      case Some(f) =>
+        q"""
+            var rowNum = 0
+            while (rowNum < $batch.size) {
+              ..${BatchDatasetGen.mkGetValues(state, schema, q"rowNum")}
+              val fl = {..$f}
+              if (!fl) {
+                $batch.setDeleted(rowNum)
+              }
+              rowNum += 1
+            }"""
+      case None => q"()"
+    }
+  }
+
+  private def postCombineBody(batch: TermName): Tree = {
+    foreachUndeleted(
+      batch,
+      q"""
+        ..${BatchDatasetGen.mkGetValues(postCombineState, schema, q"rowNum")}
+        ..$postCombine
+        ..${BatchDatasetGen.mkSetValues(postCombineState, schema, q"rowNum")}
+      """
+    )
+  }
+
+  private def foreachUndeleted(batch: TermName, t: Tree): Tree = {
+    q"""
+       var rowNum = 0
+       while (rowNum < $batch.size) {
+         if (!$batch.isDeleted(rowNum)) {
+           $t
+         }
+       }
+     """
   }
 
   private def prettyTree(tree: Tree): String = {

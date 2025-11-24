@@ -81,10 +81,6 @@ object CommonGen {
     className(dataType.classTag)
   }
 
-  def avgClassName(dataType: DataType): TypeName = {
-    TypeName(s"Avg_${dataType.meta.sqlTypeName}")
-  }
-
   def findAggregates(fields: Seq[QueryField]): Seq[AggregateExpr[_, _, _]] = {
     collectExprs(fields) {
       case e: AggregateExpr[_, _, _] => e
