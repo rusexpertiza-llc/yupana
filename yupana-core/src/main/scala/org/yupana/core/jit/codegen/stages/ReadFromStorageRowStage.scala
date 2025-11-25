@@ -47,10 +47,7 @@ object ReadFromStorageRowStage {
               val v = { $read }
               ${BatchDatasetGen.mkSetValueToRow(schema, q"$rowNum", tag)(q"v", q"$batch")}
               """
-          case _ =>
-            q"""
-             ()
-            """
+          case _ => EmptyTree
         }
         (offset + dim.rStorable.size, cs :+ c)
     }

@@ -24,18 +24,19 @@ import scala.reflect.runtime.universe._
 
 object PostFilterStageGen {
   def mkPostFilter(state: State, row: TermName, query: Query): (Seq[Tree], State) = {
-    val aggregatesAndWinFuncs = CommonGen.findAggregates(query.fields) ++ CommonGen.findWindowFunctions(query.fields)
-    val readExprsState = aggregatesAndWinFuncs.zipWithIndex.foldLeft(state) {
-      case (s, (e, idx)) =>
-        s.withReadFromRow(row, e, ValueDeclaration(s"agg_$idx"))
-    }
-
     query.postFilter match {
-      case None       => Seq(q"true") -> readExprsState
       case Some(cond) =>
+        val aggregatesAndWinFuncs =
+          CommonGen.findAggregates(query.fields) ++ CommonGen.findWindowFunctions(query.fields)
+        val readExprsState = aggregatesAndWinFuncs.zipWithIndex.foldLeft(state) {
+          case (s, (e, idx)) =>
+            s.withReadFromRow(row, e, ValueDeclaration(s"agg_$idx"))
+        }
+
         val res = ExpressionCodeGenFactory.codeGenerator(cond).generateEvalCode(readExprsState, row)
         val tree = q"${res.valueDeclaration.validityFlagName} && ${res.valueDeclaration.valueName}"
         (res.trees :+ tree) -> res.state
+      case None => Nil -> state
     }
   }
 }
