@@ -38,15 +38,19 @@ object PersistentSchemaChecker extends SchemaChecker {
     val actualSchema = SchemaInfo(schema.tables.values.map(toInfo).toList)
     var checks = Seq.empty[SchemaCheckResult]
     if (actualSchema.tables.size != expectedSchema.tables.size) {
-      checks :+= Warning(
-        s"${expectedSchema.tables.size} tables expected, but ${actualSchema.tables.size} " +
-          s"actually present in registry"
+      checks :+= SchemaCheckSucceed(
+        List(
+          Warning(
+            s"${expectedSchema.tables.size} tables expected, but ${actualSchema.tables.size} " +
+              s"actually present in registry"
+          )
+        )
       )
     }
     checks ++= actualSchema.tables.map(verifyTags)
     checks ++= actualSchema.tables.map(t => {
       expectedSchema.tables.find(es => es.name == t.name) match {
-        case None           => Warning(s"Unknown table ${t.name}")
+        case None           => SchemaCheckSucceed(List(Warning(s"Unknown table ${t.name}")))
         case Some(expected) => compareTables(t, expected)
       }
     })
@@ -61,8 +65,12 @@ object PersistentSchemaChecker extends SchemaChecker {
       }
       .map {
         case (tag, ms) =>
-          Error(
-            s"""In table ${t.name} ${ms.size} metrics (${ms.map(_.name).mkString(", ")}) share the same tag: $tag"""
+          SchemaCheckFailed(
+            List(
+              Error(
+                s"""In table ${t.name} ${ms.size} metrics (${ms.map(_.name).mkString(", ")}) share the same tag: $tag"""
+              )
+            )
           )
       }
       .fold(SchemaCheckResult.empty)(SchemaCheckResult.combine)
@@ -71,24 +79,33 @@ object PersistentSchemaChecker extends SchemaChecker {
   private def compareTables(a: TableInfo, e: TableInfo): SchemaCheckResult = {
     var checks = Seq(
       if (a.rowTimeSpan == e.rowTimeSpan)
-        Success
-      else Error(s"Expected rowTimeSpan for table ${a.name}: ${e.rowTimeSpan}, actual: ${a.rowTimeSpan}"),
-      if (a.dimensions == e.dimensions)
-        Success
+        SchemaCheckSucceed()
       else
-        Error(
-          s"Expected dimensions for table ${a.name}: ${e.dimensions.mkString(", ")}; actual: ${a.dimensions.mkString(", ")}"
+        SchemaCheckFailed(
+          List(Error(s"Expected rowTimeSpan for table ${a.name}: ${e.rowTimeSpan}, actual: ${a.rowTimeSpan}"))
+        ),
+      if (a.dimensions == e.dimensions)
+        SchemaCheckSucceed()
+      else
+        SchemaCheckFailed(
+          List(
+            Error(
+              s"Expected dimensions for table ${a.name}: ${e.dimensions.mkString(", ")}; actual: ${a.dimensions.mkString(", ")}"
+            )
+          )
         )
     )
 
     val removedFields = e.metrics.filter(ef => !a.metrics.contains(ef))
     checks ++= removedFields.map(rf =>
-      Error(s"In table ${a.name} metric ${rf.name}:${rf.sqlTypeName} has been removed or updated")
+      SchemaCheckFailed(
+        List(Error(s"In table ${a.name} metric ${rf.name}:${rf.sqlTypeName} has been removed or updated"))
+      )
     )
 
     val unknownFields = a.metrics.filter(af => !e.metrics.contains(af))
     checks ++= unknownFields.map(uf =>
-      Warning(s"In table ${a.name} metric ${uf.name}:${uf.sqlTypeName} is unknown (new)")
+      SchemaCheckSucceed(List(Warning(s"In table ${a.name} metric ${uf.name}:${uf.sqlTypeName} is unknown (new)")))
     )
 
     checks.fold(SchemaCheckResult.empty)(SchemaCheckResult.combine)

@@ -22,19 +22,19 @@ trait SchemaChecker {
 }
 
 sealed trait SchemaCheckResult
+case class SchemaCheckSucceed(messages: List[SchemaCheckMessage] = Nil) extends SchemaCheckResult
+case class SchemaCheckFailed(messages: List[SchemaCheckMessage]) extends SchemaCheckResult
 
 object SchemaCheckResult {
-  def empty: SchemaCheckResult = Success
+  def empty: SchemaCheckResult = SchemaCheckSucceed(Nil)
   def combine(a: SchemaCheckResult, b: SchemaCheckResult): SchemaCheckResult = (a, b) match {
-    case (Error(msg1), Error(msg2))     => Error(msg1 + "\n" + msg2)
-    case (Error(msg1), Warning(msg2))   => Error(msg1 + "\n" + msg2)
-    case (Warning(msg1), Error(msg2))   => Error(msg1 + "\n" + msg2)
-    case (Warning(msg1), Warning(msg2)) => Warning(msg1 + "\n" + msg2)
-    case (Success, Success)             => Success
-    case (Success, notSuccess)          => notSuccess
-    case (notSuccess, Success)          => notSuccess
+    case (SchemaCheckFailed(ms1), SchemaCheckFailed(ms2))   => SchemaCheckFailed(ms1 ++ ms2)
+    case (SchemaCheckSucceed(ms1), SchemaCheckSucceed(ms2)) => SchemaCheckSucceed(ms1 ++ ms2)
+    case (SchemaCheckSucceed(ms1), SchemaCheckFailed(ms2))  => SchemaCheckFailed(ms1 ++ ms2)
+    case (SchemaCheckFailed(ms1), SchemaCheckSucceed(ms2))  => SchemaCheckFailed(ms1 ++ ms2)
   }
 }
-case object Success extends SchemaCheckResult
-case class Warning(message: String) extends SchemaCheckResult
-case class Error(message: String) extends SchemaCheckResult
+
+sealed trait SchemaCheckMessage
+case class Warning(message: String) extends SchemaCheckMessage
+case class Error(message: String) extends SchemaCheckMessage
