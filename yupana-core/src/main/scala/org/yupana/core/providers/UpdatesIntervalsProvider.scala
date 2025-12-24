@@ -98,8 +98,8 @@ object UpdatesIntervalsProvider extends StrictLogging {
   ): Either[String, UpdatesIntervalsFilter] = {
     def addSimpleCondition(f: UpdatesIntervalsFilter, c: SqlExpr): Either[String, UpdatesIntervalsFilter] = {
       c match {
-        case Eq(FieldName(ci"table"), Constant(x)) => getTyped[String](x).map(s => f.withTableName(s))
-        case Eq(Constant(x), FieldName(ci"table")) => getTyped[String](x).map(s => f.withTableName(s))
+        case Eq(FieldName(ci"table"), Constant(x))                 => getTyped[String](x).map(s => f.withTableName(s))
+        case Eq(Constant(x), FieldName(ci"table"))                 => getTyped[String](x).map(s => f.withTableName(s))
         case BetweenCondition(FieldName(ci"updated_at"), from, to) =>
           for {
             fromTime <- getTyped[Time](from)
@@ -121,7 +121,7 @@ object UpdatesIntervalsProvider extends StrictLogging {
     def getTyped[T](value: Value)(implicit t: DataType.Aux[T]): Either[String, T] = {
       value match {
         case tv @ TypedValue(v) if tv.dataType == t => Right(v.asInstanceOf[T])
-        case Placeholder(id) =>
+        case Placeholder(id)                        =>
           params.get(id).toRight(s"Parameter #$id is not defined").flatMap {
             case tv @ TypedParameter(v) if tv.dataType == t => Right(v.asInstanceOf[T])
             case x                                          => Left(s"Got $x for parameter #$id, but $t is required")
@@ -131,7 +131,7 @@ object UpdatesIntervalsProvider extends StrictLogging {
     }
 
     maybeCondition match {
-      case None => Right(UpdatesIntervalsFilter.empty)
+      case None          => Right(UpdatesIntervalsFilter.empty)
       case Some(And(cs)) =>
         cs.foldLeft(Right(UpdatesIntervalsFilter.empty): Either[String, UpdatesIntervalsFilter])((filter, c) =>
           filter.flatMap(f => addSimpleCondition(f, c))

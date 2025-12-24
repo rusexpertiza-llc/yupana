@@ -36,7 +36,7 @@ object ProjectionStageGen {
         .filter(ExpressionCodeGenFactory.needEvaluateInProjectionStage)
         .toList
     } else {
-      query.groupBy.filter(ExpressionCodeGenFactory.needEvaluateInProjectionStage)
+      query.groupBy.filter(ExpressionCodeGenFactory.needEvaluateForGroupBy)
     }
 
     val stateWithExtLinkExprs = findExternalLinkExprs(query).foldLeft(state) { (s, expr) =>

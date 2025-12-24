@@ -21,6 +21,7 @@ import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.{ ExternalLink, Schema, Table }
+import org.yupana.api.types.DataType
 import org.yupana.core.auth.Action.Write
 import org.yupana.core.auth.{ PermissionService, YupanaUser }
 import org.yupana.core.dao.{ ChangelogDao, TSDao }
@@ -58,11 +59,8 @@ trait TsdbBase extends StrictLogging {
 
   private lazy val constantCalculator: ConstantCalculator = new ConstantCalculator(schema.tokenizer)
 
-  /** Batch size for reading values from external links */
-  val extractBatchSize: Int
-
   /** Batch size for writing values to external links */
-  val putBatchSize: Int
+  val externalLinksPutBatchSize: Int
 
   def registerExternalLink(catalog: ExternalLink, catalogService: ExternalLinkService[_ <: ExternalLink]): Unit
 
@@ -297,8 +295,11 @@ trait TsdbBase extends StrictLogging {
       override def apply[T](x: Expression[T]): Option[Expression[T]] = {
         x match {
           case PlaceholderExpr(id, t) =>
-            if (id < params.length + 1) Some(ConstantExpr(params(id - 1).asInstanceOf[T])(t))
-            else throw new IllegalStateException(s"Parameter #$id value is not defined")
+            if (id < params.length + 1) {
+              if (t == DataType[String]) {
+                Some(ConstantExpr(params(id - 1).asInstanceOf[String].toLowerCase.asInstanceOf[T])(t))
+              } else Some(ConstantExpr(params(id - 1).asInstanceOf[T])(t))
+            } else throw new IllegalStateException(s"Parameter #$id value is not defined")
 
           case NowExpr => Some(ConstantExpr(startTime))
           case _       => None
@@ -361,7 +362,7 @@ trait TsdbBase extends StrictLogging {
   def put(dataPoints: Collection[DataPoint], user: YupanaUser = YupanaUser.ANONYMOUS): Unit = {
     if (permissionService.hasPermission(user, auth.Object.Table(None), Write)) {
       val mr = mapReduceEngine(NoMetricCollector)
-      val withExternalLinks = mr.batchFlatMap(dataPoints, putBatchSize) { seq =>
+      val withExternalLinks = mr.batchFlatMap(dataPoints, externalLinksPutBatchSize) { seq =>
         externalLinkServices.foreach(_.put(seq))
         seq
       }

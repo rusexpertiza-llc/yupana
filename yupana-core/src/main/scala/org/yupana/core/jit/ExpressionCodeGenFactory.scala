@@ -67,6 +67,19 @@ object ExpressionCodeGenFactory {
     }
   }
 
+  def needEvaluateForGroupBy(expr: Expression[_]): Boolean = {
+    expr match {
+      case TimeExpr             => false
+      case DimensionExpr(_)     => false
+      case DimensionIdExpr(_)   => false
+      case MetricExpr(_)        => false
+      case DimIdInExpr(_, _)    => false
+      case DimIdNotInExpr(_, _) => false
+      case LinkExpr(_, _)       => false
+      case _                    => true
+    }
+  }
+
   private def createCodeGenerator(expr: Expression[_]): ExpressionCodeGen[_] = {
     expr match {
       case ConstantExpr(c)            => new ConstantExpressionCodeGen(expr, c)
@@ -138,7 +151,7 @@ object ExpressionCodeGenFactory {
 
       case e @ ToStringExpr(a) => UnaryExpressionCodeGen(e, x => q"$x.toString")
 
-      case e @ TruncYearExpr(a) => UnaryExpressionCodeGen(e, x => q"$truncTime($adj.firstDayOfYear)($x)")
+      case e @ TruncYearExpr(a)    => UnaryExpressionCodeGen(e, x => q"$truncTime($adj.firstDayOfYear)($x)")
       case e @ TruncQuarterExpr(a) =>
         UnaryExpressionCodeGen(
           e,
@@ -152,7 +165,7 @@ object ExpressionCodeGenFactory {
       case e @ TruncMinuteExpr(a) => UnaryExpressionCodeGen(e, x => q"$truncTime($cru.MINUTES)($x)")
       case e @ TruncSecondExpr(a) => UnaryExpressionCodeGen(e, x => q"$truncTime($cru.SECONDS)($x)")
 
-      case e @ ExtractYearExpr(a) => UnaryExpressionCodeGen(e, x => q"$x.toLocalDateTime.getYear")
+      case e @ ExtractYearExpr(a)    => UnaryExpressionCodeGen(e, x => q"$x.toLocalDateTime.getYear")
       case e @ ExtractQuarterExpr(a) =>
         UnaryExpressionCodeGen(e, x => q"1 + ($x.toLocalDateTime.getMonth.getValue - 1) / 3")
       case e @ ExtractMonthExpr(a)  => UnaryExpressionCodeGen(e, x => q"$x.toLocalDateTime.getMonthValue")
@@ -184,10 +197,10 @@ object ExpressionCodeGenFactory {
 
       case e @ ArrayLengthExpr(a)   => UnaryExpressionCodeGen(e, x => q"$x.size")
       case e @ ArrayToStringExpr(a) => UnaryExpressionCodeGen(e, x => q"""$x.mkString(", ")""")
-      case e @ ArrayTokensExpr(a) =>
+      case e @ ArrayTokensExpr(a)   =>
         UnaryExpressionCodeGen(e, x => q"""$x.flatMap(s => $tokenizer.transliteratedTokens(s))""")
 
-      case e @ ContainsExpr(as, b) => BinaryExpressionCodeGen(e, (x, y) => q"$x.contains($y)")
+      case e @ ContainsExpr(as, b)     => BinaryExpressionCodeGen(e, (x, y) => q"$x.contains($y)")
       case e @ ContainsAnyExpr(as, bs) =>
         BinaryExpressionCodeGen(e, (x, y) => q"$y.exists($x.contains)")
       case e @ ContainsAllExpr(as, bs) =>

@@ -91,7 +91,7 @@ class AddressCatalogImpl(override val schema: Schema, override val externalLink:
 
   private def idsForValues(values: Seq[(SimpleCondition, String, Set[Any])]): Seq[Set[Int]] = {
     values.map {
-      case (_, AddressCatalog.CITY, cities) => kkmAddressData.filter(x => cities.contains(x._2.city)).map(_._1).toSet
+      case (_, AddressCatalog.CITY, cities)   => kkmAddressData.filter(x => cities.contains(x._2.city)).map(_._1).toSet
       case (_, AddressCatalog.LAT, latitudes) =>
         kkmAddressData.collect { case (value, coord) if latitudes.contains(coord.lat) => value }.toSet
       case (_, AddressCatalog.LON, longitudes) =>

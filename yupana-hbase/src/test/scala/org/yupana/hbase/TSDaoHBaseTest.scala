@@ -1501,6 +1501,10 @@ class TSDaoHBaseTest
 
   class TestDao(override val dictionaryProvider: DictionaryProvider, queryRunner: QueryRunner)
       extends TSDaoHBaseBase[Iterator] {
+
+    override val putBatchSize: Int = 10000
+    override val extractBatchSize: Int = 10000
+
     override def mapReduceEngine(metricQueryCollector: MetricQueryCollector): MapReducible[Iterator] =
       IteratorMapReducible.iteratorMR
 

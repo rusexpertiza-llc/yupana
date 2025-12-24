@@ -214,7 +214,7 @@ final class HashTableDataset(schema: DatasetSchema) {
     batch
   }
 
-  private def addBatch[T](): BatchDataset = {
+  private def addBatch(): BatchDataset = {
     batches = Array.copyOf(batches, batches.length + 1)
     val newBatch = new BatchDataset(schema)
     batches(batches.length - 1) = newBatch

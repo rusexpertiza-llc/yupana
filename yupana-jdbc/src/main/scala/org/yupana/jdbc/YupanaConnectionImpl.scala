@@ -27,9 +27,8 @@ import org.yupana.serialization.ByteBufferEvalReaderWriter
 import java.io.IOException
 import java.net.{ InetSocketAddress, StandardSocketOptions }
 import java.nio.ByteBuffer
-import java.nio.channels.{ AsynchronousSocketChannel, CompletionHandler }
+import java.nio.channels.AsynchronousSocketChannel
 import java.sql.SQLException
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.logging.Logger
 import java.util.{ Properties, Timer, TimerTask }
@@ -46,6 +45,7 @@ class YupanaConnectionImpl(override val url: String, properties: Properties, exe
 
   private var channel: AsynchronousSocketChannel = _
   private var chanelReader: FramingChannelReader = _
+  private var channelWriter: BufferedChannelWriter = _
   private val nextId: AtomicInteger = new AtomicInteger(0)
   private var iterators: Map[Int, ResultIterator] = Map.empty
   private val commandQueue: mutable.Queue[Handler[_]] = mutable.Queue.empty
@@ -144,10 +144,11 @@ class YupanaConnectionImpl(override val url: String, properties: Properties, exe
       channel.connect(new InetSocketAddress(host, port)).get()
 
       chanelReader = new FramingChannelReader(channel, Frame.MAX_FRAME_SIZE + FramingChannelReader.PAYLOAD_OFFSET)
+      channelWriter = new BufferedChannelWriter(channel)
     }
 
     val cf = for {
-      _ <- write(Hello(ProtocolVersion.value, BuildInfo.version, reqTime, Map.empty))
+      _ <- channelWriter.write(Hello(ProtocolVersion.value, BuildInfo.version, reqTime, Map.empty))
       _ <- waitHelloResponse(reqTime)
       cr <- waitFor(CredentialsRequest)
       _ <- sendCredentials(cr)
@@ -182,14 +183,14 @@ class YupanaConnectionImpl(override val url: String, properties: Properties, exe
       logger.warning(msg)
       Future.failed(new YupanaException(msg))
     } else {
-      write(Credentials(CredentialsRequest.METHOD_PLAIN, user, password))
+      channelWriter.write(Credentials(CredentialsRequest.METHOD_PLAIN, user, password))
     }
   }
 
   private def sendHeartbeat(startTime: Long): Unit = {
     val time = (System.currentTimeMillis() - startTime) / 1000
     if (channel.isOpen) {
-      Await.result(write(Heartbeat(time.toInt)), Duration.Inf)
+      Await.result(channelWriter.write(Heartbeat(time.toInt)), Duration.Inf)
     } else {
       cancelHeartbeats()
     }
@@ -220,23 +221,23 @@ class YupanaConnectionImpl(override val url: String, properties: Properties, exe
     p.future
   }
 
-  private def readBatch(id: Int, read: Int): Future[Int] = {
+  private def readBatch(queryId: Int, read: Int): Future[Int] = {
     chanelReader.readFrame().flatMap { frame =>
       frame.frameType match {
         case Tags.RESULT_ROW.value =>
           val row = ResultRow.readFrame(frame)
-          if (row.id == id) {
+          if (row.queryId == queryId) {
             val newRead = read + 1
-            iterators(id).addResult(row)
-            if (newRead < batchSize) readBatch(id, newRead) else Future.successful(newRead)
+            iterators(queryId).addResult(row)
+            if (newRead < batchSize) readBatch(queryId, newRead) else Future.successful(newRead)
           } else {
-            Future.failed(new YupanaException(s"Unexpected row id ${row.id}"))
+            Future.failed(new YupanaException(s"Unexpected row for query id ${row.queryId}"))
           }
 
         case Tags.RESULT_FOOTER.value =>
-          iterators(id).setDone()
           iterators.synchronized {
-            iterators -= id
+            iterators(queryId).setDone()
+            iterators -= queryId
           }
           Future.successful(read)
 
@@ -248,11 +249,11 @@ class YupanaConnectionImpl(override val url: String, properties: Properties, exe
             case Some(sId) =>
               logger.info(s"Got error message $em")
               failIterator(sId, ex)
-              if (sId == id) {
+              if (sId == queryId) {
                 Future.failed(ex)
               } else {
                 logger.severe(s"Unexpected error message '${em.message}'")
-                readBatch(id, read)
+                readBatch(queryId, read)
               }
 
             case None =>
@@ -290,7 +291,7 @@ class YupanaConnectionImpl(override val url: String, properties: Properties, exe
     chanelReader.readFrame().flatMap { frame =>
       frame.frameType match {
         case x if x == helper.tag.value => Future.successful(helper.readFrame[ByteBuffer](frame))
-        case Tags.ERROR_MESSAGE.value =>
+        case Tags.ERROR_MESSAGE.value   =>
           val msg = ErrorMessage.readFrame(frame).message
           logger.warning(s"Got error response on '${helper.tag.value.toChar}', '$msg'")
           Future.failed(new YupanaException(msg))
@@ -320,30 +321,11 @@ class YupanaConnectionImpl(override val url: String, properties: Properties, exe
     }.map(it => extractProtoResult(id, it))
   }
 
-  private def write(request: Command[_]): Future[Unit] = {
-    logger.fine(s"Writing command ${request.helper.tag.value.toChar}")
-    val f = request.toFrame[ByteBuffer](ByteBuffer.allocate(Frame.MAX_FRAME_SIZE))
-    val bb = ByteBuffer.allocate(f.payload.position() + 4 + 1)
-    bb.put(f.frameType)
-    bb.putInt(f.payload.position())
-    f.payload.flip()
-    bb.put(f.payload)
-    bb.flip()
-
-    JdbcUtils.wrapHandler[Unit](
-      new CompletionHandler[Integer, Promise[Unit]] {
-        override def completed(result: Integer, p: Promise[Unit]): Unit = p.success(())
-        override def failed(exc: Throwable, p: Promise[Unit]): Unit = p.failure(exc)
-      },
-      (p, h) => channel.write(bb, 10, TimeUnit.SECONDS, p, h)
-    )
-  }
-
   override def close(): Unit = {
     logger.info("Close connection")
     closed = true
     cancelHeartbeats()
-    Await.ready(write(Quit()), Duration.Inf)
+    Await.ready(channelWriter.write(Quit()), Duration.Inf)
     channel.close()
   }
 
@@ -377,7 +359,7 @@ class YupanaConnectionImpl(override val url: String, properties: Properties, exe
 
   private class Handler[R](cmd: Command[_], promise: Promise[R], f: => Future[R]) {
     def execute(): Future[R] = {
-      promise.completeWith(write(cmd).flatMap(_ => f)).future
+      promise.completeWith(channelWriter.write(cmd).flatMap(_ => f)).future
     }
   }
 }

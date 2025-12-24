@@ -26,7 +26,7 @@ class DictionaryProviderImpl(dictionaryDao: DictionaryDao) extends DictionaryPro
   override def dictionary(dim: DictionaryDimension): Dictionary = {
     dictionaries.get(dim) match {
       case Some(d) => d
-      case None =>
+      case None    =>
         val d = new Dictionary(dim, dictionaryDao)
         dictionaries += dim -> d
         d

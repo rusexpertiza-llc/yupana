@@ -285,7 +285,7 @@ class TsdbTest
 
     (() => testCatalogServiceMock.externalLink).expects().returning(TestLinks.TEST_LINK).anyNumberOfTimes()
 
-    val c = equ(link(TestLinks.TEST_LINK, "testField"), const[String](params(1).asInstanceOf[String]))
+    val c = equ(link(TestLinks.TEST_LINK, "testField"), const[String](params(1).asInstanceOf[String].toLowerCase))
 
     (testCatalogServiceMock.transformCondition _)
       .expects(
@@ -1200,6 +1200,59 @@ class TsdbTest
       c += 1
     }
     c shouldBe 2
+  }
+
+  it should "aggregate by constant expression" in withTsdbMock { (tsdb, tsdbDaoMock) =>
+    val qtime = LocalDateTime.of(2025, 6, 11, 14, 42).atOffset(ZoneOffset.UTC)
+    val from = qtime.toInstant.toEpochMilli
+    val to = qtime.plusDays(1).toInstant.toEpochMilli
+    val now = Time(LocalDateTime.now())
+
+    val allExpr = const("all")
+    val m = truncMonth(time)
+
+    val query =
+      Query(
+        fields = Seq(allExpr as "grp", m as "month", sum(TestTableFields.TEST_LONG_FIELD) as "sum"),
+        table = Some(TestSchema.testTable),
+        filter = Some(and(ge(time, const(Time(from))), lt(time, const(Time(to))))),
+        groupBy = Seq(m, allExpr)
+      )
+
+    val pointTime1 = qtime.plusHours(2).toInstant.toEpochMilli
+    val pointTime2 = qtime.plusHours(5).toInstant.toEpochMilli
+
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(time, metric(TestTableFields.TEST_LONG_FIELD)),
+          and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+          Seq.empty
+        ),
+        *,
+        *,
+        NoMetricCollector
+      )
+      .onCall { (_, _, dbSchema, _) =>
+        val batch = new BatchDataset(dbSchema)
+        batch.set(0, Time(pointTime1))
+        batch.set(0, metric(TestTableFields.TEST_LONG_FIELD), 5L)
+
+        batch.set(1, Time(pointTime2))
+        batch.set(1, metric(TestTableFields.TEST_LONG_FIELD), 10L)
+
+        Iterator(batch)
+      }
+
+    val res = tsdb.query(query, now)
+    res.next() shouldBe true
+    res.get[Time]("month") shouldEqual Time(LocalDateTime.of(2025, 6, 1, 0, 0, 0))
+    res.get[String]("grp") shouldEqual "all"
+    res.get[Long]("sum") shouldEqual 15L
+
+    res.next() shouldBe false
+    res.next() shouldBe false
   }
 
   it should "execute query without aggregation (grouping) by key" in withTsdbMock { (tsdb, tsdbDaoMock) =>

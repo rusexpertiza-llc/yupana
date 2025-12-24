@@ -241,7 +241,7 @@ class YupanaResultSet protected[jdbc] (
 
   private def byteCasts(dt: DataType, value: Any): Byte = {
     dt.meta.sqlType match {
-      case Types.TINYINT => value.asInstanceOf[Byte]
+      case Types.TINYINT  => value.asInstanceOf[Byte]
       case Types.SMALLINT =>
         val short = value.asInstanceOf[Short]
         checkBounds(short, Byte.MinValue.toShort, Byte.MaxValue.toShort, DataType[Byte].meta.javaTypeName)
@@ -274,7 +274,7 @@ class YupanaResultSet protected[jdbc] (
     dt.meta.sqlType match {
       case Types.TINYINT  => value.asInstanceOf[Byte]
       case Types.SMALLINT => value.asInstanceOf[Short]
-      case Types.INTEGER =>
+      case Types.INTEGER  =>
         val int = value.asInstanceOf[Int]
         checkBounds(int, Short.MinValue.toInt, Short.MaxValue.toInt, DataType[Short].meta.javaTypeName)
         int.toShort
@@ -303,7 +303,7 @@ class YupanaResultSet protected[jdbc] (
       case Types.TINYINT  => value.asInstanceOf[Byte]
       case Types.SMALLINT => value.asInstanceOf[Short]
       case Types.INTEGER  => value.asInstanceOf[Int]
-      case Types.BIGINT =>
+      case Types.BIGINT   =>
         val long = value.asInstanceOf[Long]
         checkBounds(long, Int.MinValue.toLong, Int.MaxValue.toLong, DataType[Int].meta.javaTypeName)
         long.toInt
@@ -330,7 +330,7 @@ class YupanaResultSet protected[jdbc] (
       case Types.SMALLINT => value.asInstanceOf[Short]
       case Types.INTEGER  => value.asInstanceOf[Int]
       case Types.BIGINT   => value.asInstanceOf[Long]
-      case Types.DOUBLE =>
+      case Types.DOUBLE   =>
         val double = value.asInstanceOf[Double]
         checkBounds(double, Long.MinValue.toDouble, Long.MaxValue.toDouble, DataType[Long].meta.javaTypeName)
         double.toLong
@@ -351,7 +351,7 @@ class YupanaResultSet protected[jdbc] (
       case Types.SMALLINT => value.asInstanceOf[Short]
       case Types.INTEGER  => value.asInstanceOf[Int].toFloat
       case Types.BIGINT   => value.asInstanceOf[Long].toFloat
-      case Types.DOUBLE =>
+      case Types.DOUBLE   =>
         val double = value.asInstanceOf[Double]
         checkBounds(double, Float.MinValue.toDouble, Float.MaxValue.toDouble, "java.lang.Float")
         double.toFloat
@@ -369,11 +369,11 @@ class YupanaResultSet protected[jdbc] (
 
   private def doubleCasts(dt: DataType, value: Any): Double = {
     dt.meta.sqlType match {
-      case Types.TINYINT  => value.asInstanceOf[Byte]
-      case Types.SMALLINT => value.asInstanceOf[Short]
-      case Types.INTEGER  => value.asInstanceOf[Int]
-      case Types.BIGINT   => value.asInstanceOf[Long].toDouble
-      case Types.DOUBLE   => value.asInstanceOf[Double]
+      case Types.TINYINT                        => value.asInstanceOf[Byte]
+      case Types.SMALLINT                       => value.asInstanceOf[Short]
+      case Types.INTEGER                        => value.asInstanceOf[Int]
+      case Types.BIGINT                         => value.asInstanceOf[Long].toDouble
+      case Types.DOUBLE                         => value.asInstanceOf[Double]
       case Types.DECIMAL if !dt.meta.isCurrency =>
         val dec = value.asInstanceOf[scala.math.BigDecimal]
         checkBoundsForDecimal(dec, Double.MinValue, Double.MaxValue, DataType[Double].meta.javaTypeName)
@@ -487,7 +487,7 @@ class YupanaResultSet protected[jdbc] (
     a match {
       case b: org.yupana.api.Blob => b.bytes
       case b: Array[Byte]         => b
-      case _ =>
+      case _                      =>
         val bs = new ByteArrayOutputStream()
         val os = new ObjectOutputStream(bs)
         os.writeObject(a)

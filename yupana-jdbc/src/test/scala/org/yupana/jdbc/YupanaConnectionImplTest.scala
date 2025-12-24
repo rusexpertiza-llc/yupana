@@ -162,11 +162,11 @@ class YupanaConnectionImplTest extends AnyFlatSpec with Matchers with OptionValu
 
       val onNext = (n: NextBatch) => {
 
-        val data1 = ResultRow(n.id, Seq(toBytes(Time(13333L)), toBytes("икра баклажанная")))
+        val data1 = ResultRow(n.queryId, Seq(toBytes(Time(13333L)), toBytes("икра баклажанная")))
 
-        val data2 = ResultRow(n.id, Seq(toBytes(Time(21112L)), Array.empty))
+        val data2 = ResultRow(n.queryId, Seq(toBytes(Time(21112L)), Array.empty))
 
-        val footer = ResultFooter(n.id, 1, 2)
+        val footer = ResultFooter(n.queryId, 1, 2)
 
         Seq(data1, data2, footer)
       }
@@ -207,10 +207,10 @@ class YupanaConnectionImplTest extends AnyFlatSpec with Matchers with OptionValu
 
     withServerConnected { (server, id) =>
       val onQuery = (q: SqlQuery) => Seq(ResultHeader(q.id, "table", Seq(ResultField("x", "INTEGER"))))
-      val onNext1 = (n: NextBatch) => 1 to 10 map (x => ResultRow(n.id, Seq(toBytes(x))))
+      val onNext1 = (n: NextBatch) => 1 to 10 map (x => ResultRow(n.queryId, Seq(toBytes(x))))
       val onNext2 = (n: NextBatch) => {
-        val rows = 11 to 15 map (x => ResultRow(n.id, Seq(toBytes(x))))
-        val footer = ResultFooter(n.id, -1, 15)
+        val rows = 11 to 15 map (x => ResultRow(n.queryId, Seq(toBytes(x))))
+        val footer = ResultFooter(n.queryId, -1, 15)
         rows :+ footer
       }
 
@@ -255,11 +255,11 @@ class YupanaConnectionImplTest extends AnyFlatSpec with Matchers with OptionValu
 
       val onNext = (n: NextBatch) => {
 
-        val data1 = ResultRow(n.id, Seq(toBytes(Time(13333L)), toBytes("икра баклажанная")))
+        val data1 = ResultRow(n.queryId, Seq(toBytes(Time(13333L)), toBytes("икра баклажанная")))
 
-        val data2 = ResultRow(n.id, Seq(toBytes(Time(21112L)), Array.empty))
+        val data2 = ResultRow(n.queryId, Seq(toBytes(Time(21112L)), Array.empty))
 
-        val footer = ResultFooter(n.id, 1, 2)
+        val footer = ResultFooter(n.queryId, 1, 2)
 
         Seq(data1, data2, footer)
       }
@@ -343,7 +343,7 @@ class YupanaConnectionImplTest extends AnyFlatSpec with Matchers with OptionValu
     }
 
     val onNext = (n: NextBatch) => {
-      Seq(ResultRow(n.id, Seq(toBytes(Time(13333L)), toBytes("икра баклажанная"))))
+      Seq(ResultRow(n.queryId, Seq(toBytes(Time(13333L)), toBytes("икра баклажанная"))))
     }
 
     for {
@@ -384,7 +384,7 @@ class YupanaConnectionImplTest extends AnyFlatSpec with Matchers with OptionValu
     }
 
     val onNext = (b: NextBatch) => {
-      Seq(ResultFooter(b.id, 1, 0))
+      Seq(ResultFooter(b.queryId, 1, 0))
     }
 
     for {

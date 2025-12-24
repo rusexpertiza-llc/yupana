@@ -67,7 +67,8 @@ object FunctionRegistry {
   }
 
   val nullaryFunctions: Map[String, Expression[_]] = Map(
-    "now" -> NowExpr
+    "now" -> NowExpr,
+    "database" -> ConstantExpr("Yupana")
   )
 
   private val unaryFunctions: List[FunctionDesc] = List(
@@ -298,7 +299,7 @@ object FunctionRegistry {
   ): Either[String, Expression[_]] = {
     unaryFunctions.filter(_.name == name.toLowerCase) match {
       case Nil => Left(s"Undefined function $name")
-      case xs =>
+      case xs  =>
         val (r, l) = xs.map(_.f(calculator, e)).partition(_.isRight)
         if (r.isEmpty) {
           l.head
@@ -318,7 +319,7 @@ object FunctionRegistry {
   ): Either[String, Expression[_]] = {
     binaryFunctions.filter(_.name == name.toLowerCase) match {
       case Nil => Left(s"Undefined function $name")
-      case xs =>
+      case xs  =>
         val (r, l) = xs.map(_.f(calculator, a, b)).partition(_.isRight)
         if (r.isEmpty) {
           l.head
@@ -458,7 +459,7 @@ object FunctionRegistry {
       (c, a, b) =>
         (a, b) match {
           case (_: ConstExpr[_], _: ConstExpr[_]) => guardedExpr(fn, guard, create, a, b)
-          case (_, bc: ValueExpr[_]) =>
+          case (_, bc: ValueExpr[_])              =>
             DataTypeUtils
               .valueCast(bc, a.dataType.aux, c)
               .flatMap(e => guardedExpr(fn, guard, create, a, e))
@@ -486,15 +487,15 @@ object FunctionRegistry {
       (c, a, b) =>
         (a, b) match {
           case (_: ConstExpr[_], _: ConstExpr[_]) => guardedExpr(fn, pureGuard, create, a, b)
-          case (_, bc: ValueExpr[_]) =>
+          case (_, bc: ValueExpr[_])              =>
             guard(a.dataType).foldLeft(Left(s"No function $fn found"): Either[String, Expression[_]]) {
-              case (Right(e), _) => Right(e)
+              case (Right(e), _)      => Right(e)
               case (Left(_), (bt, g)) =>
                 DataTypeUtils.valueCast(bc, bt.aux, c).flatMap(e => guardedExpr(fn, pureGuard, create, a, e))
             }
           case (ac: ValueExpr[_], _) =>
             guard(b.dataType).foldLeft(Left(s"No function $fn found"): Either[String, Expression[_]]) {
-              case (Right(e), _) => Right(e)
+              case (Right(e), _)      => Right(e)
               case (Left(_), (at, g)) =>
                 DataTypeUtils.valueCast(ac, at.aux, c).flatMap(e => guardedExpr(fn, pureGuard, create, e, b))
             }

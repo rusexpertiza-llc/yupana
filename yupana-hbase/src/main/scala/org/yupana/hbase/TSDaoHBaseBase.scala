@@ -38,8 +38,6 @@ import scala.util.Try
 object TSDaoHBaseBase {
   val CROSS_JOIN_LIMIT = 500000
   val RANGE_FILTERS_LIMIT = 100000
-  val EXTRACT_BATCH_SIZE = 100000
-  val PUTS_BATCH_SIZE = 10000
 }
 
 trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictLogging {
@@ -162,7 +160,8 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
 
       val table = query.table // prevent query serialization in Spark
 
-      mr.batchFlatMap(rows, EXTRACT_BATCH_SIZE) { rs =>
+      mr.batchFlatMap(rows, extractBatchSize) { rs =>
+
         val filtered = context.metricsCollector.filterRows.measure(rs.size) {
           rs.filter(r => rowPostFilter(HBaseUtils.parseRowKey(r.getRow, table)))
         }

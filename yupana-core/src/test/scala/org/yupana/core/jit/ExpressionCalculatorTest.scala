@@ -306,6 +306,35 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     ) shouldEqual 3.5d
   }
 
+  it should "evaluate constants in group by" in {
+    val now = OffsetDateTime.of(2025, 6, 16, 17, 20, 53, 0, ZoneOffset.UTC)
+
+    val allExpr = const("all")
+    val m = truncMonth(time)
+
+    val query =
+      Query(
+        fields = Seq(allExpr as "grp", m as "month", sum(TestTableFields.TEST_LONG_FIELD) as "sum"),
+        table = Some(TestSchema.testTable),
+        filter = Some(and(ge(time, const(Time(now.minusDays(5)))), lt(time, const(Time(now))))),
+        groupBy = Seq(m, allExpr)
+      )
+
+    val qc = new QueryContext(query, None, tokenizer, JIT, NoMetricCollector)
+    val calc = qc.calculator
+    val batch = BatchDataset(qc)
+
+    batch.set(0, Time(now.minusDays(3)))
+    batch.set(0, metric(TestTableFields.TEST_LONG_FIELD), 1L)
+    batch.set(1, Time(now.minusDays(2)))
+    batch.set(1, metric(TestTableFields.TEST_LONG_FIELD), 2L)
+
+    calc.evaluateExpressions(batch, Time(LocalDateTime.now()), IndexedSeq.empty)
+
+    batch.get[String](0, allExpr) shouldEqual "all"
+    batch.get[String](1, allExpr) shouldEqual "all"
+  }
+
   it should "evaluate string functions" in {
 
     val now = OffsetDateTime.now()

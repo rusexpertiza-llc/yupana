@@ -1,0 +1,34 @@
+default:
+  image: sbtscala/scala-sbt:eclipse-temurin-17.0.15_6_1.11.6_2.12.20
+  tags:
+    - analytics
+    - build
+    - shell
+
+stages:
+  - verify
+  - build
+  - publish
+
+verify formatting:
+  stage: verify
+  script:
+    - sbt scalafmtCheckAll
+
+compile and test:
+  stage: build
+  script:
+    - sbt compile test
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - "**/target/test-reports/TEST-*.xml"
+
+publish artifacts:
+  stage: publish
+  rules:
+    - if: ($CI_COMMIT_BRANCH == "develop"
+        || $CI_COMMIT_BRANCH =~ /^release/)
+  script:
+    - sbt publish

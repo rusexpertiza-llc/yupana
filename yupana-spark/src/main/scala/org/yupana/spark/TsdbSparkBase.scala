@@ -86,8 +86,7 @@ abstract class TsdbSparkBase(
   override type Collection[X] = RDD[X]
   override type Result = ResultRDD
 
-  override val extractBatchSize: Int = conf.extractBatchSize
-  override val putBatchSize: Int = conf.putBatchSize
+  override val externalLinksPutBatchSize: Int = conf.putBatchSize
 
   override val calculatorFactory: ExpressionCalculatorFactory = JIT
 
@@ -102,8 +101,7 @@ abstract class TsdbSparkBase(
 
   private val dictionaryProvider: DictionaryProvider = new SparkDictionaryProvider(conf)
 
-  override val dao: TSDao[RDD, Long] =
-    new TsDaoHBaseSpark(sparkContext, schema, conf, dictionaryProvider)
+  override val dao: TSDao[RDD, Long] = new TsDaoHBaseSpark(sparkContext, schema, conf, dictionaryProvider)
 
   override def createMetricCollector(query: Query, user: YupanaUser): MetricQueryCollector = {
     if (conf.collectMetrics) {

@@ -44,7 +44,9 @@ class TSDaoKhipu(schema: Schema, settings: Settings) extends TSDao[Iterator, Lon
 
   val RANGE_FILTERS_LIMIT = 100000
   val CROSS_JOIN_LIMIT = 500000
-  val EXTRACT_BATCH_SIZE = 10000
+
+  override val putBatchSize: Int = settings("analytics.tsdb.put-batch-size")
+  override val extractBatchSize: Int = settings("analytics.tsdb.extract-batch-size")
 
   val path = new File(settings[String]("yupana.khipu.storage.path"))
   if (!path.exists()) path.mkdirs()
