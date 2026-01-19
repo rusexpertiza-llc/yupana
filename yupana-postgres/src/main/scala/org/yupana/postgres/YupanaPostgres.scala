@@ -18,7 +18,8 @@ package org.yupana.postgres
 
 import com.typesafe.scalalogging.StrictLogging
 import io.netty.bootstrap.ServerBootstrap
-import io.netty.channel.nio.NioEventLoopGroup
+import io.netty.channel.MultiThreadIoEventLoopGroup
+import io.netty.channel.nio.NioIoHandler
 import io.netty.channel.socket.SocketChannel
 import io.netty.channel.socket.nio.NioServerSocketChannel
 import io.netty.channel.{ Channel, ChannelFuture, ChannelInitializer, ChannelOption }
@@ -35,9 +36,8 @@ class YupanaPostgres(host: String, port: Int, nThreads: Int, serverContext: PgCo
     if (channel != null) throw new IllegalStateException("Already started")
 
     val closePromise = Promise[Unit]()
-    val parentGroup = new NioEventLoopGroup()
-    val childGroup = new NioEventLoopGroup()
-    val yupanaGroup = new NioEventLoopGroup(nThreads)
+    val parentGroup = new MultiThreadIoEventLoopGroup(NioIoHandler.newFactory())
+    val childGroup = new MultiThreadIoEventLoopGroup(nThreads, NioIoHandler.newFactory())
     val bootstrap = new ServerBootstrap()
 
     bootstrap
@@ -48,7 +48,7 @@ class YupanaPostgres(host: String, port: Int, nThreads: Int, serverContext: PgCo
           ch.pipeline().addLast(new IdleStateHandler(30, 0, 0))
           ch.pipeline().addLast("decoder", new InitialMessageDecoder())
           ch.pipeline().addLast("encoder", new MessageEncoder(StandardCharsets.US_ASCII))
-          ch.pipeline().addLast(yupanaGroup, "handler", new ConnectingHandler(serverContext))
+          ch.pipeline().addLast("handler", new ConnectingHandler(serverContext))
         }
       })
       .option(ChannelOption.SO_BACKLOG, Integer.valueOf(128))
@@ -60,7 +60,6 @@ class YupanaPostgres(host: String, port: Int, nThreads: Int, serverContext: PgCo
     f.channel()
       .closeFuture()
       .addListener((_: ChannelFuture) => {
-        yupanaGroup.shutdownGracefully()
         childGroup.shutdownGracefully()
         parentGroup.shutdownGracefully()
         closePromise.success(())
