@@ -354,6 +354,7 @@ lazy val examples = (project in file("yupana-examples"))
       "javax.activation"  % "activation",
       "javax.annotation"  % "javax.annotation-api",
       "com.sun.jersey"    % "jersey-json",
+      "com.sun.xml.bind"  % "jaxb-impl",
       "javax.inject"      % "javax.inject",
       "javax.servlet"     % "javax.servlet-api",
       "javax.servlet.jsp" % "javax.servlet.jsp-api",
@@ -362,7 +363,10 @@ lazy val examples = (project in file("yupana-examples"))
     assembly / assemblyMergeStrategy := {
       case PathList(ps @ _*) if ps.last.endsWith(".proto") => MergeStrategy.discard
       case PathList("META-INF", "io.netty.versions.properties") => MergeStrategy.discard
-      case PathList("META-INF", "native-image", "io.netty", "common", "native-image.properties") => MergeStrategy.first
+      case PathList("META-INF", "license", _)           => MergeStrategy.discard
+      case PathList(ps @ _*) if ps.last == "reflect-config.json" => MergeStrategy.discard
+      case PathList("META-INF", "native-image", _*) => MergeStrategy.discard
+      case PathList("META-INF", "native", _*)       => MergeStrategy.discard
       case PathList("org", "slf4j", "impl", _*)     => MergeStrategy.first
       case "module-info.class"                      => MergeStrategy.first
       case PathList("META-INF", "versions", xs @ _, "module-info.class") => MergeStrategy.discard
