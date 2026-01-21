@@ -176,7 +176,6 @@ lazy val hbase = (project in file("yupana-hbase"))
     name := "yupana-hbase",
     allSettings,
     libraryDependencies ++= Seq(
-      "org.apache.hbase"            %  "hbase-common"                   % versions.hbase,
       "org.apache.hbase"            %  "hbase-client"                   % versions.hbase,
       "org.apache.hadoop"           %  "hadoop-common"                  % versions.hadoop,
       "org.apache.hadoop"           %  "hadoop-hdfs-client"             % versions.hadoop,
@@ -246,7 +245,6 @@ lazy val spark = (project in file("yupana-spark"))
       "org.apache.spark"            %% "spark-core"                     % versions.spark          % Provided,
       "org.apache.spark"            %% "spark-sql"                      % versions.spark          % Provided,
       "org.apache.spark"            %% "spark-streaming"                % versions.spark          % Provided,
-      "org.apache.hbase"            %  "hbase-mapreduce"                % versions.hbase,
       "org.scalatest"               %% "scalatest"                      % versions.scalaTest      % Test,
       "ch.qos.logback"              %  "logback-classic"                % versions.logback        % Test,
       "ch.qos.logback"              %  "logback-core"                   % versions.logback        % Test,
@@ -364,12 +362,15 @@ lazy val examples = (project in file("yupana-examples"))
       case PathList(ps @ _*) if ps.last.endsWith(".proto") => MergeStrategy.discard
       case PathList("META-INF", "io.netty.versions.properties") => MergeStrategy.discard
       case PathList("META-INF", "license", _)           => MergeStrategy.discard
+      case PathList("META-INF", "proguard", _)          => MergeStrategy.discard
       case PathList(ps @ _*) if ps.last == "reflect-config.json" => MergeStrategy.discard
       case PathList("META-INF", "native-image", _*) => MergeStrategy.discard
       case PathList("META-INF", "native", _*)       => MergeStrategy.discard
       case PathList("org", "slf4j", "impl", _*)     => MergeStrategy.first
       case "module-info.class"                      => MergeStrategy.first
-      case PathList("META-INF", "versions", xs @ _, "module-info.class") => MergeStrategy.discard
+      case PathList("org", "apache", "hadoop", xs @_*) if xs.last == "package-info.class" => MergeStrategy.first
+      case PathList("META-INF", "versions", _, "module-info.class") => MergeStrategy.discard
+      case PathList("META-INF", "versions", _, "OSGI-INF", "MANIFEST.MF") => MergeStrategy.discard
       case x                                        => (assembly / assemblyMergeStrategy).value(x)
     },
     writeAssemblyName := {
@@ -499,17 +500,17 @@ lazy val versions = new {
   val scalaLogging = "3.9.6"
   val fastparse = "3.1.1"
   val scopt = "4.1.0"
-  val prometheus = "1.4.1"
+  val prometheus = "1.4.3"
 
-  val hbase = "2.5.7"
-  val hadoop = "3.3.6"
+  val hbase = "2.5.13"
+  val hadoop = "3.4.2"
 
   val netty = "4.2.9.Final"
 
   val lucene = "6.6.0"
   val ignite = "2.17.0"
   val ehcache = "3.10.9"
-  val caffeine = "3.2.2"
+  val caffeine = "3.2.3"
 
   val circe = "0.14.15" // To have same cats version with Spark
 
