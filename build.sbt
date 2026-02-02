@@ -186,7 +186,7 @@ lazy val hbase = (project in file("yupana-hbase"))
       "io.circe"                    %% "circe-generic"                  % versions.circe,
       "org.scalatest"               %% "scalatest"                      % versions.scalaTest                % Test,
       "org.scalamock"               %% "scalamock"                      % versions.scalaMock                % Test,
-      "com.dimafeng"                %% "testcontainers-scala-scalatest" % "0.41.5"                          % Test
+      "com.dimafeng"                %% "testcontainers-scala-scalatest" % versions.testContainers           % Test
     ),
     excludeDependencies ++= Seq(
       // workaround for https://github.com/sbt/sbt/issues/3618
@@ -252,7 +252,7 @@ lazy val spark = (project in file("yupana-spark"))
       "org.scalatest"               %% "scalatest"                      % versions.scalaTest      % Test,
       "ch.qos.logback"              %  "logback-classic"                % versions.logback        % Test,
       "ch.qos.logback"              %  "logback-core"                   % versions.logback        % Test,
-      "com.dimafeng"                %% "testcontainers-scala-scalatest" % "0.41.5"                % Test
+      "com.dimafeng"                %% "testcontainers-scala-scalatest" % versions.testContainers % Test
     ),
     excludeDependencies ++= Seq(
       // workaround for https://github.com/sbt/sbt/issues/3618
@@ -426,11 +426,11 @@ lazy val benchmarks = (project in file("yupana-benchmarks"))
   .settings(
     name := "yupana-benchmarks",
     libraryDependencies ++= Seq(
-      "com.github.scopt"              %% "scopt"                      % versions.scopt,
-      "io.prometheus"                 %  "simpleclient"               % versions.prometheus,
-      "io.prometheus"                 %  "simpleclient_pushgateway"   % versions.prometheus,
-      "jakarta.ws.rs"                 %  "jakarta.ws.rs-api"          % "2.1.5",
-      "org.scalatest"                 %% "scalatest"                  % versions.scalaTest    % Test
+      "com.github.scopt"              %% "scopt"                                    % versions.scopt,
+      "io.prometheus"                 %  "prometheus-metrics-core"                  % versions.prometheus,
+      "io.prometheus"                 %  "prometheus-metrics-exporter-pushgateway"  % versions.prometheus,
+      "jakarta.ws.rs"                 %  "jakarta.ws.rs-api"                        % "2.1.5",
+      "org.scalatest"                 %% "scalatest"                                % versions.scalaTest    % Test
     ),
     excludeDependencies ++= Seq(
       // workaround for https://github.com/sbt/sbt/issues/3618
@@ -496,7 +496,7 @@ lazy val versions = new {
   val scalaLogging = "3.9.5"
   val fastparse = "3.1.1"
   val scopt = "4.1.0"
-  val prometheus = "0.16.0"
+  val prometheus = "1.4.1"
 
   val hbase = "2.5.7"
   val hadoop = "3.3.6"
@@ -504,11 +504,11 @@ lazy val versions = new {
   val netty = "4.1.118.Final"
 
   val lucene = "6.6.0"
-  val ignite = "2.8.1"
-  val ehcache = "3.9.7"
-  val caffeine = "3.1.8"
+  val ignite = "2.17.0"
+  val ehcache = "3.10.9"
+  val caffeine = "3.2.2"
 
-  val circe = "0.14.10" // To have same cats version with Spark
+  val circe = "0.14.14" // To have same cats version with Spark
 
   val flyway = "7.4.0"
   val hikariCP = "4.0.3"
@@ -518,7 +518,8 @@ lazy val versions = new {
 
   val scalaTest = "3.2.19"
   val scalaTestCheck = "3.2.19.0"
-  val scalaMock = "7.3.2"
+  val scalaMock = "7.4.1"
+  val testContainers = "0.43.0"
 }
 
 val commonSettings = Seq(
@@ -571,7 +572,6 @@ val noPublishSettings = Seq(
 
 val publishSettings = Seq(
   publishMavenStyle := true,
-  credentials += Credentials(Path.userHome / ".ivy2" / ".credentials_nexus"),
   publishTo := {
     if (isSnapshot.value)
       Some("nexus common snapshots" at "https://nexus.esc-hq.ru/nexus/content/repositories/common-snapshots/")
@@ -614,7 +614,35 @@ val releaseSettings = Seq(
 
 val allSettings = commonSettings ++ publishSettings ++ releaseSettings
 
+ThisBuild / credentials += makeCredentials(
+  "nexus.esc-hq.ru",
+  "Sonatype Nexus Repository Manager",
+  "REPO_USER",
+  "REPO_PASSWORD",
+  Path.userHome / ".ivy2" / ".credentials_nexus",
+  sLog.value
+)
+
 ThisBuild / credentials ++= (for {
   username <- Option(System.getenv().get("SONATYPE_USERNAME"))
   password <- Option(System.getenv().get("SONATYPE_PASSWORD"))
 } yield Credentials("Sonatype Nexus Repository Manager", "oss.sonatype.org", username, password)).toSeq
+
+def makeCredentials(
+    host: String,
+    realm: String,
+    userNameVar: String,
+    passwordVar: String,
+    path: File,
+    logger: Logger
+): Credentials = {
+  (sys.env.get(userNameVar), sys.env.get(passwordVar)) match {
+    case (Some(u), Some(p)) =>
+      logger.info(s"Have username '$u' in $userNameVar and some password in $passwordVar")
+      Credentials(realm, host, u, p)
+
+    case _ =>
+      logger.info(s"Reading credentials from file $path")
+      Credentials(path)
+  }
+}

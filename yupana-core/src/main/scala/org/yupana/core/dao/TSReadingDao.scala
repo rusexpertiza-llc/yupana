@@ -22,6 +22,9 @@ import org.yupana.core.model.{ BatchDataset, InternalQuery, DatasetSchema }
 import org.yupana.core.utils.metric.MetricQueryCollector
 
 trait TSReadingDao[Collection[_], IdType] {
+
+  val extractBatchSize: Int
+
   def query(
       query: InternalQuery,
       queryContext: QueryContext,

@@ -175,7 +175,7 @@ case class State(
   def withGlobal(key: Any, tpe: Tree, tree: Tree): (TermName, State) = {
     globalDecls.find(_._1 == key) match {
       case Some((_, Decl(name, _, _))) => name -> this
-      case None =>
+      case None                        =>
         val name = TermName(s"global_${globalDecls.size}")
         val ns =
           copy(globalDecls = globalDecls :+ (key -> Decl(name, tpe, tree)))

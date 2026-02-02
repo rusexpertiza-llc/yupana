@@ -13,7 +13,7 @@ trait ParsedValues {
   class ParsedOpts[T](val p: Parsed[T], pos: source.Position) {
     def value: T = p match {
       case Success(v, _) => v
-      case f: Failure =>
+      case f: Failure    =>
         throw new TestFailedException((_: StackDepthException) => Some(s"Value is not parsed ${f.msg}"), None, pos)
     }
 

@@ -228,7 +228,7 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
       case Some(p) =>
         p.parsed.statement match {
           case SetValue(_, _) => ctx.write(CommandComplete("SET"))
-          case _ =>
+          case _              =>
             if (p.prepared != EmptyQuery) {
               context.queryEngineRouter.execute(user, p.prepared) match {
                 case Right(result) =>
@@ -249,7 +249,7 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
     if (sql.nonEmpty) {
       context.queryEngineRouter.parse(preprocess(sql)).flatMap(context.queryEngineRouter.bind(_, Map.empty)) match {
         case Right(PreparedCommand(SetValue(_, _), _, _, _)) => ctx.write(CommandComplete("SET"))
-        case Right(x) =>
+        case Right(x)                                        =>
           context.queryEngineRouter.execute(user, x) match {
             case Right(result) =>
               ctx.write(makeDescription(result))

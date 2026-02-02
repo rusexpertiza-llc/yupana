@@ -30,7 +30,8 @@ class TSDaoHBase(
     connection: Connection,
     namespace: String,
     override val dictionaryProvider: DictionaryProvider,
-    putsBatchSize: Int = TSDaoHBaseBase.PUTS_BATCH_SIZE,
+    override val putBatchSize: Int,
+    override val extractBatchSize: Int,
     reduceLimit: Int
 ) extends TSDaoHBaseBase[Iterator] {
 
@@ -50,7 +51,7 @@ class TSDaoHBase(
       rangeScanDims.flatMap { dimIds =>
         val filter = multiRowRangeFilter(queryContext.table, intervals, dimIds)
         createScan(queryContext, filter, Seq.empty, totalFrom, totalTo) match {
-          case Some(scan) => executeScan(connection, namespace, scan, queryContext, TSDaoHBaseBase.EXTRACT_BATCH_SIZE)
+          case Some(scan) => executeScan(connection, namespace, scan, queryContext, extractBatchSize)
           case None       => Iterator.empty
         }
       }
@@ -64,7 +65,7 @@ class TSDaoHBase(
       dataPoints: Iterator[DataPoint],
       username: String
   ): Iterator[UpdateInterval] = {
-    mr.batchFlatMap(dataPoints, putsBatchSize) { dataPointsBatch =>
+    mr.batchFlatMap(dataPoints, putBatchSize) { dataPointsBatch =>
       doPutBatch(connection, dictionaryProvider, namespace, username, dataPointsBatch)
     }
   }

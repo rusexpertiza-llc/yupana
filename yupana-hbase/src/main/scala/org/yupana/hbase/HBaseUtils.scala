@@ -426,7 +426,7 @@ object HBaseUtils extends StrictLogging {
         PersistentSchemaChecker.check(schema, tsdbSchemaBytes)
 
         writeTsdbSchema(connection, namespace, tsdbSchemaBytes)
-        Success
+        SchemaCheckSucceed()
       }
     }
   }
@@ -473,10 +473,21 @@ object HBaseUtils extends StrictLogging {
     }
     if (config.needCheckSchema) {
       checkSchemaDefinition(connection, namespace, schema) match {
-        case Success      => logger.info("TSDB table definition checked successfully")
-        case Warning(msg) => logger.warn("TSDB table definition check warnings: " + msg)
-        case Error(msg)   => throw new RuntimeException("TSDB table definition check failed: " + msg)
+        case SchemaCheckSucceed(ms) =>
+          logCheckMessages(ms)
+          logger.info("TSDB table definition checked successfully")
+        case SchemaCheckFailed(ms) =>
+          logCheckMessages(ms)
+          logger.error("TSDB table definition check failed")
+          throw new RuntimeException("TSDB table definition check failed: " + ms)
       }
+    }
+  }
+
+  private def logCheckMessages(msgs: List[SchemaCheckMessage]): Unit = {
+    msgs.foreach {
+      case Error(msg)   => logger.error(s"  Schema error: $msg")
+      case Warning(msg) => logger.warn(s"  Schema warning: $msg")
     }
   }
 
@@ -625,7 +636,7 @@ object HBaseUtils extends StrictLogging {
   ): MemoryBuffer = {
     val time = dataset.get[Time](rowNum, "time")
     val bt = HBaseUtils.baseTime(time.millis, table)
-    val buffer = MemoryBuffer.allocateNative(keySize)
+    val buffer = MemoryBuffer.allocateHeap(keySize)
     buffer.putLong(bt)
 
     table.dimensionSeq.foreach {

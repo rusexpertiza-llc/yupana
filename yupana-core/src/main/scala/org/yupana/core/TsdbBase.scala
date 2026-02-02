@@ -59,11 +59,8 @@ trait TsdbBase extends StrictLogging {
 
   private lazy val constantCalculator: ConstantCalculator = new ConstantCalculator(schema.tokenizer)
 
-  /** Batch size for reading values from external links */
-  val extractBatchSize: Int
-
   /** Batch size for writing values to external links */
-  val putBatchSize: Int
+  val externalLinksPutBatchSize: Int
 
   def registerExternalLink(catalog: ExternalLink, catalogService: ExternalLinkService[_ <: ExternalLink]): Unit
 
@@ -365,7 +362,7 @@ trait TsdbBase extends StrictLogging {
   def put(dataPoints: Collection[DataPoint], user: YupanaUser = YupanaUser.ANONYMOUS): Unit = {
     if (permissionService.hasPermission(user, auth.Object.Table(None), Write)) {
       val mr = mapReduceEngine(NoMetricCollector)
-      val withExternalLinks = mr.batchFlatMap(dataPoints, putBatchSize) { seq =>
+      val withExternalLinks = mr.batchFlatMap(dataPoints, externalLinksPutBatchSize) { seq =>
         externalLinkServices.foreach(_.put(seq))
         seq
       }

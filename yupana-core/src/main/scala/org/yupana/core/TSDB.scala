@@ -42,8 +42,7 @@ class TSDB(
   override type Collection[X] = Iterator[X]
   override type Result = TsdbServerResult
 
-  override lazy val extractBatchSize: Int = config.extractBatchSize
-  override lazy val putBatchSize: Int = config.putBatchSize
+  override lazy val externalLinksPutBatchSize: Int = config.putBatchSize
 
   override val calculatorFactory: ExpressionCalculatorFactory = CachingExpressionCalculatorFactory
 

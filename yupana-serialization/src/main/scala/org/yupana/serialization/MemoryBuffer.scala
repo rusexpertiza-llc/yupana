@@ -337,11 +337,6 @@ object MemoryBuffer {
     new MemoryBuffer(a, baseOffset, size)
   }
 
-  def allocateNative(size: Int): MemoryBuffer = {
-    val baseOffset = UNSAFE.allocateMemory(size)
-    new MemoryBuffer(null, baseOffset, size)
-  }
-
   def ofBytes(bytes: Array[Byte]): MemoryBuffer = {
     val baseOffset = Unsafe.ARRAY_BYTE_BASE_OFFSET
     new MemoryBuffer(bytes, baseOffset, bytes.length)

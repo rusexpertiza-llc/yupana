@@ -62,7 +62,7 @@ object DataTypeUtils {
     const match {
       case ConstantExpr(v) => constCast(v, const.dataType, dataType, calc)
       case NullExpr(_)     => Right(null.asInstanceOf[T])
-      case TrueExpr =>
+      case TrueExpr        =>
         if (dataType == DataType[Boolean]) Right(true.asInstanceOf[T])
         else Left(s"Cannot convert TRUE to data type $dataType")
       case FalseExpr =>
@@ -78,13 +78,13 @@ object DataTypeUtils {
   ): Either[String, ValueExpr[T]] = {
     value match {
       case UntypedPlaceholderExpr(id) => Right(PlaceholderExpr(id, dataType))
-      case PlaceholderExpr(id, dt) =>
+      case PlaceholderExpr(id, dt)    =>
         Either.cond(dt == dataType, PlaceholderExpr(id, dataType), s"Expect placeholder type $dataType, but got $dt")
-      case ConstantExpr(v) => constCast(v, value.dataType, dataType, calc).map(c => ConstantExpr(c)(dataType))
+      case ConstantExpr(v)      => constCast(v, value.dataType, dataType, calc).map(c => ConstantExpr(c)(dataType))
       case TrueExpr | FalseExpr =>
         if (dataType == DataType[Boolean]) Right(value.asInstanceOf[ValueExpr[T]])
         else Left(s"Cannot cast value $value to $dataType")
-      case NullExpr(_) => Right(NullExpr(dataType))
+      case NullExpr(_)          => Right(NullExpr(dataType))
       case TupleValueExpr(a, b) =>
         dataType match {
           case tdt: TupleDataType[x, y] =>

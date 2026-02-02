@@ -381,7 +381,7 @@ object SqlParser {
   def parse(sql: String): Either[String, Statement] = {
     fastparse.parse(sql.trim, statement(_)) match {
       case Parsed.Success(s, _) => Right(s)
-      case f: Parsed.Failure =>
+      case f: Parsed.Failure    =>
         val trace = f.trace()
         val expected = trace.terminals.render
         val actual = Util.literalize(f.extra.input.slice(f.index, f.index + 10))
