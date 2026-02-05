@@ -30,6 +30,12 @@ trait ItemTableMetrics {
   val tax10000Field: Metric.Aux[Currency] = Metric[Currency]("tax10000", 9, rarelyQueried)
   val tax15255Field: Metric.Aux[Currency] = Metric[Currency]("tax15255", 10, rarelyQueried)
   val tax18000Field: Metric.Aux[Currency] = Metric[Currency]("tax18000", 11, rarelyQueried)
+  val tax05000Field: Metric.Aux[Currency] = Metric[Currency]("tax05000", 60, rarelyQueried)
+  val tax07000Field: Metric.Aux[Currency] = Metric[Currency]("tax07000", 61, rarelyQueried)
+  val tax22000Field: Metric.Aux[Currency] = Metric[Currency]("tax22000", 62, rarelyQueried)
+  val tax05105Field: Metric.Aux[Currency] = Metric[Currency]("tax05105", 63, rarelyQueried)
+  val tax07107Field: Metric.Aux[Currency] = Metric[Currency]("tax07107", 64, rarelyQueried)
+  val tax22122Field: Metric.Aux[Currency] = Metric[Currency]("tax22122", 65, rarelyQueried)
   val taxNoField: Metric.Aux[Currency] = Metric[Currency]("taxNo", 20, rarelyQueried)
   val documentNumberField: Metric.Aux[Long] = Metric[Long]("documentNumber", 4, rarelyQueried)
   val totalReceiptSumField: Metric.Aux[Currency] = Metric[Currency]("totalReceiptSum", 5, rarelyQueried)
@@ -70,6 +76,12 @@ trait ItemTableMetrics {
   val totalReceiptTax09091Field: Metric.Aux[Currency] = Metric[Currency]("totalReceiptTax09091", 43, rarelyQueried)
   val totalReceiptTax15255Field: Metric.Aux[Currency] = Metric[Currency]("totalReceiptTax15255", 50, rarelyQueried)
   val totalReceiptTax18000Field: Metric.Aux[Currency] = Metric[Currency]("totalReceiptTax18000", 51, rarelyQueried)
+  val totalReceiptTax05000Field: Metric.Aux[Currency] = Metric[Currency]("totalReceiptTax05000", 66, rarelyQueried)
+  val totalReceiptTax07000Field: Metric.Aux[Currency] = Metric[Currency]("totalReceiptTax07000", 67, rarelyQueried)
+  val totalReceiptTax22000Field: Metric.Aux[Currency] = Metric[Currency]("totalReceiptTax22000", 68, rarelyQueried)
+  val totalReceiptTax05105Field: Metric.Aux[Currency] = Metric[Currency]("totalReceiptTax05105", 69, rarelyQueried)
+  val totalReceiptTax07107Field: Metric.Aux[Currency] = Metric[Currency]("totalReceiptTax07107", 70, rarelyQueried)
+  val totalReceiptTax22122Field: Metric.Aux[Currency] = Metric[Currency]("totalReceiptTax22122", 71, rarelyQueried)
 
   val documentNameField: Metric.Aux[Int] = Metric[Int]("documentName", 52, rarelyQueried)
   val acceptedAtField: Metric.Aux[Time] = Metric[Time]("acceptedAt", 53, rarelyQueried)
@@ -86,6 +98,12 @@ trait ItemTableMetrics {
     tax16667Field,
     tax18000Field,
     tax20000Field,
+    tax05000Field,
+    tax07000Field,
+    tax22000Field,
+    tax07107Field,
+    tax05105Field,
+    tax22122Field,
     taxNoField,
     documentNumberField,
     totalReceiptSumField,
@@ -118,6 +136,12 @@ trait ItemTableMetrics {
     totalReceiptTax09091Field,
     totalReceiptTax15255Field,
     totalReceiptTax18000Field,
+    totalReceiptTax05000Field,
+    totalReceiptTax07000Field,
+    totalReceiptTax22000Field,
+    totalReceiptTax07107Field,
+    totalReceiptTax05105Field,
+    totalReceiptTax22122Field,
     documentNameField,
     acceptedAtField
   )
