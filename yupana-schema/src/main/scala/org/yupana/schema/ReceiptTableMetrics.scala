@@ -24,37 +24,43 @@ trait ReceiptTableMetrics {
 
   import Metric.Groups._
 
-  val totalSumField = Metric[Currency]("totalSum", 1)
-  val cashSumField = Metric[Currency]("cashSum", 2, rarelyQueried)
-  val cardSumField = Metric[Currency]("cardSum", 3, rarelyQueried)
-  val positionsCountField = Metric[Long]("positionsCount", 4)
-  val totalTaxField = Metric[Currency]("totalTax", 5, rarelyQueried)
-  val tax00000Field = Metric[Currency]("tax00000", 6, rarelyQueried)
-  val tax09091Field = Metric[Currency]("tax09091", 7, rarelyQueried)
-  val tax10000Field = Metric[Currency]("tax10000", 8, rarelyQueried)
-  val tax15255Field = Metric[Currency]("tax15255", 9, rarelyQueried)
-  val tax16667Field = Metric[Currency]("tax16667", 26, rarelyQueried)
-  val tax18000Field = Metric[Currency]("tax18000", 10, rarelyQueried)
-  val tax20000Field = Metric[Currency]("tax20000", 27, rarelyQueried)
-  val taxNoField = Metric[Currency]("taxNo", 20, rarelyQueried)
-  val itemsCountField = Metric[Long]("itemsCount", 11)
-  val minTimeField = Metric[Time]("minTime", 13, rarelyQueried)
-  val maxTimeField = Metric[Time]("maxTime", 14, rarelyQueried)
-  val receiptCountField = Metric[Long]("receiptCount", 15)
-  val kkmDistinctCountField = Metric[Int]("kkmDistinctCount", 16)
-  val correctionBasis = Metric[String]("correctionBasis", 17, rarelyQueried)
-  val correctionDocumentNumber = Metric[String]("correctionDocumentNumber", 18, rarelyQueried)
-  val correctionDocumentDateTime = Metric[Long]("correctionDocumentDateTime", 19, rarelyQueried)
-  val postpaymentSumField = Metric[Currency]("postpaymentSum", 21, rarelyQueried)
-  val counterSubmissionSumField = Metric[Currency]("counterSubmissionSum", 22, rarelyQueried)
-  val prepaymentSumField = Metric[Currency]("prepaymentSum", 23, rarelyQueried)
-  val taxationType = Metric[Int]("taxationType", 24, rarelyQueried)
-  val acceptedAt = Metric[Time]("acceptedAt", 25, rarelyQueried)
-  val cashReceiptCountField = Metric[Long]("cashReceiptCount", 28)
-  val cardReceiptCountField = Metric[Long]("cardReceiptCount", 29)
-  val documentNumberField = Metric[Long]("documentNumber", 30, rarelyQueried)
-  val operator = Metric[String]("operator", 31, rarelyQueried)
-  val totalQuantityField = Metric[Double]("totalQuantity", 32, rarelyQueried)
+  val totalSumField: Metric.Aux[Currency] = Metric[Currency]("totalSum", 1)
+  val cashSumField: Metric.Aux[Currency] = Metric[Currency]("cashSum", 2, rarelyQueried)
+  val cardSumField: Metric.Aux[Currency] = Metric[Currency]("cardSum", 3, rarelyQueried)
+  val positionsCountField: Metric.Aux[Long] = Metric[Long]("positionsCount", 4)
+  val totalTaxField: Metric.Aux[Currency] = Metric[Currency]("totalTax", 5, rarelyQueried)
+  val tax00000Field: Metric.Aux[Currency] = Metric[Currency]("tax00000", 6, rarelyQueried)
+  val tax09091Field: Metric.Aux[Currency] = Metric[Currency]("tax09091", 7, rarelyQueried)
+  val tax10000Field: Metric.Aux[Currency] = Metric[Currency]("tax10000", 8, rarelyQueried)
+  val tax15255Field: Metric.Aux[Currency] = Metric[Currency]("tax15255", 9, rarelyQueried)
+  val tax16667Field: Metric.Aux[Currency] = Metric[Currency]("tax16667", 26, rarelyQueried)
+  val tax18000Field: Metric.Aux[Currency] = Metric[Currency]("tax18000", 10, rarelyQueried)
+  val tax20000Field: Metric.Aux[Currency] = Metric[Currency]("tax20000", 27, rarelyQueried)
+  val tax05000Field: Metric.Aux[Currency] = Metric[Currency]("tax05000", 70, rarelyQueried)
+  val tax07000Field: Metric.Aux[Currency] = Metric[Currency]("tax07000", 71, rarelyQueried)
+  val tax22000Field: Metric.Aux[Currency] = Metric[Currency]("tax22000", 72, rarelyQueried)
+  val tax04762Field: Metric.Aux[Currency] = Metric[Currency]("tax04762", 73, rarelyQueried)
+  val tax06542Field: Metric.Aux[Currency] = Metric[Currency]("tax06542", 74, rarelyQueried)
+  val tax18033Field: Metric.Aux[Currency] = Metric[Currency]("tax18033", 75, rarelyQueried)
+  val taxNoField: Metric.Aux[Currency] = Metric[Currency]("taxNo", 20, rarelyQueried)
+  val itemsCountField: Metric.Aux[Long] = Metric[Long]("itemsCount", 11)
+  val minTimeField: Metric.Aux[Time] = Metric[Time]("minTime", 13, rarelyQueried)
+  val maxTimeField: Metric.Aux[Time] = Metric[Time]("maxTime", 14, rarelyQueried)
+  val receiptCountField: Metric.Aux[Long] = Metric[Long]("receiptCount", 15)
+  val kkmDistinctCountField: Metric.Aux[Int] = Metric[Int]("kkmDistinctCount", 16)
+  val correctionBasis: Metric.Aux[String] = Metric[String]("correctionBasis", 17, rarelyQueried)
+  val correctionDocumentNumber: Metric.Aux[String] = Metric[String]("correctionDocumentNumber", 18, rarelyQueried)
+  val correctionDocumentDateTime: Metric.Aux[Long] = Metric[Long]("correctionDocumentDateTime", 19, rarelyQueried)
+  val postpaymentSumField: Metric.Aux[Currency] = Metric[Currency]("postpaymentSum", 21, rarelyQueried)
+  val counterSubmissionSumField: Metric.Aux[Currency] = Metric[Currency]("counterSubmissionSum", 22, rarelyQueried)
+  val prepaymentSumField: Metric.Aux[Currency] = Metric[Currency]("prepaymentSum", 23, rarelyQueried)
+  val taxationType: Metric.Aux[Int] = Metric[Int]("taxationType", 24, rarelyQueried)
+  val acceptedAt: Metric.Aux[Time] = Metric[Time]("acceptedAt", 25, rarelyQueried)
+  val cashReceiptCountField: Metric.Aux[Long] = Metric[Long]("cashReceiptCount", 28)
+  val cardReceiptCountField: Metric.Aux[Long] = Metric[Long]("cardReceiptCount", 29)
+  val documentNumberField: Metric.Aux[Long] = Metric[Long]("documentNumber", 30, rarelyQueried)
+  val operator: Metric.Aux[String] = Metric[String]("operator", 31, rarelyQueried)
+  val totalQuantityField: Metric.Aux[Double] = Metric[Double]("totalQuantity", 32, rarelyQueried)
 
   val baseFields: Seq[Metric] = Seq(
     totalSumField,
@@ -72,6 +78,12 @@ trait ReceiptTableMetrics {
     tax16667Field,
     tax18000Field,
     tax20000Field,
+    tax05000Field,
+    tax07000Field,
+    tax22000Field,
+    tax04762Field,
+    tax06542Field,
+    tax18033Field,
     taxNoField,
     itemsCountField,
     totalQuantityField
@@ -123,6 +135,12 @@ trait ReceiptTableMetrics {
       QueryFieldToMetric(sum(metric(tax16667Field)) as tax16667Field.name, tax16667Field),
       QueryFieldToMetric(sum(metric(tax18000Field)) as tax18000Field.name, tax18000Field),
       QueryFieldToMetric(sum(metric(tax20000Field)) as tax20000Field.name, tax20000Field),
+      QueryFieldToMetric(sum(metric(tax05000Field)) as tax05000Field.name, tax05000Field),
+      QueryFieldToMetric(sum(metric(tax07000Field)) as tax07000Field.name, tax07000Field),
+      QueryFieldToMetric(sum(metric(tax22000Field)) as tax22000Field.name, tax22000Field),
+      QueryFieldToMetric(sum(metric(tax04762Field)) as tax04762Field.name, tax04762Field),
+      QueryFieldToMetric(sum(metric(tax06542Field)) as tax06542Field.name, tax06542Field),
+      QueryFieldToMetric(sum(metric(tax18033Field)) as tax18033Field.name, tax18033Field),
       QueryFieldToMetric(sum(metric(itemsCountField)) as itemsCountField.name, itemsCountField),
       QueryFieldToMetric(sum(metric(taxNoField)) as taxNoField.name, taxNoField),
       QueryFieldToMetric(count(metric(documentNumberField)) as documentNumberField.name, receiptCountField),
