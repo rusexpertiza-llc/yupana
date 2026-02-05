@@ -24,7 +24,7 @@ jobs:
       uses: sbt/setup-sbt@v1
 
     - name: Cache sbt
-      uses: actions/cache@v5.0.2
+      uses: actions/cache@v5.0.3
       with:
         path: |
           ~/.sbt
@@ -40,7 +40,7 @@ jobs:
         echo -e "realm=Dummy\nhost=example.com\nuser=user\npassword=password" > "$HOME/.ivy2/.credentials_nexus"
 
     - name: Verify the code
-      run: sbt headerCheck scalafmtCheckAll
+      run: sbt headerCheck scalafmtCheckAll scalafmtSbtCheck
 
   build:
     name: Compile and test
@@ -63,7 +63,7 @@ jobs:
 
 
     - name: Cache sbt
-      uses: actions/cache@v5.0.2
+      uses: actions/cache@v5.0.3
       with:
         path: |
           ~/.sbt
