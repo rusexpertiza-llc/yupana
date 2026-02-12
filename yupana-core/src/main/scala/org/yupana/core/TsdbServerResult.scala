@@ -62,7 +62,7 @@ class TsdbServerResult(
     }
   }
 
-  override def isLast(): Boolean = {
+  override def isLast: Boolean = {
     !data.hasNext && batch.forall(b => rowNumber >= b.size - 1)
   }
 

@@ -857,7 +857,7 @@ class TsdbTest
 
     val res = tsdb.query(query)
     res.next() shouldBe false
-    res.isLast() shouldBe true
+    res.isLast shouldBe true
   }
 
   it should "execute query with downsampling" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -3883,7 +3883,7 @@ class TsdbTest
 
     val res = tsdb.query(query, now)
     res.next() shouldBe false
-    res.isLast() shouldBe true
+    res.isLast shouldBe true
   }
 
   it should "support queries without tables" in withTsdbMock { (tsdb, _) =>

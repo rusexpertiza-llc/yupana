@@ -254,6 +254,36 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     ftr.rows shouldEqual 15
   }
 
+  it should "send not send footer if rows count is a multiple of acquired" in {
+
+    val queryEngine = mock[QueryEngineRouter]
+    val user = YupanaUser("test", None, TsdbRole.ReadWrite)
+    val ch = new EmbeddedChannel(new QueryHandler(ServerContext(queryEngine, NonEmptyUserAuthorizer), user))
+
+    (queryEngine
+      .query(_: YupanaUser, _: String, _: Map[Int, Parameter])(_: StringReaderWriter))
+      .expects(user, "SELECT x FROM table", Map.empty[Int, Parameter], *)
+      .returning(Right(SimpleResult("table", Seq("x"), Seq(DataType[Int]), (1 to 10).map(x => Array[Any](x)).iterator)))
+
+    ch.writeInbound(SqlQuery(1, "SELECT x FROM table", Map.empty).toFrame(Unpooled.buffer()))
+    val header = readMessage(ch, ResultHeader)
+    header.tableName shouldEqual "table"
+    header.id shouldEqual 1
+
+    ch.writeInbound(NextBatch(1, 10).toFrame(Unpooled.buffer()))
+    (1 to 10).foreach { e =>
+      val row = readMessage(ch, ResultRow)
+      row.queryId shouldEqual 1
+      row.values(0) shouldEqual Array(e)
+    }
+    ch.readOutbound[Frame[ByteBuf]]() shouldBe null
+
+    ch.writeInbound(NextBatch(1, 10).toFrame(Unpooled.buffer()))
+    val ftr = readMessage(ch, ResultFooter)
+    ftr.rows shouldEqual 10
+    ch.readOutbound[Frame[ByteBuf]]() shouldBe null
+  }
+
   it should "support batch queries" in {
     val queryEngine = mock[QueryEngineRouter]
     val user = YupanaUser("test", None, TsdbRole.Admin)
