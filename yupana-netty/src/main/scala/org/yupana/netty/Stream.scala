@@ -24,31 +24,22 @@ import scala.collection.mutable.ListBuffer
 
 class Stream(id: Int, result: Result) {
 
+  private var footerSent = false
   private var rows = 0
   private val resultTypes = result.dataTypes.zipWithIndex
-  val MAX_VALUE_SIZE = 2_000_000
+  private val MAX_VALUE_SIZE = 2_000_000
   private val buffer = Unpooled.buffer(MAX_VALUE_SIZE)
   implicit val readerWriter: ByteReaderWriter[ByteBuf] = ByteBufEvalReaderWriter
 
   def close(): Unit = result.close()
 
+  def hasNext: Boolean = !footerSent
+
   def next(count: Int): Seq[Response[_]] = {
-
-    val batch = createBatch(result, count)
-    if (result.isLast()) {
-      batch :+ createFooter(result)
-    } else {
-      batch
-    }
-  }
-
-  def hasNext: Boolean = !result.isLast()
-
-  private def createBatch(result: Result, size: Int): Seq[ResultRow] = {
-    val res = ListBuffer.empty[ResultRow]
+    val res = ListBuffer.empty[Response[_]]
 
     var i = 0
-    while (i < size && result.next()) {
+    while (i < count && result.next()) {
       val bytes = resultTypes.map {
         case (rt, idx) =>
           val v = result.get[rt.T](idx)
@@ -65,10 +56,10 @@ class Stream(id: Int, result: Result) {
       res += ResultRow(id, bytes)
       i += 1
     }
+    if (i < count - 1) {
+      res += new ResultFooter(id, -1, rows)
+      footerSent = true
+    }
     res.toSeq
-  }
-
-  private def createFooter(result: Result): ResultFooter = {
-    new ResultFooter(id, -1, rows)
   }
 }

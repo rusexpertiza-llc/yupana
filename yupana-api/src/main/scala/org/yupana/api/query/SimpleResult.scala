@@ -64,7 +64,7 @@ case class SimpleResult(
     currentRow.get(idx).asInstanceOf[T]
   }
 
-  override def isLast(): Boolean = {
+  override def isLast: Boolean = {
     !rows.hasNext
   }
 }
