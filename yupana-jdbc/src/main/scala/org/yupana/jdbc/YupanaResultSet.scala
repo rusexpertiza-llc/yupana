@@ -88,7 +88,7 @@ class YupanaResultSet protected[jdbc] (
   @throws[SQLException]
   override def isLast: Boolean = {
     checkClosed()
-    !isInAfterLastPosition && result.isLast()
+    !isInAfterLastPosition && result.isLast
   }
 
   @throws[SQLException]
