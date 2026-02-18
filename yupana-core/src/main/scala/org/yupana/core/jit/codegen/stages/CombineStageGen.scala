@@ -30,14 +30,13 @@ object CombineStageGen {
       rowB: TermName
   ): (Seq[Tree], State) = {
     val aggregates = CommonGen.findAggregates(query.fields)
-
+    val groupByState = CommonGen.copyGroupByFields(state, query, rowA)
     if (aggregates.nonEmpty) {
-      val groupByState = CommonGen.copyGroupByFields(state, query, rowA)
       aggregates.foldLeft((Seq.empty[Tree], groupByState)) {
         case ((ts, s), ae) =>
           val r = ExpressionCodeGenFactory.aggExprCodeGenerator(ae).generateCombineCode(s, rowA, rowB)
           (ts ++ r.trees) -> r.state
       }
-    } else Nil -> state
+    } else Nil -> groupByState
   }
 }
