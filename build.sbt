@@ -527,7 +527,7 @@ lazy val versions = new {
   val scalaTest      = "3.2.19"
   val scalaTestCheck = "3.2.19.0"
   val scalaMock      = "7.4.1"
-  val testContainers = "0.43.0"
+  val testContainers = "0.44.1"
 }
 
 val commonSettings = Seq(
