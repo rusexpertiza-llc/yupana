@@ -732,11 +732,13 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     val z =
       div(double2bigDecimal(metric(TestTableFields.TEST_FIELD)), metric(TestTableFields.TEST_BIGDECIMAL_FIELD))
 
+    val xx = double2long(times(long2Double(metric(TestTableFields.TEST_LONG_FIELD)), metric(TestTableFields.TEST_FIELD)))
+
     val query = Query(
       TestSchema.testTable,
       const(Time(now.minusDays(3))),
       const(Time(now)),
-      Seq(x as "x", y as "y", z as "z")
+      Seq(x as "x", y as "y", z as "z", xx as "xx")
     )
 
     val qc = new QueryContext(query, None, tokenizer, JIT, NoMetricCollector)
@@ -744,16 +746,17 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     val batch = BatchDataset(qc)
 
     batch.set(0, Time(now.minusDays(2)))
-    batch.set(0, metric(TestTableFields.TEST_FIELD), 10d)
+    batch.set(0, metric(TestTableFields.TEST_FIELD), 10.1)
     batch.set(0, metric(TestTableFields.TEST_BYTE_FIELD), 1.toByte)
     batch.set(0, dimension(TestDims.DIM_B), 7.toShort)
     batch.set(0, metric(TestTableFields.TEST_LONG_FIELD), 3L)
 
     qc.calculator.evaluateExpressions(batch, Time(now), IndexedSeq.empty)
 
-    batch.get(0, x) shouldEqual 11d
+    batch.get(0, x) shouldEqual 11.1
     batch.get(0, y) shouldEqual 10L
     batch.isNull(0, z) shouldBe true
+    batch.get(0, xx) shouldEqual 30L
   }
 
   it should "handle nulls in case when in aggregation" in {
