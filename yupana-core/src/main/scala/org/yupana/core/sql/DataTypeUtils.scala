@@ -183,6 +183,7 @@ object DataTypeUtils {
     entry[BigDecimal, Currency](BigDecimal2CurrencyExpr),
     entry[Long, Currency](Long2CurrencyExpr),
     entry[Double, Currency](Double2CurrencyExpr),
+    entry[Double, Long](Double2LongExpr),
     entry[Currency, BigDecimal](Currency2BigDecimalExpr),
     entry[Currency, Long](Currency2LongExpr),
     entry[Currency, Double](Currency2DoubleExpr)

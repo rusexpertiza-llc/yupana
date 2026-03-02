@@ -706,6 +706,7 @@ final case class Double2BigDecimalExpr(expr: Expression[Double])
     extends TypeConvertExpr[Double, BigDecimal](expr, Double2BigDecimalExpr)
 final case class Double2CurrencyExpr(expr: Expression[Double])
     extends TypeConvertExpr[Double, Currency](expr, Double2CurrencyExpr)
+final case class Double2LongExpr(expr: Expression[Double]) extends TypeConvertExpr[Double, Long](expr, Double2LongExpr)
 
 final case class BigDecimal2DoubleExpr(expr: Expression[BigDecimal])
     extends TypeConvertExpr[BigDecimal, Double](expr, BigDecimal2DoubleExpr)

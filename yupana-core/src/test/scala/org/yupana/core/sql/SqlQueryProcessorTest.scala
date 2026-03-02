@@ -1003,6 +1003,20 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
     }
   }
 
+  it should "be possible convert double to long" in {
+    testQuery("""
+        | SELECT cast(testField as bigint) as d2i
+        | FROM test_table
+        | WHERE time >= timestamp '2025-1-31' and time < timestamp '2025-2-1'
+        |""".stripMargin) { q =>
+      q.table.value shouldEqual TestSchema.testTable
+
+      q.fields should contain theSameElementsInOrderAs List(
+        Double2LongExpr(metric(TestTableFields.TEST_FIELD)) as "d2i"
+      )
+    }
+  }
+
   it should "handle queries like this" in {
     testQuery("""SELECT
         |sum(CASE WHEN b = 2 THEN 1 ELSE 0) AS salesTicketsCount, day(time) AS d
