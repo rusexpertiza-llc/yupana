@@ -91,6 +91,7 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
       case Currency2BigDecimalExpr(e) => evaluateUnary(e)(_.toBigDecimal)
       case Long2CurrencyExpr(e)       => evaluateUnary(e)(Currency.ofLong)
       case Double2CurrencyExpr(e)     => evaluateUnary(e)(Currency.ofDouble)
+      case Double2LongExpr(e)         => evaluateUnary(e)(_.longValue)
       case Currency2LongExpr(e)       => evaluateUnary(e)(_.value / Currency.SUB)
       case Currency2DoubleExpr(e)     => evaluateUnary(e)(_.value.toDouble / Currency.SUB)
       case Long2BigDecimalExpr(e)     => evaluateUnary(e)(BigDecimal.valueOf)
