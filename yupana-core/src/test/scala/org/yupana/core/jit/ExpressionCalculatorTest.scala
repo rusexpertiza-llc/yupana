@@ -732,7 +732,8 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     val z =
       div(double2bigDecimal(metric(TestTableFields.TEST_FIELD)), metric(TestTableFields.TEST_BIGDECIMAL_FIELD))
 
-    val xx = double2long(times(long2Double(metric(TestTableFields.TEST_LONG_FIELD)), metric(TestTableFields.TEST_FIELD)))
+    val xx =
+      double2long(times(long2Double(metric(TestTableFields.TEST_LONG_FIELD)), metric(TestTableFields.TEST_FIELD)))
 
     val query = Query(
       TestSchema.testTable,
