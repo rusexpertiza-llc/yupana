@@ -265,8 +265,6 @@ class YupanaConnectionImpl(override val url: String, properties: Properties, exe
               Future.failed(ex)
           }
 
-          Future.failed(ex)
-
         case x => Future.failed(new YupanaException(s"Unexpected response ${x.toChar} in Next handler"))
       }
     }
