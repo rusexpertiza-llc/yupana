@@ -21,7 +21,7 @@ import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.utils.Tokenizer
 import org.yupana.core.jit.codegen.stages._
-import org.yupana.core.jit.codegen.{ BatchDatasetGen, CommonGen }
+import org.yupana.core.jit.codegen.{ BatchDatasetGen, CommonGen, KeyGen }
 import org.yupana.core.model.DatasetSchema
 
 object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializable {
@@ -128,81 +128,21 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
         ..$defs
 
         final class Key(val ds: BatchDataset, val rowNum: Int) {
-
-
            override def hashCode(): Int = {
-              var h = 0
-               ..${query.groupBy.zipWithIndex.map {
-          case (expr, i) =>
-            val valDecl = ValueDeclaration(s"keyField_$i")
-            val read = BatchDatasetGen.mkGet(schema, expr, TermName("ds"), q"rowNum", valDecl)
-            val mixfunc = if (i == 0) {
-              q"valueHash"
-            } else if (i < query.groupBy.size - 1) {
-              q"scala.util.hashing.MurmurHash3.mix(h, valueHash)"
-            } else {
-              q"scala.util.hashing.MurmurHash3.finalizeHash(scala.util.hashing.MurmurHash3.mix(h, valueHash), ${query.groupBy.size})"
-            }
-            q"""
-                         {
-                            ..$read
-                            val valueHash = if (${valDecl.validityFlagName}) ${valDecl.valueName}.hashCode() else 0
-                            h = $mixfunc
-                         }
-                     """
-        }}
-                h
+              ${KeyGen.mkHashCode(query, schema)}
            }
 
            override def equals(that: scala.Any): Boolean = {
-              var r = true
-              ..${query.groupBy.zipWithIndex.map {
-          case (expr, i) =>
-            val valDecl1 = ValueDeclaration(s"keyField1_$i")
-            val valDecl2 = ValueDeclaration(s"keyField2_$i")
-
-            val read1 =
-              BatchDatasetGen.mkGet(schema, expr, TermName("thatDs"), q"that.asInstanceOf[Key].rowNum", valDecl1)
-            val read2 = BatchDatasetGen.mkGet(schema, expr, TermName("ds"), q"rowNum", valDecl2)
-            q"""
-                       val thatDs = that.asInstanceOf[Key].ds
-                      ..$read1
-                      ..$read2
-                      r = r & (${valDecl1.validityFlagName} == ${valDecl2.validityFlagName}) & (${valDecl1.valueName} == ${valDecl2.valueName})
-                   """
-        }}
-              r
+              ${KeyGen.mkEquals(query, schema)}
            }
         }
 
         override def evaluateFilter($batch: BatchDataset, $NOW: Time, $PARAMS: IndexedSeq[Any]): Unit = {
-          var rowNum = 0
-          while (rowNum < $batch.size) {
-            ..${BatchDatasetGen.mkGetValues(filteredState, schema, q"rowNum")}
-            val fl = {..$filter}
-            if (!fl) {
-               $batch.setDeleted(rowNum)
-            }
-            rowNum += 1
-          }
+          ${filterBody(filter, filteredState, schema, batch)}
         }
 
         override def evaluateExpressions($batch: BatchDataset, $NOW: Time, $PARAMS: IndexedSeq[Any]): Unit = {
-          ${if (projectionState.hasWriteOps) {
-          q"""
-               var rowNum = 0
-               while (rowNum < $batch.size) {
-                  if (!$batch.isDeleted(rowNum)) {
-                    ..${BatchDatasetGen.mkGetValues(projectionState, schema, q"rowNum")}
-                    ..$projection
-                    ..${BatchDatasetGen.mkSetValues(projectionState, schema, q"rowNum")}
-                  }
-                  rowNum += 1
-               }
-            """
-        } else {
-          q"()"
-        }}
+          ${evaluateBody(projection, projectionState, schema, batch)}
         }
 
        override def createKey($batch: BatchDataset, rowNum: Int): AnyRef = {
@@ -210,100 +150,23 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
        }
 
        override def evaluateFold($acc: HashTableDataset, $batch: BatchDataset, $NOW: Time, $PARAMS: IndexedSeq[Any]): Unit = {
-
-           var rowNum = 0
-           while (rowNum < $batch.size) {
-              if (!$batch.isDeleted(rowNum)) {
-
-                val key = new Key($batch, rowNum)
-                val rowPtr = $acc.rowPointer(key)
-                if (rowPtr == HashTableDataset.KEY_NOT_FOUND) {
-                  ..${CommonGen.mkReadGroupByFields(query, schema, batch, q"rowNum")}
-                  ..${BatchDatasetGen.mkGetValues(zeroState, schema, batch, q"rowNum")}
-                  ..$zero
-                  val ptr = acc.newRow()
-                  val $accBatch = acc.batch(ptr)
-                  val accRowNum = acc.rowNumber(ptr)
-                  ..${CommonGen.mkWriteGroupByFields(query, schema, accBatch, q"accRowNum")}
-                  ..${BatchDatasetGen.mkSetValues(zeroState, schema, accBatch, q"accRowNum")}
-                  acc.updateKey(new Key($accBatch, accRowNum), ptr)
-                } else {
-                  ..${BatchDatasetGen.mkGetValues(foldedState, schema, batch, q"rowNum")}
-                  val $accBatch = acc.batch(rowPtr)
-                  val accRowNum = acc.rowNumber(rowPtr)
-                  ..${BatchDatasetGen.mkGetValues(foldedState, schema, accBatch, q"accRowNum")}
-                  ..$fold
-                  ..${BatchDatasetGen.mkSetValues(foldedState, schema, accBatch, q"accRowNum")}
-
-                }
-              }
-              rowNum += 1
-           }
+         ${evaluateFoldBody(zero, zeroState, fold, foldedState, query, schema, batch, acc, accBatch)}
         }
 
         override def evaluateCombine($acc: HashTableDataset, $batch: BatchDataset): Unit = {
-           var rowNum = 0
-           while (rowNum < $batch.size) {
-              if (!$batch.isDeleted(rowNum)) {
-                val key = new Key($batch, rowNum)
-                val rowPtr = $acc.rowPointer(key)
-                if (rowPtr == HashTableDataset.KEY_NOT_FOUND) {
-                  ..${CommonGen.mkReadGroupByFields(query, schema, batch, q"rowNum")}
-                  val ptr = acc.newRow()
-                  val $accBatch = acc.batch(ptr)
-                  val accRowNum = acc.rowNumber(ptr)
-                   ${CommonGen.copyAggregateFields(batch, q"rowNum", accBatch, q"accRowNum")}
-                   ..${CommonGen.mkWriteGroupByFields(query, schema, accBatch, q"accRowNum")}
-                  acc.updateKey(new Key($accBatch, accRowNum), ptr)
-                } else {
-                  ..${BatchDatasetGen.mkGetValues(reducedState, schema, batch, q"rowNum")}
-                  val $accBatch = acc.batch(rowPtr)
-                  val accRowNum = acc.rowNumber(rowPtr)
-                  ..${BatchDatasetGen.mkGetValues(reducedState, schema, accBatch, q"accRowNum")}
-                  ..$reduce
-                  ..${BatchDatasetGen.mkSetValues(reducedState, schema, accBatch, q"accRowNum")}
-                }
-              }
-              rowNum += 1
-           }
+           ${combineBody(reduce, reducedState, query, schema, batch, acc, accBatch)}
         }
 
         override def evaluatePostCombine($batch: BatchDataset): Unit = {
-           var rowNum = 0
-           while (rowNum < $batch.size) {
-              if (!$batch.isDeleted(rowNum)) {
-               ..${BatchDatasetGen.mkGetValues(postCombineState, schema, q"rowNum")}
-               ..$postCombine
-               ..${BatchDatasetGen.mkSetValues(postCombineState, schema, q"rowNum")}
-             }
-             rowNum += 1
-           }
+          ${postCombineBody(postCombine, postCombineState, schema, batch)}
         }
 
         def evaluatePostAggregateExprs($batch: BatchDataset): Unit = {
-           var rowNum = 0
-           while (rowNum < $batch.size) {
-              if (!$batch.isDeleted(rowNum)) {
-               ..${BatchDatasetGen.mkGetValues(postAggregateState, schema, q"rowNum")}
-               ..$postAggregate
-               ..${BatchDatasetGen.mkSetValues(postAggregateState, schema, q"rowNum")}
-              }
-              rowNum += 1
-           }
+           ${evaluatePostAggregateBody(postAggregate, postAggregateState, schema, batch)}
         }
 
         override def evaluatePostFilter(batch: BatchDataset, $NOW: Time, $PARAMS: IndexedSeq[Any]): Unit = {
-           var rowNum = 0
-           while (rowNum < $batch.size) {
-              if (!$batch.isDeleted(rowNum)) {
-               ..${BatchDatasetGen.mkGetValues(postFilterState, schema, q"rowNum")}
-               val fl = {..$postFilter}
-               if (!fl) {
-                 $batch.setDeleted(rowNum)
-               }
-             }
-             rowNum += 1
-           }
+          ${filterBody(postFilter, postFilterState, schema, batch)}
         }
 
         override def evaluateReadRow($buf: MemoryBuffer, $batch: BatchDataset, $rowNum: Int): Unit = {
@@ -321,6 +184,154 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
     }
 
     (tree, refsArray, schema)
+  }
+
+  private def filterBody(filter: Seq[Tree], state: State, schema: DatasetSchema, batch: TermName): Tree = {
+    if (filter.nonEmpty) {
+      q"""
+        var rowNum = 0
+        while (rowNum < $batch.size) {
+          ..${BatchDatasetGen.mkGetValues(state, schema, q"rowNum")}
+          val fl = {..$filter}
+          if (!fl) {
+            $batch.setDeleted(rowNum)
+          }
+          rowNum += 1
+        }
+      """
+    } else q"()"
+  }
+
+  private def evaluateBody(projection: Seq[Tree], state: State, schema: DatasetSchema, batch: TermName): Tree = {
+    if (state.hasWriteOps) {
+      foreachUndeleted(
+        batch,
+        q"""
+          ..${BatchDatasetGen.mkGetValues(state, schema, q"rowNum")}
+          ..$projection
+          ..${BatchDatasetGen.mkSetValues(state, schema, q"rowNum")}
+        """
+      )
+    } else q"()"
+  }
+
+  private def evaluateFoldBody(
+      zero: Seq[Tree],
+      zeroState: State,
+      fold: Seq[Tree],
+      foldedState: State,
+      query: Query,
+      schema: DatasetSchema,
+      batch: TermName,
+      acc: TermName,
+      accBatch: TermName
+  ): Tree = {
+    if (zero.nonEmpty || fold.nonEmpty || query.groupBy.nonEmpty) {
+      foreachUndeleted(
+        batch,
+        q"""
+        val key = new Key($batch, rowNum)
+        val rowPtr = $acc.rowPointer(key)
+        if (rowPtr == HashTableDataset.KEY_NOT_FOUND) {
+          ..${CommonGen.mkReadGroupByFields(query, schema, batch, q"rowNum")}
+          ..${BatchDatasetGen.mkGetValues(zeroState, schema, batch, q"rowNum")}
+          ..$zero
+          val ptr = acc.newRow()
+          val $accBatch = acc.batch(ptr)
+          val accRowNum = acc.rowNumber(ptr)
+          ..${CommonGen.mkWriteGroupByFields(query, schema, accBatch, q"accRowNum")}
+          ..${BatchDatasetGen.mkSetValues(zeroState, schema, accBatch, q"accRowNum")}
+          acc.updateKey(new Key($accBatch, accRowNum), ptr)
+        } else {
+          ..${BatchDatasetGen.mkGetValues(foldedState, schema, batch, q"rowNum")}
+          val $accBatch = acc.batch(rowPtr)
+          val accRowNum = acc.rowNumber(rowPtr)
+          ..${BatchDatasetGen.mkGetValues(foldedState, schema, accBatch, q"accRowNum")}
+          ..$fold
+          ..${BatchDatasetGen.mkSetValues(foldedState, schema, accBatch, q"accRowNum")}
+        }
+        """
+      )
+    } else q"()"
+  }
+
+  private def combineBody(
+      reduce: Seq[Tree],
+      state: State,
+      query: Query,
+      schema: DatasetSchema,
+      batch: TermName,
+      acc: TermName,
+      accBatch: TermName
+  ): Tree = {
+    if (reduce.nonEmpty) {
+      foreachUndeleted(
+        batch,
+        q"""
+        val key = new Key($batch, rowNum)
+        val rowPtr = $acc.rowPointer(key)
+        if (rowPtr == HashTableDataset.KEY_NOT_FOUND) {
+          ..${CommonGen.mkReadGroupByFields(query, schema, batch, q"rowNum")}
+          val ptr = acc.newRow()
+          val $accBatch = acc.batch(ptr)
+          val accRowNum = acc.rowNumber(ptr)
+           ${CommonGen.copyAggregateFields(batch, q"rowNum", accBatch, q"accRowNum")}
+           ..${CommonGen.mkWriteGroupByFields(query, schema, accBatch, q"accRowNum")}
+          acc.updateKey(new Key($accBatch, accRowNum), ptr)
+        } else {
+          ..${BatchDatasetGen.mkGetValues(state, schema, batch, q"rowNum")}
+          val $accBatch = acc.batch(rowPtr)
+          val accRowNum = acc.rowNumber(rowPtr)
+          ..${BatchDatasetGen.mkGetValues(state, schema, accBatch, q"accRowNum")}
+          ..$reduce
+          ..${BatchDatasetGen.mkSetValues(state, schema, accBatch, q"accRowNum")}
+        }
+     """
+      )
+    } else q"()"
+  }
+
+  private def postCombineBody(postCombine: Seq[Tree], state: State, schema: DatasetSchema, batch: TermName): Tree = {
+    if (postCombine.nonEmpty) {
+      foreachUndeleted(
+        batch,
+        q"""
+        ..${BatchDatasetGen.mkGetValues(state, schema, q"rowNum")}
+        ..$postCombine
+        ..${BatchDatasetGen.mkSetValues(state, schema, q"rowNum")}
+      """
+      )
+    } else q"()"
+  }
+
+  private def evaluatePostAggregateBody(
+      postAggregate: Seq[Tree],
+      state: State,
+      schema: DatasetSchema,
+      batch: TermName
+  ): Tree = {
+    if (postAggregate.nonEmpty) {
+      foreachUndeleted(
+        batch,
+        q"""
+        ..${BatchDatasetGen.mkGetValues(state, schema, q"rowNum")}
+        ..$postAggregate
+        ..${BatchDatasetGen.mkSetValues(state, schema, q"rowNum")}
+      """
+      )
+    } else q"()"
+  }
+
+  private def foreachUndeleted(batch: TermName, t: Tree): Tree = {
+    q"""
+       var rowNum = 0
+       while (rowNum < $batch.size) {
+         if (!$batch.isDeleted(rowNum)) {
+           $t
+         }
+         rowNum += 1
+       }
+     """
   }
 
   private def prettyTree(tree: Tree): String = {

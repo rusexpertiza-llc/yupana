@@ -67,6 +67,7 @@ abstract class FrameHandlerBase extends SimpleChannelInboundHandler[Frame[ByteBu
       case None    => logger.warn(logMessage)
     }
     val response = ErrorMessage(msg, streamId, severity)
+    logger.trace(s"Write response $response")
     ctx.writeAndFlush(response.toFrame(Unpooled.buffer()))
   }
 }

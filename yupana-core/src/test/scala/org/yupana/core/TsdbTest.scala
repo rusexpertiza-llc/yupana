@@ -857,7 +857,7 @@ class TsdbTest
 
     val res = tsdb.query(query)
     res.next() shouldBe false
-    res.isLast() shouldBe true
+    res.isLast shouldBe true
   }
 
   it should "execute query with downsampling" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -1200,6 +1200,44 @@ class TsdbTest
       c += 1
     }
     c shouldBe 2
+  }
+
+  it should "group by expression missing in projection" in withTsdbMock { (tsdb, tsdbDaoMock) =>
+    val qtime = LocalDateTime.of(2026, 2, 18, 11, 36).atOffset(ZoneOffset.UTC)
+    val from = qtime
+    val to = qtime.plusDays(1)
+    val now = Time(LocalDateTime.now())
+
+    val query = Query(
+      TestSchema.testTable,
+      const(Time(from)),
+      const(Time(to)),
+      Seq(truncDay(time) as "day"),
+      None,
+      Seq(truncDay(time), metric(TestTableFields.TEST_FIELD))
+    )
+
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD)),
+          and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+          IndexedSeq.empty
+        ),
+        *,
+        *,
+        NoMetricCollector
+      )
+      .onCall { (_, _, dbSchema, _) =>
+        val batch = new BatchDataset(dbSchema)
+        batch.set(0, Time(from.plusHours(1)))
+        batch.set(0, metric(TestTableFields.TEST_FIELD), 5.25d)
+        Iterator(batch)
+      }
+
+    val res = tsdb.query(query, now)
+    res.next() shouldBe true
   }
 
   it should "aggregate by constant expression" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -3883,7 +3921,7 @@ class TsdbTest
 
     val res = tsdb.query(query, now)
     res.next() shouldBe false
-    res.isLast() shouldBe true
+    res.isLast shouldBe true
   }
 
   it should "support queries without tables" in withTsdbMock { (tsdb, _) =>

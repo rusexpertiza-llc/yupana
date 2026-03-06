@@ -13,7 +13,7 @@ stages:
 verify formatting:
   stage: verify
   script:
-    - sbt scalafmtCheckAll
+    - sbt scalafmtCheckAll scalafmtSbtCheck headerCheck
 
 compile and test:
   stage: build

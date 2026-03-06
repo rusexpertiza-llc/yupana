@@ -28,7 +28,7 @@ trait Result extends AutoCloseable {
   def dataIndexForFieldIndex(idx: Int): Int
   def next(): Boolean
 
-  def isLast(): Boolean
+  def isLast: Boolean
 
   def isEmpty(name: String): Boolean
 
@@ -92,6 +92,6 @@ object Result {
 
     override def getOrElse[T](index: Int, default: => T): T = default
 
-    override def isLast(): Boolean = true
+    override def isLast: Boolean = true
   }
 }

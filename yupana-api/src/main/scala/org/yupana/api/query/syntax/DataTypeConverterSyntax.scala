@@ -41,6 +41,8 @@ trait DataTypeConverterSyntax {
   def x2String[T: DataType.Aux](e: Expression[T]): Expression[String] = ToStringExpr(e)
 
   def double2bigDecimal(e: Expression[Double]): Expression[BigDecimal] = Double2BigDecimalExpr(e)
+  def double2long(e: Expression[Double]): Expression[Long] = Double2LongExpr(e)
+
   def bigDecimal2Double(e: Expression[BigDecimal]): Expression[Double] = BigDecimal2DoubleExpr(e)
 }
 

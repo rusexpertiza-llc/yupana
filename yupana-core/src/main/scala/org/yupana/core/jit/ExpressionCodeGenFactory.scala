@@ -129,6 +129,7 @@ object ExpressionCodeGenFactory {
       case e @ Long2CurrencyExpr(_)       => UnaryExpressionCodeGen(e, l => q"Currency.ofLong($l)")
       case e @ Currency2LongExpr(_)       => UnaryExpressionCodeGen(e, c => q"$c.value / Currency.SUB")
       case e @ Double2CurrencyExpr(_)     => UnaryExpressionCodeGen(e, d => q"Currency.ofDouble($d)")
+      case e @ Double2LongExpr(_)         => UnaryExpressionCodeGen(e, d => q"$d.longValue")
       case e @ Currency2DoubleExpr(_)     => UnaryExpressionCodeGen(e, c => q"$c.value.toDouble / Currency.SUB")
 
       case e @ Long2BigDecimalExpr(_) => UnaryExpressionCodeGen(e, l => q"BigDecimal($l)")

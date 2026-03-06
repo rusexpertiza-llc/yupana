@@ -24,7 +24,7 @@ jobs:
       uses: sbt/setup-sbt@v1
 
     - name: Cache sbt
-      uses: actions/cache@v5.0.2
+      uses: actions/cache@v5.0.3
       with:
         path: |
           ~/.sbt
@@ -40,13 +40,13 @@ jobs:
         echo -e "realm=Dummy\nhost=example.com\nuser=user\npassword=password" > "$HOME/.ivy2/.credentials_nexus"
 
     - name: Verify the code
-      run: sbt headerCheck scalafmtCheckAll
+      run: sbt headerCheck scalafmtCheckAll scalafmtSbtCheck
 
   build:
     name: Compile and test
     strategy:
       matrix:
-        scala: [2.13.16]
+        scala: [2.13.18]
 
     runs-on: ubuntu-latest
 
@@ -63,7 +63,7 @@ jobs:
 
 
     - name: Cache sbt
-      uses: actions/cache@v5.0.2
+      uses: actions/cache@v5.0.3
       with:
         path: |
           ~/.sbt
@@ -81,6 +81,6 @@ jobs:
     - name: Run tests
       run: sbt ++${{ matrix.scala }} clean coverage test coverageReport
 
-    - uses: codecov/codecov-action@v5.5.1
+    - uses: codecov/codecov-action@v5.5.2
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
