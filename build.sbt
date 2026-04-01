@@ -582,7 +582,7 @@ val publishSettings = Seq(
   publishMavenStyle      := true,
   publishTo              := {
     if (isSnapshot.value)
-      Some("nexus common snapshots" at "https://nexus.esc-hq.ru/nexus/content/repositories/common-snapshots/")
+      Some("nexus common snapshots" at "https://gitlab.esc-hq.ru/api/v4/projects/243/packages/maven/")
     else
       localStaging.value
   },
@@ -623,11 +623,11 @@ val releaseSettings = Seq(
 val allSettings = commonSettings ++ publishSettings ++ releaseSettings
 
 ThisBuild / credentials += makeCredentials(
-  "nexus.esc-hq.ru",
-  "Sonatype Nexus Repository Manager",
+  "gitlab.esc-hq.ru",
+  "GitLab Packages Registry",
   "REPO_USER",
   "REPO_PASSWORD",
-  Path.userHome / ".ivy2" / ".credentials_nexus",
+  Path.userHome / ".ivy2" / ".credentials_ofd",
   sLog.value
 )
 
