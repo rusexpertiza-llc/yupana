@@ -625,8 +625,8 @@ val allSettings = commonSettings ++ publishSettings ++ releaseSettings
 ThisBuild / credentials += makeCredentials(
   "nexus.esc-hq.ru",
   "Sonatype Nexus Repository Manager",
-  "REPO_USER",
-  "REPO_PASSWORD",
+  "NEXUS_USER",
+  "NEXUS_PASSWORD",
   Path.userHome / ".ivy2" / ".credentials_nexus",
   sLog.value
 )
