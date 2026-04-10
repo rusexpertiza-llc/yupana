@@ -56,7 +56,7 @@ class Stream(id: Int, result: Result) {
       res += ResultRow(id, bytes)
       i += 1
     }
-    if (i < count - 1) {
+    if (i < count) {
       res += new ResultFooter(id, -1, rows)
       footerSent = true
     }
