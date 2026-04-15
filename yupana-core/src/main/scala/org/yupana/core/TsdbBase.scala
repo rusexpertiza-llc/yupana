@@ -22,6 +22,7 @@ import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.{ ExternalLink, Schema, Table }
 import org.yupana.api.types.DataType
+import org.yupana.core.TsdbBase.DEBUGGER_USER
 import org.yupana.core.auth.Action.Write
 import org.yupana.core.auth.{ PermissionService, YupanaUser }
 import org.yupana.core.dao.{ ChangelogDao, TSDao }
@@ -110,7 +111,7 @@ trait TsdbBase extends StrictLogging {
 
     val optimizedQuery = QueryOptimizer.optimize(constantCalculator)(preparedQuery)
 
-    logger.debug(s"Optimized query: $optimizedQuery")
+    logger.debug(s"${preparedQuery.uuidLog} Optimized query: $optimizedQuery")
 
     val metricCollector = createMetricCollector(optimizedQuery, user)
     val mr = mapReduceEngine(metricCollector)
@@ -140,24 +141,26 @@ trait TsdbBase extends StrictLogging {
             val flatAndCondition = FlatAndCondition(constantCalculator, withPlaceholders)
 
             val substitutedCondition = substituteLinks(flatAndCondition, startTime, user, metricCollector)
-            logger.debug(s"Substituted condition: $substitutedCondition")
+            logger.debug(s"${preparedQuery.uuidLog} Substituted condition: $substitutedCondition")
 
             val postDaoConditions = substitutedCondition.map { tbc =>
               if (FlatAndCondition.mergeByTime(flatAndCondition).flatMap(_._3).distinct.size == 1) {
-                logger.debug(s"Same flatAndConditions set for all time bounds")
+                logger.debug(s"${preparedQuery.uuidLog} Same flatAndConditions set for all time bounds")
                 tbc.copy(conditions = tbc.conditions.filter { c =>
                   c != ConstantExpr(true) && !dao.isSupportedCondition(c)
                 })
               } else {
-                logger.debug(s"Different flatAndConditions sets exists for different time bounds")
+                logger.debug(
+                  s"${preparedQuery.uuidLog} Different flatAndConditions sets exists for different time bounds"
+                )
                 tbc
               }
             }
 
-            logger.debug(s"Without dao conditions: $postDaoConditions")
+            logger.debug(s"${preparedQuery.uuidLog} Without dao conditions: $postDaoConditions")
 
             val finalPostDaoCondition = mergeCondition(postDaoConditions)
-            logger.debug(s"Final post condition: $finalPostDaoCondition")
+            logger.debug(s"${preparedQuery.uuidLog} Final post condition: $finalPostDaoCondition")
 
             val qc =
               metricCollector.createContext.measure(1)(
@@ -225,6 +228,12 @@ trait TsdbBase extends StrictLogging {
 
     val stage1res = mr.map(rows) { batch =>
 
+      if (metricCollector.user == DEBUGGER_USER) {
+        logger.whenTraceEnabled {
+          logger.trace(s"${metricCollector.query.id} rows directly from the storage: \n${batch.print()}")
+        }
+      }
+
       metricCollector.readExternalLinks.measure(batch.size) {
         readExternalLinks(queryContext, batch)
       }
@@ -232,9 +241,23 @@ trait TsdbBase extends StrictLogging {
       metricCollector.filter.measure(batch.size) {
         queryContext.calculator.evaluateFilter(batch, startTime, params)
       }
+
+      if (metricCollector.user == DEBUGGER_USER) {
+        logger.whenTraceEnabled {
+          logger.trace(s"${metricCollector.query.id} rows after evaluateFilter: \n${batch.print()}")
+        }
+      }
+
       metricCollector.evaluateExpressions.measure(batch.size) {
         queryContext.calculator.evaluateExpressions(batch, startTime, params)
       }
+
+      if (metricCollector.user == DEBUGGER_USER) {
+        logger.whenTraceEnabled {
+          logger.trace(s"${metricCollector.query.id} rows after evaluateExpressions: \n${batch.print()}")
+        }
+      }
+
       batch
     }
 
@@ -253,9 +276,23 @@ trait TsdbBase extends StrictLogging {
       )
 
       mr.map(aggregated) { batch =>
+
+        if (metricCollector.user == DEBUGGER_USER) {
+          logger.whenTraceEnabled {
+            logger.trace(s"${metricCollector.query.id} rows after aggregation: \n${batch.print()}")
+          }
+        }
+
         metricCollector.reduceOperation.measure(batch.size) {
           queryContext.calculator.evaluatePostCombine(batch)
         }
+
+        if (metricCollector.user == DEBUGGER_USER) {
+          logger.whenTraceEnabled {
+            logger.trace(s"${metricCollector.query.id} rows after evaluatePostCombine: \n${batch.print()}")
+          }
+        }
+
         batch
       }
     } else if (hasWindowFunctions) {
@@ -268,6 +305,13 @@ trait TsdbBase extends StrictLogging {
 
     val stage3res = mr.map(stage2res) { batch =>
       queryContext.calculator.evaluatePostAggregateExprs(batch)
+
+      if (metricCollector.user == DEBUGGER_USER) {
+        logger.whenTraceEnabled {
+          logger.trace(s"${metricCollector.query.id} rows after evaluatePostAggregateExprs: \n${batch.print()}")
+        }
+      }
+
       batch
     }
 
@@ -276,6 +320,13 @@ trait TsdbBase extends StrictLogging {
         metricCollector.postFilter.measure(batch.size) {
           queryContext.calculator.evaluatePostFilter(batch, startTime, params)
         }
+
+        if (metricCollector.user == DEBUGGER_USER) {
+          logger.whenTraceEnabled {
+            logger.trace(s"${metricCollector.query.id} rows after evaluatePostFilter: \n${batch.print()}")
+          }
+        }
+
         batch
       }
     } else {
@@ -422,4 +473,8 @@ trait TsdbBase extends StrictLogging {
     changelogDao.putUpdatesIntervals(materializedIntervals)
   }
 
+}
+
+object TsdbBase {
+  val DEBUGGER_USER = "debugger"
 }
