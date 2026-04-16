@@ -230,7 +230,7 @@ trait TsdbBase extends StrictLogging {
 
       if (metricCollector.user == DEBUGGER_USER) {
         logger.whenTraceEnabled {
-          logger.trace(s"${metricCollector.query.id} rows directly from the storage: \n${batch.print()}")
+          logger.trace(s"${metricCollector.query.id} rows directly from the storage: \n${batch.asString}")
         }
       }
 
@@ -244,7 +244,7 @@ trait TsdbBase extends StrictLogging {
 
       if (metricCollector.user == DEBUGGER_USER) {
         logger.whenTraceEnabled {
-          logger.trace(s"${metricCollector.query.id} rows after evaluateFilter: \n${batch.print()}")
+          logger.trace(s"${metricCollector.query.id} rows after evaluateFilter: \n${batch.asString}")
         }
       }
 
@@ -254,7 +254,7 @@ trait TsdbBase extends StrictLogging {
 
       if (metricCollector.user == DEBUGGER_USER) {
         logger.whenTraceEnabled {
-          logger.trace(s"${metricCollector.query.id} rows after evaluateExpressions: \n${batch.print()}")
+          logger.trace(s"${metricCollector.query.id} rows after evaluateExpressions: \n${batch.asString}")
         }
       }
 
@@ -279,7 +279,7 @@ trait TsdbBase extends StrictLogging {
 
         if (metricCollector.user == DEBUGGER_USER) {
           logger.whenTraceEnabled {
-            logger.trace(s"${metricCollector.query.id} rows after aggregation: \n${batch.print()}")
+            logger.trace(s"${metricCollector.query.id} rows after aggregation: \n${batch.asString}")
           }
         }
 
@@ -289,7 +289,7 @@ trait TsdbBase extends StrictLogging {
 
         if (metricCollector.user == DEBUGGER_USER) {
           logger.whenTraceEnabled {
-            logger.trace(s"${metricCollector.query.id} rows after evaluatePostCombine: \n${batch.print()}")
+            logger.trace(s"${metricCollector.query.id} rows after evaluatePostCombine: \n${batch.asString}")
           }
         }
 
@@ -308,7 +308,7 @@ trait TsdbBase extends StrictLogging {
 
       if (metricCollector.user == DEBUGGER_USER) {
         logger.whenTraceEnabled {
-          logger.trace(s"${metricCollector.query.id} rows after evaluatePostAggregateExprs: \n${batch.print()}")
+          logger.trace(s"${metricCollector.query.id} rows after evaluatePostAggregateExprs: \n${batch.asString}")
         }
       }
 
@@ -323,7 +323,7 @@ trait TsdbBase extends StrictLogging {
 
         if (metricCollector.user == DEBUGGER_USER) {
           logger.whenTraceEnabled {
-            logger.trace(s"${metricCollector.query.id} rows after evaluatePostFilter: \n${batch.print()}")
+            logger.trace(s"${metricCollector.query.id} rows after evaluatePostFilter: \n${batch.asString}")
           }
         }
 
