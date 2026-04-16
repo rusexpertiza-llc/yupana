@@ -407,7 +407,7 @@ final class BatchDataset(private var _schema: DatasetSchema, val capacity: Int =
     rowNum * (schema.numOfFields + 1) + fieldIdx + 1
   }
 
-  def print(): String = {
+  def asString: String = {
     val colNames = schema.exprIndex.keys.toSeq
     (s"${colNames.map(_.encode).mkString(";")}" +: LazyList.from(0).takeWhile(_ < size).map { i =>
       colNames.map(c => get(i, c)).mkString(";")
