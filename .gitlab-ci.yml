@@ -1,9 +1,9 @@
 default:
-  image: sbtscala/scala-sbt:eclipse-temurin-17.0.15_6_1.11.6_2.12.20
+  image: registry.docker.ofd.nov:5000/analytics/ci-liberica-sbt:jdk_17.0.16_sbt_1.12.9
   tags:
     - analytics
     - build
-    - shell
+    - docker
 
 stages:
   - verify
