@@ -5,6 +5,12 @@ default:
     - build
     - docker
 
+services:
+  - docker:dind
+
+variables:
+  DOCKER_HOST: tcp://docker:2375
+
 stages:
   - verify
   - build
