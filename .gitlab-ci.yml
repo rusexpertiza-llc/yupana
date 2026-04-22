@@ -23,6 +23,7 @@ compile and test:
   services:
     - docker:dind
   script:
+    - echo "DOCKER_HOST=${DOCKER_HOST}"
     - sbt compile test
   artifacts:
     when: always
