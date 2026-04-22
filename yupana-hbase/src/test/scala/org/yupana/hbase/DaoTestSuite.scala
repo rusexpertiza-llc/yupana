@@ -26,8 +26,8 @@ class DaoTestSuite
 
   val container: GenericContainer = {
     logger.info("instantiating Hbase Container " + ImageName)
-    val gc = new GenericContainer(ImageName)
-    gc.container.withNetworkMode("host")
+    val gc = new GenericContainer(ImageName, Seq(2181, 16000, 16010, 16020))
+//    gc.container.withNetworkMode("host")
     gc
   }
 
