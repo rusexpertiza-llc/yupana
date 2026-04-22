@@ -5,6 +5,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.HBaseConfiguration
 import org.scalatest.flatspec.AnyFlatSpec
+import org.testcontainers.containers.wait.strategy.Wait
 
 trait HBaseTestBase {
   def getConfiguration: Configuration
@@ -26,7 +27,11 @@ class DaoTestSuite
 
   val container: GenericContainer = {
     logger.info("instantiating Hbase Container " + ImageName)
-    val gc = new GenericContainer(ImageName, Seq(2181, 16000, 16010, 16020))
+    val gc = new GenericContainer(
+      ImageName,
+      Seq(2181, 16000, 16010, 16020),
+      waitStrategy = Some(Wait.forHttp("/").forPort(16010).forStatusCode(200))
+    )
 //    gc.container.withNetworkMode("host")
     gc
   }
