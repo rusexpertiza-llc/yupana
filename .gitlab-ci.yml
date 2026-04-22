@@ -22,10 +22,11 @@ compile and test:
   stage: build
   services:
     - docker:dind
+  before_script:
+    - docker info
   script:
     - echo "DOCKER_HOST=${DOCKER_HOST}"
     - ls /certs
-    - docker info
     - sbt compile test
   artifacts:
     when: always
