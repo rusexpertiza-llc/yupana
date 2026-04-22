@@ -33,10 +33,11 @@ class DaoTestSuite
 
   override def getConfiguration: Configuration = {
     val hBaseConfiguration = HBaseConfiguration.create()
-    hBaseConfiguration.set("hbase.zookeeper.quorum", "localhost")
+    println(s"!!!! ${container.host}")
+    hBaseConfiguration.set("hbase.zookeeper.quorum", container.host)
     hBaseConfiguration.get("hbase.zookeeper.property.clientPort", "2181")
     hBaseConfiguration
   }
 
-  override val connection = new ExternalLinkHBaseConnection(getConfiguration, "test")
+  override lazy val connection = new ExternalLinkHBaseConnection(getConfiguration, "test")
 }
