@@ -1,6 +1,5 @@
 default:
-  # image: registry.docker.ofd.nov:5000/analytics/ci-liberica-sbt:jdk_17.0.16_sbt_1.12.9
-  image: docker:29.4.1-cli
+  image: registry.docker.ofd.nov:5000/analytics/ci-liberica-sbt:jdk_17.0.16_sbt_1.12.9
   tags:
     - analytics
     - build
