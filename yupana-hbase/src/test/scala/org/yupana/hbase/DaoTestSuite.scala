@@ -35,7 +35,7 @@ class DaoTestSuite
     val hBaseConfiguration = HBaseConfiguration.create()
     println(s"!!!! ${container.host}")
     hBaseConfiguration.set("hbase.zookeeper.quorum", container.host)
-    hBaseConfiguration.get("hbase.zookeeper.property.clientPort", "2181")
+    hBaseConfiguration.get("hbase.zookeeper.property.clientPort", container.firstMappedPort.toString)
     hBaseConfiguration
   }
 
