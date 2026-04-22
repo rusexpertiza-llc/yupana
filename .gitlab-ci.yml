@@ -24,6 +24,8 @@ compile and test:
     - docker:dind
   script:
     - echo "DOCKER_HOST=${DOCKER_HOST}"
+    - ls /certs
+    - docker info
     - sbt compile test
   artifacts:
     when: always
