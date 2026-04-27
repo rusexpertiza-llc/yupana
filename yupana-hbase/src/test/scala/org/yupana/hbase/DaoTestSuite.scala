@@ -1,6 +1,6 @@
 package org.yupana.hbase
 
-import com.dimafeng.testcontainers.{ ForAllTestContainer, GenericContainer }
+import com.dimafeng.testcontainers.{ FixedHostPortGenericContainer, ForAllTestContainer }
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.HBaseConfiguration
@@ -25,13 +25,14 @@ class DaoTestSuite
 
   val ImageName = "pikkvile/hbase-2.4.15-standalone:1.0.0"
 
-  val container: GenericContainer = {
+  val container: FixedHostPortGenericContainer = {
     logger.info("instantiating Hbase Container " + ImageName)
-    val gc = new GenericContainer(
+    val gc = new FixedHostPortGenericContainer(
       ImageName,
       Seq(2181, 16000, 16010, 16020),
       waitStrategy = Some(Wait.forHttp("/").forPort(16010).forStatusCode(200))
     )
+//    gc.container.withFixedExposedPort(2121, 2121)
 //    gc.container.withNetworkMode("host")
     gc
   }
