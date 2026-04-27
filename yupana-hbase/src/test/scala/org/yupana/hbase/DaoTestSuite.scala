@@ -6,6 +6,9 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.HBaseConfiguration
 import org.scalatest.flatspec.AnyFlatSpec
 import org.testcontainers.containers.wait.strategy.Wait
+import org.testcontainers.images.builder.Transferable
+
+import scala.io.Source
 
 trait HBaseTestBase {
   def getConfiguration: Configuration
@@ -34,6 +37,10 @@ class DaoTestSuite
       portBindings = hbasePorts.map(x => (x, x)),
       waitStrategy = Some(Wait.forHttp("/").forPort(16010).forStatusCode(200))
     )
+    gc.container.withCopyToContainer(
+      Transferable.of(Source.fromResource("hbase-site.xml").getLines().mkString),
+      "/opt/hbase/conf/hbase-site.xml"
+    )
 //    gc.container.withFixedExposedPort(2121, 2121)
 //    gc.container.withNetworkMode("host")
     gc
@@ -44,6 +51,14 @@ class DaoTestSuite
     println(s"!!!! ${container.host}")
     hBaseConfiguration.set("hbase.zookeeper.quorum", container.host)
     hBaseConfiguration.get("hbase.zookeeper.property.clientPort", "2181")
+
+    hBaseConfiguration.set("hbase.master.hostname", container.host)
+    hBaseConfiguration.set("hbase.regionserver.hostname", container.host)
+
+    hBaseConfiguration.set("hbase.client.retries.number", "3")
+    hBaseConfiguration.set("hbase.client.pause", "1000")
+    hBaseConfiguration.set("zookeeper.recovery.retry", "1")
+
     hBaseConfiguration
   }
 
