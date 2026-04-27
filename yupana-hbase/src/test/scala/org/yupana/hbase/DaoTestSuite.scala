@@ -27,9 +27,11 @@ class DaoTestSuite
 
   val container: FixedHostPortGenericContainer = {
     logger.info("instantiating Hbase Container " + ImageName)
+    val hbasePorts = Seq(2181, 16000, 16010, 16020)
     val gc = new FixedHostPortGenericContainer(
       ImageName,
-      Seq(2181, 16000, 16010, 16020),
+      exposedPorts = hbasePorts,
+      portBindings = hbasePorts.map(x => (x, x)),
       waitStrategy = Some(Wait.forHttp("/").forPort(16010).forStatusCode(200))
     )
 //    gc.container.withFixedExposedPort(2121, 2121)
@@ -41,7 +43,7 @@ class DaoTestSuite
     val hBaseConfiguration = HBaseConfiguration.create()
     println(s"!!!! ${container.host}")
     hBaseConfiguration.set("hbase.zookeeper.quorum", container.host)
-    hBaseConfiguration.get("hbase.zookeeper.property.clientPort", container.firstMappedPort.toString)
+    hBaseConfiguration.get("hbase.zookeeper.property.clientPort", "2181")
     hBaseConfiguration
   }
 
