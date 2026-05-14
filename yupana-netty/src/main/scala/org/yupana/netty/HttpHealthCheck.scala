@@ -17,23 +17,19 @@
 package org.yupana.netty
 
 import io.netty.bootstrap.ServerBootstrap
+import io.netty.channel.ChannelInitializer
 import io.netty.channel.socket.SocketChannel
-import io.netty.channel.{ ChannelInitializer, ChannelOption }
-import io.netty.handler.timeout.IdleStateHandler
+import io.netty.handler.codec.http.HttpServerCodec
 
-class YupanaServer(host: String, port: Int, nThreads: Int, serverContext: ServerContext)
-    extends NettyServer(host, port, nThreads, "YupanaServer") {
+class HttpHealthCheck(host: String, port: Int, nThreads: Int, serverContext: ServerContext)
+    extends NettyServer(host, port, nThreads, "HTTP health check") {
 
   override def setup(bootstrap: ServerBootstrap): Unit = {
-    bootstrap
-      .childHandler(new ChannelInitializer[SocketChannel] {
-        override def initChannel(ch: SocketChannel): Unit = {
-          ch.pipeline().addLast(new IdleStateHandler(30, 0, 0))
-          ch.pipeline().addLast("frame", new FrameCodec())
-          ch.pipeline().addLast("handler", new ConnectingHandler(serverContext))
-        }
-      })
-      .option(ChannelOption.SO_BACKLOG, Integer.valueOf(128))
-      .childOption(ChannelOption.SO_KEEPALIVE, Boolean.box(true))
+    bootstrap.childHandler(new ChannelInitializer[SocketChannel] {
+      override def initChannel(ch: SocketChannel): Unit = {
+        ch.pipeline.addLast(new HttpServerCodec())
+        ch.pipeline.addLast(new HealthCheckHandler(serverContext))
+      }
+    })
   }
 }
