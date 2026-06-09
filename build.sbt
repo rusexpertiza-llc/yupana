@@ -50,7 +50,7 @@ lazy val api = (project in file("yupana-api"))
     libraryDependencies ++= Seq(
       "org.threeten"       % "threeten-extra"  % versions.threeTenExtra,
       "org.scalatest"     %% "scalatest"       % versions.scalaTest      % Test,
-      "org.scalatestplus" %% "scalacheck-1-18" % versions.scalaTestCheck % Test
+      "org.scalatestplus" %% "scalacheck-1-19" % versions.scalaTestCheck % Test
     )
   )
   .disablePlugins(AssemblyPlugin)
@@ -62,7 +62,7 @@ lazy val serialization = (project in file("yupana-serialization"))
     libraryDependencies ++= Seq(
       "org.threeten"       % "threeten-extra"  % versions.threeTenExtra,
       "org.scalatest"     %% "scalatest"       % versions.scalaTest      % Test,
-      "org.scalatestplus" %% "scalacheck-1-18" % versions.scalaTestCheck % Test
+      "org.scalatestplus" %% "scalacheck-1-19" % versions.scalaTestCheck % Test
     )
   )
   .disablePlugins(AssemblyPlugin)
@@ -165,7 +165,7 @@ lazy val core = (project in file("yupana-core"))
       "ch.qos.logback"              % "logback-classic" % versions.logback        % Test,
       "org.scalatest"              %% "scalatest"       % versions.scalaTest      % Test,
       "org.scalamock"              %% "scalamock"       % versions.scalaMock      % Test,
-      "org.scalatestplus"          %% "scalacheck-1-18" % versions.scalaTestCheck % Test
+      "org.scalatestplus"          %% "scalacheck-1-19" % versions.scalaTestCheck % Test
     )
   )
   .dependsOn(api, serialization, settings, metrics, cache, utils % Test, testUtils % Test)
@@ -406,7 +406,7 @@ lazy val testUtils = (project in file("yupana-test-utils"))
     name := "yupana-test-utils",
     allSettings,
     libraryDependencies ++= Seq(
-      "org.scalatestplus" %% "scalacheck-1-18"          % versions.scalaTestCheck,
+      "org.scalatestplus" %% "scalacheck-1-19"          % versions.scalaTestCheck,
       "org.scalatest"     %% "scalatest-flatspec"       % versions.scalaTest,
       "org.scalatest"     %% "scalatest-shouldmatchers" % versions.scalaTest
     )
@@ -520,13 +520,13 @@ lazy val versions = new {
 
   val flyway         = "7.4.0"
   val hikariCP       = "4.0.3"
-  val logback        = "1.3.14"
+  val logback        = "1.3.16"
   val h2Jdbc         = "1.4.200"
-  val postgresqlJdbc = "42.7.7"
+  val postgresqlJdbc = "42.7.11"
 
-  val scalaTest      = "3.2.19"
-  val scalaTestCheck = "3.2.19.0"
-  val scalaMock      = "7.4.1"
+  val scalaTest      = "3.2.20"
+  val scalaTestCheck = "3.2.20.0"
+  val scalaMock      = "7.5.5"
   val testContainers = "0.44.1"
 }
 
