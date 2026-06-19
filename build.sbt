@@ -643,14 +643,19 @@ def makeCredentials(
     passwordVar: String,
     path: File,
     logger: Logger
-): Credentials = {
+): Option[Credentials] = {
   (sys.env.get(userNameVar), sys.env.get(passwordVar)) match {
     case (Some(u), Some(p)) =>
       logger.info(s"Have username '$u' in $userNameVar and some password in $passwordVar")
-      Credentials(realm, host, u, p)
+      Some(Credentials(realm, host, u, p))
 
     case _ =>
-      logger.info(s"Reading credentials from file $path")
-      Credentials(path)
+      if (path.exists()) {
+        logger.info(s"Reading credentials from file $path")
+        Some(Credentials(path))
+      } else {
+        logger.warn(s"Cannot obtain credentials for $host")
+        None
+      }
   }
 }
