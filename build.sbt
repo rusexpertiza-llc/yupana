@@ -497,7 +497,7 @@ def minMaj(v: String, default: String): String = {
 lazy val versions = new {
   val scala213 = "2.13.18"
 
-  val spark = "4.1.1"
+  val spark = "4.1.2"
 
   val threeTenExtra = "1.8.0"
 
