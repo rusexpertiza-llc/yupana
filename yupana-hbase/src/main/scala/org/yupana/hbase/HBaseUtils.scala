@@ -413,7 +413,7 @@ object HBaseUtils extends StrictLogging {
     TSDRowKey(baseTime, dimReprs)
   }
 
-  private def checkSchemaDefinition(connection: Connection, namespace: String, schema: Schema): SchemaCheckResult = {
+  def checkSchemaDefinition(connection: Connection, namespace: String, schema: Schema): SchemaCheckResult = {
 
     val metaTableName = TableName.valueOf(namespace, tsdbSchemaTableName)
 
@@ -484,7 +484,7 @@ object HBaseUtils extends StrictLogging {
     }
   }
 
-  private def logCheckMessages(msgs: List[SchemaCheckMessage]): Unit = {
+  def logCheckMessages(msgs: List[SchemaCheckMessage]): Unit = {
     msgs.foreach {
       case Error(msg)   => logger.error(s"  Schema error: $msg")
       case Warning(msg) => logger.warn(s"  Schema warning: $msg")
