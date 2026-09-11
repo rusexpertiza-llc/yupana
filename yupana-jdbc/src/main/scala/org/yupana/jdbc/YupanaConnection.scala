@@ -221,7 +221,7 @@ trait YupanaConnection extends Connection {
 
   @throws[SQLException]
   override def isValid(timeoutSeconds: Int): Boolean = {
-    isClosed || (try {
+    !isClosed && (try {
       Using.resource(createStatement()) { statement =>
         statement.setQueryTimeout(timeoutSeconds)
         Using.resource(statement.executeQuery("SELECT 1")) { rs =>
