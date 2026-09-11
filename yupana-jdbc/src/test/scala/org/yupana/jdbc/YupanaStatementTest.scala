@@ -9,6 +9,8 @@ import org.scalatest.matchers.should.Matchers
 import org.yupana.jdbc.YupanaConnection.QueryResult
 import org.yupana.protocol.ParameterValue
 
+import scala.concurrent.duration.Duration
+
 class YupanaStatementTest extends AnyFlatSpec with Matchers with MockFactory {
 
   "YupanaStatement" should "execute queries" in {
@@ -25,7 +27,7 @@ class YupanaStatementTest extends AnyFlatSpec with Matchers with MockFactory {
       Iterator(Array[Any]("thing", 1), Array[Any]("Another", 4))
     )
 
-    (conn.runQuery _).expects(q, Map.empty[Int, ParameterValue]).returning(QueryResult(1, result))
+    (conn.runQuery _).expects(q, Map.empty[Int, ParameterValue], Duration.Inf).returning(QueryResult(1, result))
 
     statement.execute(q) shouldBe true
     val rs = statement.getResultSet
@@ -66,11 +68,8 @@ class YupanaStatementTest extends AnyFlatSpec with Matchers with MockFactory {
     an[SQLFeatureNotSupportedException] should be thrownBy statement.setMaxFieldSize(1234)
     an[SQLFeatureNotSupportedException] should be thrownBy statement.getMaxFieldSize
 
-    statement.setQueryTimeout(0)
-    statement.getQueryTimeout shouldEqual 0
-
-    an[SQLFeatureNotSupportedException] should be thrownBy statement.setQueryTimeout(60)
-    statement.getQueryTimeout shouldEqual 0
+    statement.setQueryTimeout(60)
+    statement.getQueryTimeout shouldEqual 60
 
     an[SQLFeatureNotSupportedException] should be thrownBy statement.executeUpdate("UPSERT (1) INTO items(kkmId)")
 

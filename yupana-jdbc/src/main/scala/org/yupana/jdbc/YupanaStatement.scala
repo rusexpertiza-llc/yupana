@@ -17,11 +17,16 @@
 package org.yupana.jdbc
 
 import java.sql.{ Array => _, _ }
+import scala.concurrent.duration.{ Duration, DurationInt }
 
 class YupanaStatement(val connection: YupanaConnection) extends Statement {
+
   private var maxRows = 0
   private var fetchSize = 0
   private var closed = false
+
+  protected var queryTimeout: Duration = Duration.Inf
+
   protected var lastResultSet: YupanaResultSet = _
 
   @throws[SQLException]
@@ -49,7 +54,7 @@ class YupanaStatement(val connection: YupanaConnection) extends Statement {
   @throws[SQLException]
   override def execute(sql: String): Boolean = {
     checkClosed()
-    val result = connection.runQuery(sql, Map.empty)
+    val result = connection.runQuery(sql, Map.empty, queryTimeout)
     lastResultSet = new YupanaResultSet(this, result.result, Some(result.id))
     true
   }
@@ -77,11 +82,13 @@ class YupanaStatement(val connection: YupanaConnection) extends Statement {
     throw new SQLFeatureNotSupportedException("Method not supported: setEscapeProcessing(boolean)")
 
   @throws[SQLException]
-  override def getQueryTimeout: Int = 0
+  override def getQueryTimeout: Int = queryTimeout.toSeconds.toInt
 
   @throws[SQLException]
-  override def setQueryTimeout(i: Int): Unit =
-    if (i != 0) throw new SQLFeatureNotSupportedException("Timeout limit is not supported")
+  override def setQueryTimeout(seconds: Int): Unit = {
+    if (seconds < 0) throw new SQLException("Timeout can't be negative")
+    queryTimeout = seconds.seconds
+  }
 
   @throws[SQLException]
   override def cancel(): Unit = {

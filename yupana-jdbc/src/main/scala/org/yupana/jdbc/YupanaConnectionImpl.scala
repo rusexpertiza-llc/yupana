@@ -34,7 +34,7 @@ import java.util.logging.Logger
 import java.util.{ Properties, Timer, TimerTask }
 import scala.collection.mutable
 import scala.concurrent.duration.Duration
-import scala.concurrent.{ Await, ExecutionContext, Future, Promise }
+import scala.concurrent.{ Await, ExecutionContext, Future, Promise, TimeoutException }
 
 class YupanaConnectionImpl(override val url: String, properties: Properties, executionContext: ExecutionContext)
     extends YupanaConnection {
@@ -65,14 +65,22 @@ class YupanaConnectionImpl(override val url: String, properties: Properties, exe
 
   connect(System.currentTimeMillis())
 
-  override def runQuery(query: String, params: Map[Int, ParameterValue]): QueryResult = {
+  override def runQuery(
+      query: String,
+      params: Map[Int, ParameterValue],
+      timeout: Duration = Duration.Inf
+  ): QueryResult = {
     val id = nextId.incrementAndGet()
-    wrapError(execRequestQuery(id, SqlQuery(id, query, params)))
+    wrapError(execRequestQuery(id, SqlQuery(id, query, params)), timeout)
   }
 
-  override def runBatchQuery(query: String, params: Seq[Map[Int, ParameterValue]]): QueryResult = {
+  override def runBatchQuery(
+      query: String,
+      params: Seq[Map[Int, ParameterValue]],
+      timeout: Duration = Duration.Inf
+  ): QueryResult = {
     val id = nextId.incrementAndGet()
-    wrapError(execRequestQuery(id, BatchQuery(id, query, params)))
+    wrapError(execRequestQuery(id, BatchQuery(id, query, params)), timeout)
   }
 
   override def cancelStream(streamId: Int): Unit = {
@@ -96,15 +104,16 @@ class YupanaConnectionImpl(override val url: String, properties: Properties, exe
   @throws[SQLException]
   override def isClosed: Boolean = closed
 
-  private def wrapError[T](r: => Future[T]): T = {
+  private def wrapError[T](r: => Future[T], timeout: Duration = Duration.Inf): T = {
     try {
-      Await.result(r, Duration.Inf)
+      Await.result(r, timeout)
     } catch {
-      case io: IOException =>
-        channel.close()
+      case e @ (_: IOException | _: TimeoutException) =>
+        try { channel.close() }
+        catch { case _: IOException => () }
         closed = true
         cancelHeartbeats()
-        throw new SQLException("Connection problem, closing", io)
+        throw new SQLException("Network timeout or connection lost. Channel force closed.", "08S01", e)
 
       case e: SQLException => throw e
       case x: Throwable    => throw new SQLException(x)

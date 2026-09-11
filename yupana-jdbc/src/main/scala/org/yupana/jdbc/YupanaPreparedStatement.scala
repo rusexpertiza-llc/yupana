@@ -66,7 +66,7 @@ class YupanaPreparedStatement protected[jdbc] (connection: YupanaConnection, tem
   override def execute: Boolean = {
     checkClosed()
     YupanaPreparedStatement.LOGGER.log(Level.FINE, "Execute prepared statement {0}", templateQuery)
-    val result = connection.runQuery(templateQuery, parameters)
+    val result = connection.runQuery(templateQuery, parameters, queryTimeout)
     lastResultSet = new YupanaResultSet(this, result.result, Some(result.id))
     true
   }
@@ -76,7 +76,7 @@ class YupanaPreparedStatement protected[jdbc] (connection: YupanaConnection, tem
     checkClosed()
     YupanaPreparedStatement.LOGGER.log(Level.FINE, "Execute prepared statement {0}", templateQuery)
     if (batch.isEmpty) throw new SQLException("Batch is not defined")
-    val result = connection.runBatchQuery(templateQuery, batch.toSeq)
+    val result = connection.runBatchQuery(templateQuery, batch.toSeq, queryTimeout)
     lastResultSet = new YupanaResultSet(this, result.result, Some(result.id))
     Array.fill(batch.size)(1)
   }

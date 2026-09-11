@@ -21,7 +21,6 @@ import org.yupana.protocol.{ Command, Frame }
 
 import java.nio.ByteBuffer
 import java.nio.channels.{ AsynchronousSocketChannel, CompletionHandler }
-import java.util.concurrent.TimeUnit
 import java.util.logging.Logger
 import scala.collection.mutable
 import scala.concurrent.{ Future, Promise }
@@ -55,8 +54,6 @@ class BufferedChannelWriter(channel: AsynchronousSocketChannel)(implicit writer:
 
     channel.write(
       bb,
-      10,
-      TimeUnit.SECONDS,
       p,
       new CompletionHandler[Integer, Promise[Unit]] {
         override def completed(result: Integer, p: Promise[Unit]): Unit = {

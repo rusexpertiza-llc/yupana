@@ -372,7 +372,7 @@ class YupanaConnectionImplTest extends AnyFlatSpec with Matchers with OptionValu
         )
         .result
       res.next()
-    } should have message "Connection problem, closing"
+    } should have message "Network timeout or connection lost. Channel force closed."
   }
 
   it should "operate normally after streaming error" in withServerConnected { (server, id) =>
@@ -429,7 +429,7 @@ class YupanaConnectionImplTest extends AnyFlatSpec with Matchers with OptionValu
     the[SQLException] thrownBy connection.runQuery(
       "SELECT 1",
       Map.empty
-    ) should have message "Connection problem, closing"
+    ) should have message "Network timeout or connection lost. Channel force closed."
   }
 
   private def withServerConnected[T](
