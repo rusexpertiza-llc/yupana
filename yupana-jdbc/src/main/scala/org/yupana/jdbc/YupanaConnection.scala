@@ -25,6 +25,7 @@ import java.util
 import java.util.Properties
 import java.util.concurrent.Executor
 import scala.util.Using
+import scala.util.control.NonFatal
 
 trait YupanaConnection extends Connection {
 
@@ -219,15 +220,17 @@ trait YupanaConnection extends Connection {
   override def createSQLXML: SQLXML = throw new SQLFeatureNotSupportedException("SQLXMLs are not supported")
 
   @throws[SQLException]
-  // NOTE: we do not support timeouts (yet?)
-  override def isValid(i: Int): Boolean = {
-    if (!isClosed) {
+  override def isValid(timeoutSeconds: Int): Boolean = {
+    isClosed || (try {
       Using.resource(createStatement()) { statement =>
+        statement.setQueryTimeout(timeoutSeconds)
         Using.resource(statement.executeQuery("SELECT 1")) { rs =>
-          rs.next() && rs.getBigDecimal(1) == java.math.BigDecimal.ONE
+          rs.next()
         }
       }
-    } else false
+    } catch {
+      case NonFatal(_) => false
+    })
   }
 
   @throws[SQLClientInfoException]
