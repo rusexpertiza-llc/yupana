@@ -226,7 +226,7 @@ trait YupanaConnection extends Connection {
       Using.resource(createStatement()) { statement =>
         statement.setQueryTimeout(timeoutSeconds)
         Using.resource(statement.executeQuery("SELECT 1")) { rs =>
-          rs.next()
+          rs.next() && rs.getBigDecimal(1) == java.math.BigDecimal.ONE
         }
       }
     } catch {

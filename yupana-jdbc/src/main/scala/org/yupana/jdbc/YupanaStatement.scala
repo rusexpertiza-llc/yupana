@@ -82,12 +82,19 @@ class YupanaStatement(val connection: YupanaConnection) extends Statement {
     throw new SQLFeatureNotSupportedException("Method not supported: setEscapeProcessing(boolean)")
 
   @throws[SQLException]
-  override def getQueryTimeout: Int = queryTimeout.toSeconds.toInt
+  override def getQueryTimeout: Int = queryTimeout match {
+    case Duration.Inf => 0
+    case d            => d.toSeconds.toInt
+  }
 
   @throws[SQLException]
   override def setQueryTimeout(seconds: Int): Unit = {
     if (seconds < 0) throw new SQLException("Timeout can't be negative")
-    queryTimeout = seconds.seconds
+    else if (seconds == 0) {
+      queryTimeout = Duration.Inf
+    } else {
+      queryTimeout = seconds.seconds
+    }
   }
 
   @throws[SQLException]

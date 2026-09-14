@@ -34,7 +34,7 @@ import java.util.logging.Logger
 import java.util.{ Properties, Timer, TimerTask }
 import scala.collection.mutable
 import scala.concurrent.duration.Duration
-import scala.concurrent.{ Await, ExecutionContext, Future, Promise, TimeoutException }
+import scala.concurrent.{ Await, ExecutionContext, Future, Promise }
 
 class YupanaConnectionImpl(override val url: String, properties: Properties, executionContext: ExecutionContext)
     extends YupanaConnection {
@@ -108,13 +108,11 @@ class YupanaConnectionImpl(override val url: String, properties: Properties, exe
     try {
       Await.result(r, timeout)
     } catch {
-      case e @ (_: IOException | _: TimeoutException) =>
-        try { channel.close() }
-        catch { case _: IOException => () }
+      case e: IOException =>
+        channel.close()
         closed = true
         cancelHeartbeats()
-        throw new SQLException("Network timeout or connection lost. Channel force closed.", "08S01", e)
-
+        throw new SQLException("Connection problem, closing", e)
       case e: SQLException => throw e
       case x: Throwable    => throw new SQLException(x)
     }
