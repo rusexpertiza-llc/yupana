@@ -24,15 +24,17 @@ import org.yupana.protocol.ParameterValue
 import java.util
 import java.util.Properties
 import java.util.concurrent.Executor
+import scala.concurrent.duration.Duration
 import scala.util.Using
+import scala.util.control.NonFatal
 
 trait YupanaConnection extends Connection {
 
   // By default JDBC connection is in auto-commit mode
   private var autoCommit = true
 
-  def runQuery(query: String, params: Map[Int, ParameterValue]): QueryResult
-  def runBatchQuery(query: String, params: Seq[Map[Int, ParameterValue]]): QueryResult
+  def runQuery(query: String, params: Map[Int, ParameterValue], timeout: Duration): QueryResult
+  def runBatchQuery(query: String, params: Seq[Map[Int, ParameterValue]], timeout: Duration): QueryResult
   def url: String
 
   def cancelStream(streamId: Int): Unit
@@ -219,15 +221,17 @@ trait YupanaConnection extends Connection {
   override def createSQLXML: SQLXML = throw new SQLFeatureNotSupportedException("SQLXMLs are not supported")
 
   @throws[SQLException]
-  // NOTE: we do not support timeouts (yet?)
-  override def isValid(i: Int): Boolean = {
-    if (!isClosed) {
+  override def isValid(timeoutSeconds: Int): Boolean = {
+    !isClosed && (try {
       Using.resource(createStatement()) { statement =>
+        statement.setQueryTimeout(timeoutSeconds)
         Using.resource(statement.executeQuery("SELECT 1")) { rs =>
           rs.next() && rs.getBigDecimal(1) == java.math.BigDecimal.ONE
         }
       }
-    } else false
+    } catch {
+      case NonFatal(_) => false
+    })
   }
 
   @throws[SQLClientInfoException]

@@ -10,6 +10,8 @@ import org.scalatest.matchers.should.Matchers
 import org.yupana.jdbc.YupanaConnection.QueryResult
 import org.yupana.protocol.ParameterValue
 
+import scala.concurrent.duration.Duration
+
 class YupanaDatabaseMetaDataTest extends AnyFlatSpec with Matchers with MockFactory {
 
   "YupanaDatabaseMetaData" should "provide common Yupana capabilities info" in {
@@ -262,7 +264,7 @@ class YupanaDatabaseMetaDataTest extends AnyFlatSpec with Matchers with MockFact
     )
 
     (() => conn.createStatement).expects().returning(new YupanaStatement(conn))
-    (conn.runQuery _).expects("SHOW TABLES", Map.empty[Int, ParameterValue]).returning(tables)
+    (conn.runQuery _).expects("SHOW TABLES", Map.empty[Int, ParameterValue], Duration.Inf).returning(tables)
 
     val rs = m.getTables("", "", "", Array.empty)
     val result = Iterator.continually(rs).takeWhile(_.next()).map(_.getString("TABLE_NAME")).toSeq
@@ -287,7 +289,9 @@ class YupanaDatabaseMetaDataTest extends AnyFlatSpec with Matchers with MockFact
     )
 
     (() => conn.createStatement).expects().returning(new YupanaStatement(conn))
-    (conn.runQuery _).expects("SHOW COLUMNS FROM EMPLOYEES", Map.empty[Int, ParameterValue]).returning(tables)
+    (conn.runQuery _)
+      .expects("SHOW COLUMNS FROM EMPLOYEES", Map.empty[Int, ParameterValue], Duration.Inf)
+      .returning(tables)
 
     val rs = m.getColumns("", "", "EMPLOYEES", "")
     val result = Iterator.continually(rs).takeWhile(_.next()).map(_.getString("COLUMN_NAME")).toSeq

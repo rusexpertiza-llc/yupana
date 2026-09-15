@@ -12,6 +12,8 @@ import org.yupana.api.types.DataType
 import org.yupana.jdbc.YupanaConnection.QueryResult
 import org.yupana.protocol.{ NumericValue, StringValue, TimestampValue }
 
+import scala.concurrent.duration.Duration
+
 class YupanaPreparedStatementTest extends AnyFlatSpec with Matchers with MixedMockFactory {
 
   "YupanaPreparedStatement" should "collect parameters" in {
@@ -32,7 +34,8 @@ class YupanaPreparedStatementTest extends AnyFlatSpec with Matchers with MixedMo
           1 -> TimestampValue(1578580000000L),
           2 -> TimestampValue(1578584211000L),
           3 -> StringValue("игрушка мягкая")
-        )
+        ),
+        Duration.Inf
       )
       .returning(QueryResult(42, SimpleResult("dummy", Seq.empty, Seq.empty, Iterator.empty)))
 
@@ -60,7 +63,8 @@ class YupanaPreparedStatementTest extends AnyFlatSpec with Matchers with MixedMo
         q,
         Map(
           2 -> TimestampValue(1578584211000L)
-        )
+        ),
+        Duration.Inf
       )
       .returning(QueryResult(2, SimpleResult("dummy", Seq.empty, Seq.empty, Iterator.empty)))
 
@@ -105,7 +109,8 @@ class YupanaPreparedStatementTest extends AnyFlatSpec with Matchers with MixedMo
             4 -> NumericValue(3.5d),
             5 -> NumericValue(3)
           )
-        )
+        ),
+        Duration.Inf
       )
       .returning(QueryResult(3, SimpleResult("dummy", Seq.empty, Seq.empty, Iterator.empty)))
 
@@ -143,7 +148,8 @@ class YupanaPreparedStatementTest extends AnyFlatSpec with Matchers with MixedMo
             4 -> NumericValue(1.40),
             5 -> NumericValue(1.5)
           )
-        )
+        ),
+        Duration.Inf
       )
       .returning(QueryResult(4, SimpleResult("dummy", Seq.empty, Seq.empty, Iterator.empty)))
 

@@ -10,13 +10,18 @@ import org.yupana.protocol.ParameterValue
 import java.sql.{ Connection, ResultSet, SQLClientInfoException, SQLFeatureNotSupportedException, Statement }
 import java.util.Properties
 import java.util.concurrent.ForkJoinPool
+import scala.concurrent.duration.Duration
 
 class YupanaConnectionTest extends AnyFlatSpec with Matchers {
 
   class TestConnection extends YupanaConnection {
 
     private var closed = false
-    override def runQuery(query: String, params: Map[Int, ParameterValue]): QueryResult = {
+    override def runQuery(
+        query: String,
+        params: Map[Int, ParameterValue],
+        timeout: Duration = Duration.Inf
+    ): QueryResult = {
       if (query == "SELECT 1") {
         QueryResult(1, SimpleResult("test", Seq("1"), Seq(DataType[BigDecimal]), Iterator(Array[Any](BigDecimal(1)))))
       } else {
@@ -24,7 +29,11 @@ class YupanaConnectionTest extends AnyFlatSpec with Matchers {
       }
     }
 
-    override def runBatchQuery(query: String, params: Seq[Map[Int, ParameterValue]]): QueryResult =
+    override def runBatchQuery(
+        query: String,
+        params: Seq[Map[Int, ParameterValue]],
+        timeout: Duration = Duration.Inf
+    ): QueryResult =
       QueryResult(1, Result.empty)
 
     override def url: String = ""
