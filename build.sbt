@@ -501,15 +501,15 @@ lazy val versions = new {
 
   val threeTenExtra = "1.10.0"
 
-  val scalaLogging = "3.9.6"
+  val scalaLogging = "4.0.0-RC1"
   val fastparse    = "3.1.1"
   val scopt        = "4.1.0"
-  val prometheus   = "1.8.0"
+  val prometheus   = "1.9.0"
 
   val hbase  = "2.5.13"
   val hadoop = "3.4.2"
 
-  val netty = "4.2.9.Final"
+  val netty = "4.2.19.Final"
 
   val lucene   = "6.6.0"
   val ignite   = "2.17.0"
